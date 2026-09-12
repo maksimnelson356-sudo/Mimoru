@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GamePanel, GamePlayerGameStats, GamePlayerStats, GameSession
 from app.db.models import Group, User
-from app.games.enums import ACTIVE_SESSION_STATUSES
+from app.games.enums import ACTIVE_SESSION_STATUSES, GameSessionStatus
 from app.games.locks import advisory_xact_lock
 from app.games.registry import GameRegistry, game_registry
 
@@ -20,10 +20,13 @@ _GAME_PANEL_LOCK_NAMESPACE = 4_676_944
 
 def panel_markup(*, active_game: GameSession | None) -> InlineKeyboardMarkup:
     if active_game is not None:
-        return InlineKeyboardMarkup(inline_keyboard=[
+        rows = [
             [InlineKeyboardButton(text="👀 Открыть игру", callback_data=f"gm:open:{active_game.id}")],
             [InlineKeyboardButton(text="📖 Правила", callback_data=f"gm:rules:{active_game.game_type}")],
-        ])
+        ]
+        if active_game.status in {GameSessionStatus.RUNNING.value, GameSessionStatus.RECOVERING.value}:
+            rows.append([InlineKeyboardButton(text="➖ Выйти из игры", callback_data=f"gm:leave:{active_game.id}")])
+        return InlineKeyboardMarkup(inline_keyboard=rows)
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎮 Начать игру", callback_data="gm:list")],
         [

@@ -15,6 +15,7 @@ from app.games.lobby import close_lobby_message, ensure_lobby_message
 from app.games.messages import retire_active_messages
 from app.games.manager import GameConflictError, GameManager, GameNotFoundError, GamePlayerError
 from app.games.panels import ensure_game_panel, render_profile, render_rating
+from app.games.base import LeaveResult
 from app.games.registry import game_registry
 from app.services.access import can_manage_group
 
@@ -182,6 +183,26 @@ async def game_leave_lobby(callback: CallbackQuery, bot: Bot, session: AsyncSess
     except GamePlayerError as error:
         await callback.answer("Создатель лобби может только отменить игру." if "creator" in str(error) else "Выйти из этого лобби уже нельзя.", show_alert=True); return
     await ensure_lobby_message(bot, session, group=group, game=game, manager=manager); await callback.answer("Вы вышли из лобби")
+
+
+@router.callback_query(F.data.regexp(r"^gm:leave:\d+$"))
+async def game_leave_running(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+    game_id = int((callback.data or "").rsplit(":", 1)[-1]); resolved = await _callback_game_group(callback, session, game_id=game_id)
+    if resolved is None: return
+    game, group = resolved
+    if game.status not in {GameSessionStatus.RUNNING.value, GameSessionStatus.RECOVERING.value}:
+        await callback.answer("❌ Эта кнопка больше не активна.", show_alert=True); return
+    try:
+        result = await manager.leave_running(session, game_id=game.id, user_telegram_id=callback.from_user.id)
+    except GamePlayerError as error:
+        await callback.answer(f"❌ {error}", show_alert=True); return
+    if result == LeaveResult.CANCELLED:
+        await retire_active_messages(bot, session, game_id=game.id, replacement_text="❌ Игра отменена: создатель вышел.")
+        await callback.answer("Игра отменена", show_alert=True)
+    elif result == LeaveResult.REMOVED:
+        await callback.answer("Вы вышли из игры", show_alert=True)
+    else:
+        await callback.answer("Выйти нельзя.", show_alert=True)
 
 
 @router.callback_query(F.data.regexp(r"^gm:s:\d+$"))
