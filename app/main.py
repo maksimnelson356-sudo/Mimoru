@@ -30,6 +30,7 @@ from app.handlers import ad_invoice_safety, ad_legacy_payment_guard, ad_market_a
 from app.handlers import kick_retirement
 from app.health import HealthServer
 from app.middlewares import DatabaseMiddleware
+from app.middlewares_dedup import MessageDeduplicationMiddleware
 from app.middlewares_group_mutation import GroupMutationLockMiddleware
 from app.middlewares_performance import SlowUpdateLoggingMiddleware
 from app.middlewares_rank_access import RankAccessModeMiddleware
@@ -177,18 +178,38 @@ async def main() -> None:
     dp = Dispatcher(redis=redis)
     runtime_counter_middleware = RuntimeUpdateCounterMiddleware(runtime_tracker)
     slow_update_middleware = SlowUpdateLoggingMiddleware()
+    dedup_middleware = MessageDeduplicationMiddleware(redis)
     cancelled_reply_middleware = CancelledReplyMiddleware(redis)
     db_middleware = DatabaseMiddleware()
     rank_access_middleware = RankAccessModeMiddleware()
     group_mutation_lock_middleware = GroupMutationLockMiddleware()
     sensitive_alias_access_middleware = SensitiveGroupAliasAccessMiddleware()
     rank_mutation_lock_middleware = RankMutationLockMiddleware()
+    # ВАЖНО: dp.*.outer_middleware использует LIFO (см. MiddlewareManager.wrap_middlewares).
+    # Последний зарегистрированный = первый в цепочке. Поэтому порядок регистрации
+    # обратный желаемому порядку выполнения.
+    #
+    # Желаемый порядок для Message:
+    #   slow_update -> runtime_counter -> dedup -> cancelled_reply -> db -> handler
+    #
+    # Желаемый порядок для CallbackQuery:
+    #   slow_update -> runtime_counter -> dedup -> db -> handler
+
+    # 1. Самые внешние update-уровня (регистрируются последними → вызываются первыми)
     dp.update.outer_middleware(runtime_counter_middleware)
     dp.update.outer_middleware(slow_update_middleware)
+
+    # 2. Message (LIFO: сначала внутренние, потом внешние)
+    dp.message.outer_middleware(db_middleware)                # внутренний
     dp.message.outer_middleware(cancelled_reply_middleware)
-    dp.message.outer_middleware(db_middleware)
+    dp.message.outer_middleware(dedup_middleware)             # внешний
+
+    # 3. CallbackQuery (LIFO)
+    dp.callback_query.outer_middleware(db_middleware)         # внутренний
+    dp.callback_query.outer_middleware(dedup_middleware)      # внешний
+
+    # 4. Остальные типы — только db_middleware, без dedup
     dp.edited_message.outer_middleware(db_middleware)
-    dp.callback_query.outer_middleware(db_middleware)
     dp.pre_checkout_query.outer_middleware(db_middleware)
     dp.chat_join_request.outer_middleware(db_middleware)
     dp.chat_member.outer_middleware(db_middleware)
