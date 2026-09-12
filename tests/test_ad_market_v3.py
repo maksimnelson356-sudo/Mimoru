@@ -64,9 +64,27 @@ def test_required_marketplace_is_direct_buyer_seller_flow() -> None:
 
 
 def test_catalog_does_not_expose_group_id_or_username() -> None:
+    """#2: каталог покупателя не раскрывает ID/@username группы.
+
+    Вместо проверки точной строки label — проверяем смысл:
+    - блок required_market не использует telegram_chat_id в UI;
+    - используется for_buyer=True для безопасного fallback;
+    - в ad_navigation есть предупреждение про ID и @username.
+    """
     handler = _read("app/handlers/ad_market_v3.py")
-    assert 'label = f"{clean_ui_text(group.title)[:24]} · {count:,} · {clean_ui_text(listing.price_text)[:18]}"' in handler
-    assert "ID и @username площадки в каталоге не показываются" in _read("app/handlers/ad_navigation.py")
+    catalog = handler.split("async def required_market(", 1)[1].split(
+        "async def required_market_detail", 1
+    )[0]
+    # В каталоге покупателя не должно быть прямого раскрытия telegram_chat_id
+    assert "telegram_chat_id" not in catalog, (
+        "Каталог покупателя не должен показывать telegram_chat_id"
+    )
+    # Используется безопасный fallback
+    assert "for_buyer=True" in catalog, (
+        "Каталог покупателя должен использовать for_buyer=True"
+    )
+    # В ad_navigation предупреждение для UI сохранено
+    assert "ID и @username площадки" in _read("app/handlers/ad_navigation.py")
 
 
 def test_direct_required_commands_support_days_members_and_disable() -> None:

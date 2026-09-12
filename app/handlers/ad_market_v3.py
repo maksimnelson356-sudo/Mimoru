@@ -455,7 +455,65 @@ async def _seller_group(session: AsyncSession, group_id: int, owner_id: int) -> 
         Group.owner_telegram_id == owner_id,
         Group.is_active.is_(True),
     ))
+# ── #2: fallback для отображения названий групп ──────────────────────────
 
+_PLACEHOLDER_TITLES = {"unknown", "неизвестно", "группа", "чат", "none", "-"}
+
+
+def _group_title_or_placeholder(group: Group, *, for_buyer: bool = False) -> str:
+    """Быстрый fallback без обращения к Telegram API.
+
+    Используется в списках, где вызов bot.get_chat на каждую группу
+    был бы медленным.
+
+    for_buyer=True — покупателю не раскрываем telegram_chat_id.
+    """
+    title = (group.title or "").strip()
+    if title and title.lower() not in _PLACEHOLDER_TITLES:
+        return clean_ui_text(title)
+    if for_buyer:
+        return "Приватная группа"
+    return f"Чат {group.telegram_chat_id}"
+
+
+async def _resolve_group_title(
+    bot: Bot,
+    session: AsyncSession,
+    group: Group,
+    *,
+    for_buyer: bool = False,
+) -> str:
+    """Название группы для UI с fallback-цепочкой (с обращением к Telegram API).
+
+    1. group.title, если непустой и не placeholder
+    2. bot.get_chat(telegram_chat_id).title (сохраняет в БД)
+    3. bot.get_chat(...).username как @username
+    4. for_buyer → "Приватная группа", иначе f"Чат {telegram_chat_id}"
+
+    Обновляет group.title в БД при успешном ответе Telegram.
+    """
+    # 1. Быстрый путь — уже есть валидный title
+    title = (group.title or "").strip()
+    if title and title.lower() not in _PLACEHOLDER_TITLES:
+        return clean_ui_text(title)
+
+    # 2. Пробуем Telegram API
+    try:
+        chat = await bot.get_chat(group.telegram_chat_id)
+        if chat.title:
+            group.title = chat.title
+            await session.commit()
+            return clean_ui_text(chat.title)
+        if chat.username:
+            # @username сохраняем только в UI, в БД не пишем (это не title)
+            return f"@{chat.username}"
+    except (TelegramBadRequest, TelegramForbiddenError):
+        pass
+
+    # 3. Финальный fallback
+    if for_buyer:
+        return "Приватная группа"
+    return f"Чат {group.telegram_chat_id}"
 
 async def _listing_view(bot: Bot, session: AsyncSession, listing: RequiredAdListing) -> tuple[Group | None, int]:
     group = await session.get(Group, listing.seller_group_id)
@@ -477,7 +535,7 @@ async def required_sell_home(callback: CallbackQuery, session: AsyncSession, sta
         .where(Group.owner_telegram_id == callback.from_user.id, Group.is_active.is_(True))
         .order_by(Group.title)
     )).all())
-    rows = [[InlineKeyboardButton(text=clean_ui_text(group.title)[:58], callback_data=f"reqlist:group:{group.id}")] for group in groups]
+    rows = [[InlineKeyboardButton(text=_group_title_or_placeholder(group)[:58], callback_data=f"reqlist:group:{group.id}")] for group in groups]
     rows.append([InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")])
     rows.append([InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")])
     await callback.message.edit_text(
@@ -498,7 +556,7 @@ async def _render_seller_listing(callback: CallbackQuery, bot: Bot, session: Asy
     if listing is None:
         text = panel_header(
             "Объявление ОП",
-            f"Группа: {clean_ui_text(group.title)}\nУчастников: {count:,}\n\nОбъявление ещё не создано.",
+            f"Группа: {await _resolve_group_title(bot, session, group)}\nУчастников: {count:,}\n\nОбъявление ещё не создано.",
         )
         rows = [
             [InlineKeyboardButton(text="➕ Создать объявление", callback_data=f"reqlist:start:{group.id}")],
@@ -510,7 +568,7 @@ async def _render_seller_listing(callback: CallbackQuery, bot: Bot, session: Asy
             await session.commit()
         text = panel_header(
             "Объявление ОП",
-            f"Группа: {clean_ui_text(group.title)}\n"
+            f"Группа: {await _resolve_group_title(bot, session, group)}\n"
             f"Участников: {count:,}\n"
             f"Минимальный срок: {listing.min_days} дн.\n"
             f"Цена: {clean_ui_text(listing.price_text)} {_unit_label(listing.price_unit)}\n"
@@ -629,7 +687,7 @@ async def required_price_input(message: Message, bot: Bot, session: AsyncSession
     await message.answer(
         panel_header(
             "Объявление опубликовано",
-            f"Группа: {clean_ui_text(group.title)}\nУчастников: {count:,}\nМинимальный срок: {listing.min_days} дн.\nЦена: {price} {_unit_label(listing.price_unit)}",
+            f"Группа: {await _resolve_group_title(bot, session, group)}\nУчастников: {count:,}\nМинимальный срок: {listing.min_days} дн.\nЦена: {price} {_unit_label(listing.price_unit)}",
         ),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀️ К объявлению", callback_data=f"reqlist:group:{group.id}")],
@@ -672,7 +730,7 @@ async def required_market(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         group, count = await _listing_view(bot, session, listing)
         if group is None or not group.is_active:
             continue
-        label = f"{clean_ui_text(group.title)[:24]} · {count:,} · {clean_ui_text(listing.price_text)[:18]}"
+        label = f"{_group_title_or_placeholder(group, for_buyer=True)[:24]} · {count:,} · {clean_ui_text(listing.price_text)[:18]}"
         rows.append([InlineKeyboardButton(text=label[:60], callback_data=f"reqmarket:{listing.id}")])
         visible_count += 1
     rows.append([InlineKeyboardButton(text="📨 Мои запросы", callback_data="reqdeal:buyer")])
@@ -702,7 +760,7 @@ async def required_market_detail(callback: CallbackQuery, bot: Bot, session: Asy
     await callback.message.edit_text(
         panel_header(
             "Предложение обязательной подписки",
-            f"Группа: {clean_ui_text(group.title)}\n"
+            f"Группа: {await _resolve_group_title(bot, session, group, for_buyer=True)}\n"
             f"Участников: {count:,}\n"
             f"Минимальный срок: {listing.min_days} дн.\n"
             f"Цена: {clean_ui_text(listing.price_text)} {_unit_label(listing.price_unit)}\n\n"
@@ -733,7 +791,7 @@ async def required_deal_start(callback: CallbackQuery, session: AsyncSession, st
     rows: list[list[InlineKeyboardButton]] = []
     for group in groups:
         rows.append([InlineKeyboardButton(
-            text=clean_ui_text(group.title)[:58],
+            text=_group_title_or_placeholder(group)[:58],
             callback_data=f"reqdeal:pick:{listing.id}:{group.id}",
         )])
     rows.append([InlineKeyboardButton(text="➕ Ввести @username или ссылку вручную", callback_data=f"reqdeal:manual:{listing.id}")])
@@ -800,13 +858,22 @@ async def required_deal_pick(callback: CallbackQuery, bot: Bot, session: AsyncSe
     session.add(deal)
     await session.commit()
     seller_group = await session.get(Group, listing.seller_group_id)
-    group_title = clean_ui_text(seller_group.title) if seller_group is not None else "Группа недоступна"
+    group_title = (
+        await _resolve_group_title(bot, session, seller_group)
+        if seller_group is not None
+        else "Группа недоступна"
+    )
+    buyer_group_title = (
+        await _resolve_group_title(bot, session, group)
+        if group is not None
+        else "Группа покупателя"
+    )
     seller_text = panel_header(
         "Новый запрос на ОП",
         f"Ваша группа: {group_title}\n"
         f"Условия объявления: от {listing.min_days} дн., {clean_ui_text(listing.price_text)} {_unit_label(listing.price_unit)}\n\n"
         f"Покупатель хочет подключить: {target}\n"
-        f"Группа покупателя: {clean_ui_text(group.title)}\n\n"
+        f"Группа покупателя: {buyer_group_title}\n\n"
         "Вы можете сначала связаться с покупателем напрямую, а затем принять или отклонить запрос.",
     )
     try:
@@ -894,7 +961,11 @@ async def required_deal_target(message: Message, bot: Bot, session: AsyncSession
     if group is not None and current_count is not None:
         listing.member_count_snapshot = current_count
         await session.commit()
-    group_title = clean_ui_text(group.title) if group is not None else "Группа недоступна"
+    group_title = (
+        await _resolve_group_title(bot, session, group)
+        if group is not None
+        else "Группа недоступна"
+    )
     seller_text = panel_header(
         "Новый запрос на ОП",
         f"Ваша группа: {group_title}\n"
@@ -941,7 +1012,11 @@ async def required_deal_decision(callback: CallbackQuery, bot: Bot, session: Asy
         return
     listing = await session.get(RequiredAdListing, deal.listing_id)
     group = await session.get(Group, listing.seller_group_id) if listing is not None else None
-    group_title = clean_ui_text(group.title) if group is not None else "Группа"
+    group_title = (
+        await _resolve_group_title(bot, session, group, for_buyer=True)
+        if group is not None
+        else "Группа"
+    )
     deal.status = "accepted" if decision == "accept" else "rejected"
     deal.decided_at = datetime.now(timezone.utc)
     await session.commit()
