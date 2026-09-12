@@ -42,6 +42,34 @@ ACTION_EMOJI = {
     "воскресить": "✨", "заморозить": "🧊", "благословить": "🙏", "загуглить": "🔎",
 }
 DEFAULT_EMOJIS = ("🎭", "😄", "✨", "😎", "🔥")
+# ── #3c: relationship actions с подтверждением ────────────────────────────
+# Slug-имена для callback_data — короткие, ASCII, влезают в лимит 64 байта.
+RELATIONSHIP_ACTION_SLUGS: dict[str, str] = {
+    "поссориться": "posoritsya",
+    "поругаться": "porugatsya",
+    "подраться": "podratsya",
+    "помириться": "pomiritsya",
+}
+RELATIONSHIP_SLUG_TO_ACTION: dict[str, str] = {
+    slug: action for action, slug in RELATIONSHIP_ACTION_SLUGS.items()
+}
+
+# Через сколько секунд предложение relationship-action считается устаревшим
+RELATIONSHIP_CONFIRM_TTL_SECONDS = 5 * 60  # 5 минут
+
+# Шаблон подтверждающего сообщения
+RELATIONSHIP_PROMPT_TEMPLATE = (
+    "{actor} предлагает {target_dat} {action_label}.\n"
+    "{target}, подтверди, пожалуйста."
+)
+
+# Человекочитаемые лейблы для actions в подтверждающем сообщении
+RELATIONSHIP_ACTION_LABELS: dict[str, str] = {
+    "поссориться": "поссориться",
+    "поругаться": "поругаться",
+    "подраться": "подраться",
+    "помириться": "помириться",
+}
 ACTION_VARIANTS = (
     "{emoji} {actor} → {target}: «{action}».",
     "{emoji} {actor} выбрал для {target}: «{action}» 😄",
@@ -137,7 +165,7 @@ def _proposal_markup(kind: str, group_id: int, actor_id: int, target_id: int) ->
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Принять", callback_data=f"fsfriendly:{kind}:{group_id}:{actor_id}:{target_id}:yes"), InlineKeyboardButton(text="❌ Отказать", callback_data=f"fsfriendly:{kind}:{group_id}:{actor_id}:{target_id}:no")]])
 
 
-@router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(ENTERTAINMENT_ACTIONS | RELATIONSHIP_ACTIONS))
+@router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(ENTERTAINMENT_ACTIONS))
 async def friendly_fun_action(message: Message, session: AsyncSession, redis: Redis) -> None:
     if message.from_user is None or message.reply_to_message.from_user is None:
         return
@@ -183,6 +211,164 @@ async def friendly_fun_action(message: Message, session: AsyncSession, redis: Re
         event_type = "relationship_action" if action in RELATIONSHIP_ACTIONS else "entertainment_action"
         session.add(GameEvent(group_id=group.id, event_type=event_type, action=action, actor_telegram_id=actor.id, target_telegram_id=target.id, actor_name=actor_name, target_name=target_name, outcome="done"))
         await session.commit()
+
+# ── #3c: relationship actions с подтверждением ───────────────────────────
+
+
+def _relationship_markup(slug: str, group_id: int, actor_id: int, target_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"fsrel:{slug}:{group_id}:{actor_id}:{target_id}:yes"),
+        InlineKeyboardButton(text="❌ Отклонить", callback_data=f"fsrel:{slug}:{group_id}:{actor_id}:{target_id}:no"),
+    ]])
+
+
+@router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(RELATIONSHIP_ACTIONS))
+async def friendly_relationship_action(message: Message, session: AsyncSession, redis: Redis) -> None:
+    """#3c: relationship actions требуют подтверждения от target."""
+    if message.from_user is None or message.reply_to_message.from_user is None:
+        return
+    actor, target = message.from_user, message.reply_to_message.from_user
+    if target.is_bot:
+        await message.reply("🤖 Боты не участвуют в таких действиях.")
+        return
+    if actor.id == target.id:
+        await message.reply("😄 С собой это действие выглядит слишком подозрительно.")
+        return
+
+    action = " ".join((message.text or "").casefold().strip().split())
+    slug = RELATIONSHIP_ACTION_SLUGS.get(action)
+    if slug is None:
+        return
+
+    if not await _check_cooldown(redis, message.chat.id, actor.id, action):
+        await message.reply(f"⏳ Подожди {ACTION_COOLDOWN_SECONDS} секунды до следующего действия 😄")
+        return
+
+    group = await _active_group(session, message.chat.id)
+    if group is None:
+        return
+
+    actor_name = _tg_name(actor)
+    target_name = _tg_name(target)
+
+    session.add(GameEvent(
+        group_id=group.id,
+        event_type="relationship_action",
+        action=action,
+        actor_telegram_id=actor.id,
+        target_telegram_id=target.id,
+        actor_name=actor_name,
+        target_name=target_name,
+        outcome="pending",
+    ))
+    await session.commit()
+
+    label = RELATIONSHIP_ACTION_LABELS.get(action, action)
+    prompt = RELATIONSHIP_PROMPT_TEMPLATE.format(
+        actor="{" + "actor" + "}",
+        target_dat="{" + "target_dat" + "}",
+        target="{" + "target" + "}",
+        action_label=label,
+    )
+    mentions = {
+        "actor": (actor_name, actor.id),
+        "target": (target_name, target.id),
+        "target_dat": (_inflect(target_name, CASE_DATV), target.id),
+    }
+    text, entities = _render(prompt, mentions)
+    await message.reply(text, entities=entities, reply_markup=_relationship_markup(slug, group.id, actor.id, target.id))
+
+
+@router.callback_query(F.data.regexp(r"^fsrel:(posoritsya|porugatsya|podratsya|pomiritsya):\d+:\d+:\d+:(yes|no)$"))
+async def friendly_relationship_answer(callback: CallbackQuery, session: AsyncSession) -> None:
+    """#3c: подтверждение/отклонение relationship action."""
+    _, slug, raw_group, raw_actor, raw_target, decision = (callback.data or "").split(":")
+    group_id, actor_id, target_id = int(raw_group), int(raw_actor), int(raw_target)
+
+    if callback.from_user.id != target_id:
+        await callback.answer(FOREIGN_BUTTON_NOTICE, show_alert=True)
+        return
+
+    action = RELATIONSHIP_SLUG_TO_ACTION.get(slug)
+    if action is None:
+        await callback.answer("Неизвестное действие.", show_alert=True)
+        return
+
+    group = await session.scalar(
+        select(Group).where(Group.id == group_id, Group.is_active.is_(True)).with_for_update()
+    )
+    if group is None or callback.message is None or callback.message.chat.id != group.telegram_chat_id:
+        await callback.answer("Это предложение уже недоступно.", show_alert=True)
+        return
+
+    event = await session.scalar(
+        select(GameEvent)
+        .where(
+            GameEvent.group_id == group_id,
+            GameEvent.event_type == "relationship_action",
+            GameEvent.action == action,
+            GameEvent.actor_telegram_id == actor_id,
+            GameEvent.target_telegram_id == target_id,
+            GameEvent.outcome == "pending",
+        )
+        .order_by(GameEvent.id.desc())
+        .limit(1)
+        .with_for_update()
+    )
+    if event is None:
+        await callback.answer("На это предложение уже ответили.", show_alert=True)
+        return
+
+    created_at = event.created_at
+    if created_at is not None:
+        now = datetime.now(timezone.utc)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if (now - created_at).total_seconds() > RELATIONSHIP_CONFIRM_TTL_SECONDS:
+            event.outcome = "expired"
+            await session.commit()
+            await callback.answer("Предложение устарело.", show_alert=True)
+            return
+
+    actor_name = await _db_name(session, actor_id, event.actor_name)
+    target_name = await _db_name(session, target_id, event.target_name or _tg_name(callback.from_user))
+
+    mentions = {
+        "actor": (actor_name, actor_id),
+        "target": (target_name, target_id),
+        "actor_acc": (_inflect(actor_name, CASE_ACCS), actor_id),
+        "actor_ablt": (_inflect(actor_name, CASE_ABLT), actor_id),
+        "actor_dat": (_inflect(actor_name, CASE_DATV), actor_id),
+        "actor_gent": (_inflect(actor_name, CASE_GENT), actor_id),
+        "target_acc": (_inflect(target_name, CASE_ACCS), target_id),
+        "target_ablt": (_inflect(target_name, CASE_ABLT), target_id),
+        "target_dat": (_inflect(target_name, CASE_DATV), target_id),
+        "target_gent": (_inflect(target_name, CASE_GENT), target_id),
+    }
+
+    if decision == "no":
+        event.outcome = "rejected"
+        await session.commit()
+        text, entities = _render(
+            random.choice((
+                "🙅 {target} отказался. Без обид 😄",
+                "😅 {actor}, {target} не поддержал это действие.",
+            )),
+            mentions,
+        )
+        await callback.message.edit_text(text, entities=entities)
+        await callback.answer("Отклонено")
+        return
+
+    event.outcome = "accepted"
+    await session.commit()
+
+    variants = ACTION_TEMPLATES.get(action, DEFAULT_ACTION_TEMPLATES)
+    variant = _pick_variant((callback.message.chat.id, actor_id, action), variants)
+    text, entities = _render(variant, mentions)
+    await callback.message.edit_text(text, entities=entities)
+    await callback.answer("Принято")
+
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(PROPOSAL_ACTIONS))

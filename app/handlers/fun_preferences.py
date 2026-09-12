@@ -20,7 +20,7 @@ from app.games.spy import handlers as spy_handlers
 from app.games.words import handlers as words_handlers
 
 router = Router(name=__name__)
-_INCLUDED_CALLBACK_FAMILIES = ("gm", "fsfriendly", "fshfriendly")
+_INCLUDED_CALLBACK_FAMILIES = ("gm", "fsfriendly", "fshfriendly", "fsrel")
 router.include_router(mafia_handlers.router)
 router.include_router(spy_handlers.router)
 router.include_router(quiz_handlers.router)
