@@ -12,6 +12,7 @@ from app.db.models import Group
 from app.games.enums import GameSessionStatus
 from app.games.game_center import send_game_center_snapshot
 from app.games.lobby import close_lobby_message, ensure_lobby_message
+from app.games.messages import retire_active_messages
 from app.games.manager import GameConflictError, GameManager, GameNotFoundError, GamePlayerError
 from app.games.panels import ensure_game_panel, render_profile, render_rating
 from app.games.registry import game_registry
@@ -221,7 +222,14 @@ async def game_cancel(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
     can_cancel = callback.from_user.id == game.creator_telegram_id or await can_manage_group(bot, group, callback.from_user.id, session)
     if not can_cancel:
         await callback.answer("❌ Отменить игру может создатель или администратор.", show_alert=True); return
-    game = await manager.cancel_game(session, game_id=game.id, reason="cancelled_by_user")
+        game = await manager.cancel_game(session, game_id=game.id, reason="cancelled_by_user")
+    # #9a: снимаем активные игровые сообщения, чтобы старые кнопки не работали
+    await retire_active_messages(
+        bot,
+        session,
+        game_id=game.id,
+        replacement_text=f"❌ {game_registry.require(game.game_type).title} отменена.",
+    )
     await close_lobby_message(bot, session, group=group, game=game, text=f"❌ {game_registry.require(game.game_type).title} отменена.")
     await ensure_game_panel(bot, session, group=group, pin=False)
     log.info("game_cancelled", game_id=game.id, group_id=group.id, actor_id=callback.from_user.id); await callback.answer("Игра отменена")
