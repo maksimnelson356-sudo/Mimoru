@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GameAction, GameGroupSettings, GamePlayer, GameResult, GameSession
-from app.games.base import BaseGame
+from app.games.base import BaseGame, LeaveResult
 from app.games.config import GameDefinition
 from app.games.enums import GameSessionStatus
 from app.games.stats import apply_game_result
@@ -146,6 +146,22 @@ class BattleshipGame(BaseGame):
             player.state_json = state
         await session.commit()
         log.info("battleship_finished", game_id=game.id, winner_user_id=winner_user_id)
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """Убирает игрока. Если остался 1 активный — завершает игру его победой."""
+        players = list((await session.scalars(
+            select(GamePlayer).where(GamePlayer.game_id == game.id)
+        )).all())
+        active = [p for p in players if p.status != "left" and p.user_telegram_id != actor_telegram_id]
+        if len(active) == 1:
+            await self._finish(session, game, winner_user_id=active[0].user_telegram_id)
+        return LeaveResult.REMOVED
 
     async def fire(self, session: AsyncSession, game: GameSession, *, actor_telegram_id: int, cell: int) -> tuple[str, bool]:
         game = await session.scalar(select(GameSession).where(GameSession.id == game.id).with_for_update())

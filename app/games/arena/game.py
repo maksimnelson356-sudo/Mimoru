@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GameAction, GameGroupSettings, GamePlayer, GameResult, GameSession
-from app.games.base import BaseGame
+from app.games.base import BaseGame, LeaveResult
 from app.games.config import GameDefinition
 from app.games.enums import GameSessionStatus
 from app.games.stats import apply_game_result
@@ -251,6 +251,22 @@ class ArenaGame(BaseGame):
         if game.status == GameSessionStatus.RUNNING.value and game.deadline_at is None:
             game.deadline_at = datetime.now(timezone.utc) + timedelta(seconds=TURN_TIMEOUT_SECONDS)
         await session.commit()
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """Убирает игрока. Если остался 1 живой — завершает игру его победой."""
+        players = list((await session.scalars(
+            select(GamePlayer).where(GamePlayer.game_id == game.id)
+        )).all())
+        alive = [p for p in players if p.status == "alive" and p.user_telegram_id != actor_telegram_id]
+        if len(alive) == 1:
+            await self._finish(session, game, winner_id=alive[0].user_telegram_id)
+        return LeaveResult.REMOVED
 
     async def sync_ui(self, bot, session: AsyncSession, game: GameSession) -> None:
         from app.games.arena.presentation import sync_arena_ui

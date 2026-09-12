@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GameAction, GameGroupSettings, GamePlayer, GameResult, GameSession
-from app.games.base import BaseGame
+from app.games.base import BaseGame, LeaveResult
 from app.games.config import GameDefinition
 from app.games.enums import GameSessionStatus
 from app.games.stats import apply_game_result
@@ -326,6 +326,22 @@ class CrocodileGame(BaseGame):
             player.state_json = state
         await session.commit()
         log.info("crocodile_finished", game_id=game.id, winners=winners, top_score=top_score)
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """Убирает игрока. Если остался 1 живой — завершает игру через _finish."""
+        players = list((await session.scalars(
+            select(GamePlayer).where(GamePlayer.game_id == game.id)
+        )).all())
+        alive = [p for p in players if p.status == "alive" and p.user_telegram_id != actor_telegram_id]
+        if len(alive) <= 1:
+            await self._finish(session, game)
+        return LeaveResult.REMOVED
 
     async def handle_timeout(self, session: AsyncSession, game: GameSession) -> None:
         game = await session.scalar(
