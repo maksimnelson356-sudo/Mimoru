@@ -16,7 +16,7 @@ from app.db.game_models import (
     GameResult,
     GameSession,
 )
-from app.games.base import BaseGame
+from app.games.base import BaseGame, LeaveResult
 from app.games.config import GameDefinition
 from app.games.enums import GameSessionStatus
 from app.games.stats import apply_game_result
@@ -228,6 +228,45 @@ class SpyGame(BaseGame):
             player.state_json = player_state
         await session.commit()
         log.info("spy_finished", game_id=game.id, winner=winning_team)
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """Обрабатывает выход игрока из шпиона.
+
+        - Уход spy → CANCELLED (spy уникален, без него игра не работает).
+        - Уход local → REMOVED; если locals < 2 — finish с победой spy.
+        """
+        player = await session.scalar(
+            select(GamePlayer).where(
+                GamePlayer.game_id == game.id,
+                GamePlayer.user_telegram_id == actor_telegram_id,
+            ).with_for_update()
+        )
+        if player is None or player.role is None:
+            return LeaveResult.REMOVED
+
+        # Помечаем left ДО проверки баланса.
+        player.status = "left"
+        player.left_at = datetime.now(timezone.utc)
+
+        if player.role == "spy":
+            return LeaveResult.CANCELLED
+
+        alive = list((await session.scalars(
+            select(GamePlayer).where(
+                GamePlayer.game_id == game.id,
+                GamePlayer.status == "alive",
+            )
+        )).all())
+        locals_count = sum(1 for p in alive if p.team == "locals")
+        if locals_count < 2:
+            await self._finish(session, game, "spy")
+        return LeaveResult.REMOVED
 
     async def _resolve_vote(
         self,

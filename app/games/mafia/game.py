@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GameAction, GameGroupSettings, GamePlayer, GameSession
-from app.games.base import BaseGame
+from app.games.base import BaseGame, LeaveResult
 from app.games.config import GameDefinition
 from app.games.enums import GameSessionStatus
 from app.games.mafia.resolution import finish_game, resolve_day_vote, resolve_night, winner
@@ -274,6 +274,42 @@ class MafiaGame(BaseGame):
 
     async def handle_timeout(self, session: AsyncSession, game: GameSession) -> None:
         await self._advance_phase(session, game, expected_phase_seq=game.phase_seq)
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """Обрабатывает выход игрока из мафии.
+
+        - Уход mafia → CANCELLED (баланс нарушен).
+        - Уход civilian/doctor/commissioner → REMOVED.
+          После удаления проверяется winner: если он определён — игра завершается.
+        """
+        from app.games.mafia.resolution import finish_game, winner
+
+        player = await session.scalar(
+            select(GamePlayer).where(
+                GamePlayer.game_id == game.id,
+                GamePlayer.user_telegram_id == actor_telegram_id,
+            ).with_for_update()
+        )
+        if player is None or player.role is None:
+            return LeaveResult.REMOVED
+
+        # Помечаем left ДО winner() — чтобы игрок не считался живым.
+        player.status = "left"
+        player.left_at = datetime.now(timezone.utc)
+
+        if player.role == "mafia":
+            return LeaveResult.CANCELLED
+
+        winning_team = await winner(session, game.id)
+        if winning_team is not None:
+            await finish_game(session, game, winning_team)
+        return LeaveResult.REMOVED
 
     async def maybe_advance_if_ready(self, session: AsyncSession, game: GameSession) -> bool:
         game = await session.scalar(select(GameSession).where(GameSession.id == game.id).with_for_update())

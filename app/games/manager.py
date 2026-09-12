@@ -269,9 +269,11 @@ class GameManager:
         result = await engine.handle_leave(
             session, game, actor_telegram_id=user_telegram_id
         )
-        if result == LeaveResult.REMOVED:
+        if result != LeaveResult.REJECTED:
             player.status = "left"
             player.left_at = datetime.now(timezone.utc)
+        if result == LeaveResult.CANCELLED:
+            await self.cancel_game(session, game_id=game.id, reason="critical_role_left")
         await session.commit()
         return result
 
