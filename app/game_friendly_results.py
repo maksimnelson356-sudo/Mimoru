@@ -14,6 +14,14 @@ from app.db.fun_models import GameEvent, GroupMarriage
 from app.db.models import Group, User
 from app.entertainment_contracts import ENTERTAINMENT_ACTIONS, RELATIONSHIP_ACTIONS
 from app.game_contracts import PROPOSALS, PROPOSAL_ACTIONS
+from app.action_templates import ACTION_TEMPLATES, DEFAULT_ACTION_TEMPLATES
+from app.russian_inflect import (
+    CASE_ABLT,
+    CASE_ACCS,
+    CASE_DATV,
+    CASE_GENT,
+    _inflect,
+)
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
@@ -56,8 +64,7 @@ RESULT_VARIANTS = {
         "🥂 {actor} и {target} сказали друг другу «да». Поздравляем!",
     ),
 }
-TOKEN_RE = re.compile(r"\{(actor|target)\}")
-
+TOKEN_RE = re.compile(r"\{(actor(?:_(?:acc|ablt|dat|gent))?|target(?:_(?:acc|ablt|dat|gent))?)\}")
 
 def _utf16_len(value: str) -> int:
     return len(value.encode("utf-16-le")) // 2
@@ -136,14 +143,34 @@ async def friendly_fun_action(message: Message, session: AsyncSession) -> None:
         await message.reply("⏳ Подожди 3 секунды до следующего действия 😄")
         return
     _action_cooldowns[key] = now
+
     action = " ".join((message.text or "").casefold().strip().split())
-    variant = _pick_variant((message.chat.id, actor.id, action), ACTION_VARIANTS)
-    text, entities = _render(variant, {"actor": (_tg_name(actor), actor.id), "target": (_tg_name(target), target.id)}, emoji=ACTION_EMOJI.get(action, random.choice(DEFAULT_EMOJIS)), action=action)
+    variants = ACTION_TEMPLATES.get(action, DEFAULT_ACTION_TEMPLATES)
+    variant = _pick_variant((message.chat.id, actor.id, action), variants)
+
+    actor_name = _tg_name(actor)
+    target_name = _tg_name(target)
+
+    mentions = {
+        "actor": (actor_name, actor.id),
+        "target": (target_name, target.id),
+        "actor_acc": (_inflect(actor_name, CASE_ACCS), actor.id),
+        "actor_ablt": (_inflect(actor_name, CASE_ABLT), actor.id),
+        "actor_dat": (_inflect(actor_name, CASE_DATV), actor.id),
+        "actor_gent": (_inflect(actor_name, CASE_GENT), actor.id),
+        "target_acc": (_inflect(target_name, CASE_ACCS), target.id),
+        "target_ablt": (_inflect(target_name, CASE_ABLT), target.id),
+        "target_dat": (_inflect(target_name, CASE_DATV), target.id),
+        "target_gent": (_inflect(target_name, CASE_GENT), target.id),
+    }
+
+    text, entities = _render(variant, mentions)
+
     await message.reply(text, entities=entities)
     group = await _active_group(session, message.chat.id)
     if group is not None:
         event_type = "relationship_action" if action in RELATIONSHIP_ACTIONS else "entertainment_action"
-        session.add(GameEvent(group_id=group.id, event_type=event_type, action=action, actor_telegram_id=actor.id, target_telegram_id=target.id, actor_name=_tg_name(actor), target_name=_tg_name(target), outcome="done"))
+        session.add(GameEvent(group_id=group.id, event_type=event_type, action=action, actor_telegram_id=actor.id, target_telegram_id=target.id, actor_name=actor_name, target_name=target_name, outcome="done"))
         await session.commit()
 
 

@@ -456,9 +456,21 @@ ACTION_TEMPLATES: Final[dict[str, tuple[str, ...]]] = {
         "{actor} понюхал волосы {target_gent} 👃",
         "{actor} вдохнул запах волос {target_gent} 👃",
     ),
-    "потыкать": (
+        "потыкать": (
         "{actor} потыкал {target_acc} 👉",
         "{actor} ткнул пальцем в {target_acc} 👉",
+    ),
+    "отшлёпать": (
+        "{actor} отшлёпал {target_acc} 👋",
+        "{actor} дал шлепка {target_dat} 👋",
+    ),
+    "задушить обнимашками": (
+        "{actor} задушил {target_acc} обнимашками 🫂",
+        "{actor} сжал {target_acc} в медвежьих объятиях 🫂",
+    ),
+    "украсть": (
+        "{actor} украл что-то у {target_gent} 🤫",
+        "{actor} стащил кое-что у {target_gent} 🤫",
     ),
 }
 
