@@ -7,6 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.game_models import GameSession
 from app.games.config import GameDefinition
 
+from enum import Enum
+
+
+class LeaveResult(Enum):
+    REMOVED = "removed"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+
 
 class BaseGame(ABC):
     definition: GameDefinition
@@ -34,3 +42,13 @@ class BaseGame(ABC):
     @abstractmethod
     async def restore(self, session: AsyncSession, game: GameSession) -> None:
         return None
+
+    async def handle_leave(
+        self,
+        session: AsyncSession,
+        game: GameSession,
+        *,
+        actor_telegram_id: int,
+    ) -> LeaveResult:
+        """По умолчанию — просто убрать игрока. Mafia/Spy override'ят."""
+        return LeaveResult.REMOVED
