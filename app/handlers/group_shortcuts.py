@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.models import Group, User
 from app.db.rank_models import RankAssignment
+from app.handlers.ad_market_v3 import _group_title_or_placeholder
 from app.handlers.fun_help import entertainment_help
 from app.handlers.group_commands import group_complaint
-from app.services.access import is_service_owner
+from app.services.access import can_manage_group, is_service_owner
 from app.services.ranks import RANK_CODES, RANK_LABELS
 from app.services.ui import panel_header
 
@@ -235,3 +236,64 @@ async def group_disconnect_do(callback: CallbackQuery, bot: Bot, session: AsyncS
         ]),
     )
     await callback.answer("Группа отключена")
+
+@router.message(F.chat.type.in_(GROUP_TYPES), F.text.casefold() == "реклама")
+async def ad_group_entry(message: Message, bot: Bot, session: AsyncSession) -> None:
+    """#4: начать создание ОП из группы (переход в личку)."""
+    if message.from_user is None:
+        return
+
+    group = await session.scalar(
+        select(Group).where(
+            Group.telegram_chat_id == message.chat.id,
+            Group.is_active.is_(True),
+        )
+    )
+    if group is None:
+        return
+
+    user_id = message.from_user.id
+    if not await can_manage_group(bot, group, user_id, session):
+        return
+
+    groups = list((await session.scalars(
+        select(Group)
+        .where(Group.owner_telegram_id == user_id, Group.is_active.is_(True))
+        .order_by(Group.title)
+    )).all())
+
+    if not groups:
+        await message.reply(
+            "📭 У вас пока нет активных групп Mimoru, где вы владелец."
+        )
+        return
+
+    rows = [
+        [InlineKeyboardButton(
+            text=_group_title_or_placeholder(group)[:58],
+            callback_data=f"reqlist:group:{group.id}",
+        )]
+        for group in groups
+    ]
+    rows.append([InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")])
+    rows.append([InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")])
+
+    try:
+        await bot.send_message(
+            user_id,
+            panel_header(
+                "Продать обязательную подписку",
+                "Выберите свою группу. В каталоге покупателям не показываются ID и @username площадки.",
+            ),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+        )
+    except TelegramForbiddenError:
+        me = await bot.get_me()
+        await message.reply(
+            "⚠️ Чтобы настроить рекламу, откройте личку со мной:\n"
+            f"👉 @{me.username}\n"
+            "и отправьте /start, затем повторите «реклама» здесь."
+        )
+        return
+
+    await message.reply("✅ Отправил настройки рекламы вам в личку.")
