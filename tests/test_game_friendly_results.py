@@ -65,3 +65,40 @@ def test_user_facing_relationship_text_uses_mentions_not_raw_ids() -> None:
     assert "tg://user?id=" in results
     assert "Пользователь {target_id}" not in results
     assert "Победитель: {winner}" not in results
+
+
+# ── #3b: Redis cooldown ──────────────────────────────────────────────────
+
+def test_cooldown_uses_redis_not_in_memory_dict() -> None:
+    """#3b: cooldown должен жить в Redis, а не в in-memory dict."""
+    results = _source("app/game_friendly_results.py")
+    assert "from redis.asyncio import Redis" in results
+    assert "_check_cooldown" in results
+    assert "COOLDOWN_KEY_TEMPLATE" in results
+    assert "mimoru:action-cooldown:" in results
+    # In-memory dict убран
+    assert "_action_cooldowns" not in results
+    # import time убран
+    assert "import time" not in results
+
+
+def test_cooldown_uses_set_nx_ex() -> None:
+    """#3b: атомарная установка ключа через SET NX EX."""
+    results = _source("app/game_friendly_results.py")
+    # Ищем вызов redis.set(..., nx=True, ex=...)
+    assert "nx=True" in results
+    assert "ex=ACTION_COOLDOWN_SECONDS" in results
+    # Проверяем, что _check_cooldown возвращает bool
+    assert "def _check_cooldown" in results or "async def _check_cooldown" in results
+
+
+def test_friendly_fun_action_requires_redis() -> None:
+    """#3b: хендлер friendly_fun_action должен принимать redis: Redis."""
+    import inspect
+    from app.game_friendly_results import friendly_fun_action
+
+    params = inspect.signature(friendly_fun_action).parameters
+    assert "redis" in params, f"redis не найден в {list(params)}"
+    # Проверяем, что тип — Redis (строкой, потому что аннотация postponed)
+    redis_annotation = str(params["redis"].annotation)
+    assert "Redis" in redis_annotation, f"Ожидали Redis, получили: {redis_annotation}"

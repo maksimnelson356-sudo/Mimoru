@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import random
 import re
-import time
 from datetime import datetime, timezone
 
 from aiogram import F, Router
+from redis.asyncio import Redis
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, MessageEntity
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +25,9 @@ from app.russian_inflect import (
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
-ACTION_COOLDOWN_SECONDS = 3.0
-_action_cooldowns: dict[tuple[int, int], float] = {}
+ACTION_COOLDOWN_SECONDS = 3
 _last_variant: dict[tuple[int, int, str], int] = {}
+COOLDOWN_KEY_TEMPLATE = "mimoru:action-cooldown:{chat_id}:{user_id}:{action}"
 FOREIGN_BUTTON_NOTICE = "Эти кнопки предназначены другому участнику 🙂"
 
 ACTION_EMOJI = {
@@ -86,6 +86,16 @@ def _pick_variant(key: tuple[int, int, str], variants: tuple[str, ...]) -> str:
     _last_variant[key] = idx
     return variants[idx]
 
+async def _check_cooldown(redis: Redis, chat_id: int, user_id: int, action: str) -> bool:
+    """Атомарно проверяет и ставит кулдаун через Redis SET NX EX.
+
+    Возвращает True, если действие можно выполнять (кулдаун не активен и только что поставлен).
+    Возвращает False, если кулдаун ещё активен.
+    """
+    key = COOLDOWN_KEY_TEMPLATE.format(chat_id=chat_id, user_id=user_id, action=action)
+    # SET key 1 NX EX N — атомарно ставит ключ, только если его нет
+    accepted = await redis.set(key, "1", nx=True, ex=ACTION_COOLDOWN_SECONDS)
+    return bool(accepted)
 
 def _render(template: str, mentions: dict[str, tuple[str, int]], **plain: str) -> tuple[str, list[MessageEntity]]:
     template = template.format(**{key: "{" + key + "}" for key in mentions}, **plain)
@@ -128,7 +138,7 @@ def _proposal_markup(kind: str, group_id: int, actor_id: int, target_id: int) ->
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(ENTERTAINMENT_ACTIONS | RELATIONSHIP_ACTIONS))
-async def friendly_fun_action(message: Message, session: AsyncSession) -> None:
+async def friendly_fun_action(message: Message, session: AsyncSession, redis: Redis) -> None:
     if message.from_user is None or message.reply_to_message.from_user is None:
         return
     actor, target = message.from_user, message.reply_to_message.from_user
@@ -137,12 +147,13 @@ async def friendly_fun_action(message: Message, session: AsyncSession) -> None:
     if actor.id == target.id:
         await message.reply("😄 С собой это действие выглядит слишком подозрительно.")
         return
-    key = (message.chat.id, actor.id)
-    now = time.monotonic()
-    if now - _action_cooldowns.get(key, 0.0) < ACTION_COOLDOWN_SECONDS:
-        await message.reply("⏳ Подожди 3 секунды до следующего действия 😄")
+
+    action = " ".join((message.text or "").casefold().strip().split())
+
+    # Redis-кулдаун per (chat_id, user_id, action) — 3 секунды
+    if not await _check_cooldown(redis, message.chat.id, actor.id, action):
+        await message.reply(f"⏳ Подожди {ACTION_COOLDOWN_SECONDS} секунды до следующего действия 😄")
         return
-    _action_cooldowns[key] = now
 
     action = " ".join((message.text or "").casefold().strip().split())
     variants = ACTION_TEMPLATES.get(action, DEFAULT_ACTION_TEMPLATES)
