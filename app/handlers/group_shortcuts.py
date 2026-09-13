@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
@@ -11,11 +12,12 @@ from app.core.config import get_settings
 from app.db.models import Group, User
 from app.db.rank_models import RankAssignment
 from app.handlers.ad_market_v3 import _group_title_or_placeholder
-from app.handlers.fun_help import entertainment_help
 from app.handlers.group_commands import group_complaint
 from app.services.access import can_manage_group, is_service_owner
 from app.services.ranks import RANK_CODES, RANK_LABELS
 from app.services.ui import panel_header
+
+log = structlog.get_logger(__name__)
 
 
 router = Router(name=__name__)
@@ -25,7 +27,15 @@ PUBLIC_ROSTER_WORDS = {"кто админ", "кто админы", "кто ад�
 
 @router.message(Command("games"), F.chat.type.in_(GROUP_TYPES))
 async def games_command(message: Message) -> None:
-    await entertainment_help(message)
+    log.warning(
+        "games_command_called",
+        chat_id=message.chat.id,
+        chat_type=message.chat.type,
+        from_user_id=message.from_user.id if message.from_user else None,
+        text=message.text,
+        entities=[str(e.type) for e in (message.entities or [])],
+    )
+    await message.reply("🎮 ping ok")
 
 
 @router.message(Command("report"), F.chat.type.in_(GROUP_TYPES))
