@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 
 import structlog
@@ -391,11 +392,21 @@ async def restore_ranked_admins_after_mute(bot: Bot) -> None:
 
 
 async def ad_market_background_loop(bot: Bot, stop_event: asyncio.Event) -> None:
+    # Интервалы разных задач:
+    # - distribute_global_posts        — каждые 30 сек (важна скорость публикации)
+    # - restore_ranked_admins_after_mute — каждые 30 сек (важна скорость снятия мьюта)
+    # - expire_direct_required_rules   — каждые 300 сек (точность до 5 мин достаточна)
+    EXPIRE_INTERVAL_SECONDS = 300
+    last_expire = 0.0
+
     while not stop_event.is_set():
         try:
+            now = time.monotonic()
             await distribute_global_posts(bot)
-            await expire_direct_required_rules()
             await restore_ranked_admins_after_mute(bot)
+            if now - last_expire >= EXPIRE_INTERVAL_SECONDS:
+                await expire_direct_required_rules()
+                last_expire = now
         except Exception:
             log.exception("ad_market_background_iteration_failed")
         try:
