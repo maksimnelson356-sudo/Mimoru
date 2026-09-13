@@ -36,7 +36,7 @@ def test_member_and_group_surfaces_use_central_identity_tokens() -> None:
     assert "return public_user_token(user_id)" in aliases
     assert "Кто пожаловался: {public_user_token(reporter_id)}" in commands
     assert "На кого: {public_user_token(target_id)}" in commands
-    assert "Сообщение: №{message_id}" in commands
+    assert "Объект: Сообщение №{message_id}" in commands
 
 
 def test_user_ids_stay_in_callback_and_storage_but_not_visible_labels() -> None:

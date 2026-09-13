@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Complaint, Group, GroupMember, User, Warning
 from app.db.rank_models import RankAssignment
 from app.services.access import can_moderate
+from app.services.action_panel import format_action_panel
 from app.services.moderation import execute, log_action
 from app.services.public_identity import public_user_token
 from app.services.ranks import (
@@ -20,7 +21,6 @@ from app.services.ranks import (
     can_moderate_target,
     get_assignment,
 )
-from app.services.ui import panel_header
 from app.utils.user_resolver import resolve_target_user
 
 router = Router(name=__name__)
@@ -75,6 +75,7 @@ async def _notify_complaint_recipients(
     target_id: int,
     target_name: str,
     message_id: int,
+    message_text: str | None = None,
 ) -> int:
     reporter_rank = await get_assignment(session, group.id, reporter_id)
     recipients: set[int] = set()
@@ -107,14 +108,21 @@ async def _notify_complaint_recipients(
         recipients.add(group.owner_telegram_id)
 
     delivered = 0
-    text = panel_header(
-        "Жалоба в группе",
-        f"Группа: {group.title}\n"
-        f"Кто пожаловался: {public_user_token(reporter_id)}\n"
-        f"На кого: {public_user_token(target_id)}\n"
-        f"Сообщение: №{message_id}\n\n"
-        "Проверьте ситуацию перед применением наказания.",
-    )
+    fields = [
+        ("👥", f"Чат: {group.title}"),
+        ("🙋", f"Кто пожаловался: {public_user_token(reporter_id)}"),
+        ("🎯", f"На кого: {public_user_token(target_id)}"),
+        ("🔗", f"Объект: Сообщение №{message_id}"),
+    ]
+    if message_text:
+        snippet = message_text.strip()
+        if len(snippet) > 200:
+            snippet = snippet[:197] + "..."
+        footer = f"⚠ Проверьте контекст перед выдачей наказания.\n> «{snippet}»"
+    else:
+        footer = "⚠ Проверьте контекст перед выдачей наказания."
+
+    text = format_action_panel("complaint", fields=fields, footer=footer)
     link = _message_link(group, message_id)
     keyboard = (
         InlineKeyboardMarkup(
@@ -199,6 +207,7 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         target.id,
         target.full_name or str(target.id),
         message.reply_to_message.message_id,
+        complaint.message_text,
     )
     await session.commit()
     if delivered:
