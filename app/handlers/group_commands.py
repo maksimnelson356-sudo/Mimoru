@@ -101,6 +101,11 @@ async def _notify_complaint_recipients(
         recipients.update(int(value) for value in rows)
 
     recipients.discard(reporter_id)
+    # Fallback: если после удаления репортера получателей не осталось,
+    # вернуть владельца — иначе жалоба уйдёт в пустоту.
+    if not recipients and group.owner_telegram_id:
+        recipients.add(group.owner_telegram_id)
+
     delivered = 0
     text = panel_header(
         "Жалоба в группе",
@@ -202,7 +207,9 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         )
     else:
         await message.reply(
-            "✅ Жалоба сохранена. Сейчас не удалось доставить личное уведомление администраторам."
+            "✅ Жалоба сохранена.\n\n"
+            "⚠️ В группе нет администраторов Mimoru, кому можно передать жалобу.\n"
+            "Владелец группы может назначить их в личке бота."
         )
 
 
