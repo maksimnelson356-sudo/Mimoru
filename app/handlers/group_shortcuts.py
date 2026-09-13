@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,39 +21,9 @@ from app.services.access import can_manage_group, is_service_owner
 from app.services.ranks import RANK_CODES, RANK_LABELS
 from app.services.ui import panel_header
 
-log = structlog.get_logger(__name__)
-
-
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
 PUBLIC_ROSTER_WORDS = {"кто админ", "кто админы", "кто администрация", "администрация"}
-
-
-@router.message(F.chat.type.in_(GROUP_TYPES))
-async def debug_any_message(message: Message) -> None:
-    log.warning(
-        "debug_any_message",
-        chat_id=message.chat.id,
-        chat_type=message.chat.type,
-        from_user_id=message.from_user.id if message.from_user else None,
-        text=message.text,
-        entities=[str(e.type) for e in (message.entities or [])],
-        entity_count=len(message.entities or []),
-    )
-    await message.reply("🛠 debug")
-
-
-@router.message(Command("games"), F.chat.type.in_(GROUP_TYPES))
-async def games_command(message: Message) -> None:
-    log.warning(
-        "games_command_called",
-        chat_id=message.chat.id,
-        chat_type=message.chat.type,
-        from_user_id=message.from_user.id if message.from_user else None,
-        text=message.text,
-        entities=[str(e.type) for e in (message.entities or [])],
-    )
-    await message.reply("🎮 ping ok")
 
 
 @router.message(Command("report"), F.chat.type.in_(GROUP_TYPES))
@@ -98,20 +72,28 @@ async def commands_command(message: Message) -> None:
     )
 
 
-@router.message(F.chat.type.in_(GROUP_TYPES), F.text.casefold().in_(PUBLIC_ROSTER_WORDS))
+@router.message(
+    F.chat.type.in_(GROUP_TYPES), F.text.casefold().in_(PUBLIC_ROSTER_WORDS)
+)
 async def public_role_roster(message: Message, session: AsyncSession) -> None:
     group = await session.scalar(
-        select(Group).where(Group.telegram_chat_id == message.chat.id, Group.is_active.is_(True))
+        select(Group).where(
+            Group.telegram_chat_id == message.chat.id, Group.is_active.is_(True)
+        )
     )
     if group is None:
         return
 
-    rows = list((await session.scalars(
-        select(RankAssignment).where(
-            RankAssignment.group_id == group.id,
-            RankAssignment.active.is_(True),
-        )
-    )).all())
+    rows = list(
+        (
+            await session.scalars(
+                select(RankAssignment).where(
+                    RankAssignment.group_id == group.id,
+                    RankAssignment.active.is_(True),
+                )
+            )
+        ).all()
+    )
 
     async def label_for(user_id: int) -> str:
         user = await session.scalar(select(User).where(User.telegram_id == user_id))
@@ -119,7 +101,9 @@ async def public_role_roster(message: Message, session: AsyncSession) -> None:
             return f"ID {user_id}"
         if user.username:
             return f"@{user.username}"
-        full_name = " ".join(part for part in (user.first_name, user.last_name) if part).strip()
+        full_name = " ".join(
+            part for part in (user.first_name, user.last_name) if part
+        ).strip()
         return full_name or f"ID {user_id}"
 
     lines = ["👥 Роли Mimoru в этой группе"]
@@ -168,9 +152,15 @@ async def oftop_command(message: Message, bot: Bot) -> None:
         return
 
     sender = message.from_user
-    sender_label = sender.full_name if sender is not None else "Неизвестный пользователь"
+    sender_label = (
+        sender.full_name if sender is not None else "Неизвестный пользователь"
+    )
     sender_id = sender.id if sender is not None else 0
-    username = f"@{sender.username}" if sender is not None and sender.username else "без username"
+    username = (
+        f"@{sender.username}"
+        if sender is not None and sender.username
+        else "без username"
+    )
     text = parts[1].strip()
     owner_text = (
         "Сообщение владельцу Mimoru\n\n"
@@ -190,10 +180,14 @@ async def oftop_command(message: Message, bot: Bot) -> None:
     if delivered:
         await message.reply("Сообщение отправлено владельцу Mimoru.")
     else:
-        await message.reply("Не удалось доставить сообщение владельцу Mimoru. Попробуйте позже.")
+        await message.reply(
+            "Не удалось доставить сообщение владельцу Mimoru. Попробуйте позже."
+        )
 
 
-async def _owned_group(session: AsyncSession, group_id: int, user_id: int) -> Group | None:
+async def _owned_group(
+    session: AsyncSession, group_id: int, user_id: int
+) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
         query = query.where(Group.owner_telegram_id == user_id)
@@ -201,31 +195,50 @@ async def _owned_group(session: AsyncSession, group_id: int, user_id: int) -> Gr
 
 
 @router.callback_query(F.data.regexp(r"^group_disconnect:\d+$"))
-async def group_disconnect_confirm(callback: CallbackQuery, session: AsyncSession) -> None:
+async def group_disconnect_confirm(
+    callback: CallbackQuery, session: AsyncSession
+) -> None:
     group_id = int(callback.data.split(":")[-1])
     group = await _owned_group(session, group_id, callback.from_user.id)
     if group is None:
-        await callback.answer("Группа не найдена или у вас нет доступа.", show_alert=True)
+        await callback.answer(
+            "Группа не найдена или у вас нет доступа.", show_alert=True
+        )
         return
     await callback.message.edit_text(
         panel_header(
             "Отключить группу",
             f"{group.title}\n\nMimoru прекратит администрирование, сохранит настройки группы и покинет Telegram-группу. Подключить её снова можно будет позже.",
         ),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⛔ Да, отключить группу", callback_data=f"group_disconnect_do:{group.id}")],
-            [InlineKeyboardButton(text="◀️ Назад к группе", callback_data=f"group:{group.id}")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="⛔ Да, отключить группу",
+                        callback_data=f"group_disconnect_do:{group.id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="◀️ Назад к группе", callback_data=f"group:{group.id}"
+                    )
+                ],
+            ]
+        ),
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.regexp(r"^group_disconnect_do:\d+$"))
-async def group_disconnect_do(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def group_disconnect_do(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     group_id = int(callback.data.split(":")[-1])
     group = await _owned_group(session, group_id, callback.from_user.id)
     if group is None:
-        await callback.answer("Группа уже отключена или у вас нет доступа.", show_alert=True)
+        await callback.answer(
+            "Группа уже отключена или у вас нет доступа.", show_alert=True
+        )
         return
 
     try:
@@ -233,7 +246,7 @@ async def group_disconnect_do(callback: CallbackQuery, bot: Bot, session: AsyncS
             group.telegram_chat_id,
             "⛔ Mimoru больше не администрирует эту группу.\n\n"
             "Обслуживание отключено владельцем группы. Mimoru покидает группу.\n"
-            "Чтобы подключить бота снова, добавьте Mimoru администратором и напишите «подключить»."
+            "Чтобы подключить бота снова, добавьте Mimoru администратором и напишите «подключить».",
         )
     except (TelegramBadRequest, TelegramForbiddenError):
         pass
@@ -254,12 +267,23 @@ async def group_disconnect_do(callback: CallbackQuery, bot: Bot, session: AsyncS
     )
     await callback.message.edit_text(
         panel_header("Группа отключена", text),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ К моим группам", callback_data="panel:groups")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="panel:home")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="◀️ К моим группам", callback_data="panel:groups"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🏠 Главное меню", callback_data="panel:home"
+                    )
+                ],
+            ]
+        ),
     )
     await callback.answer("Группа отключена")
+
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.text.casefold() == "реклама")
 async def ad_group_entry(message: Message, bot: Bot, session: AsyncSession) -> None:
@@ -280,26 +304,36 @@ async def ad_group_entry(message: Message, bot: Bot, session: AsyncSession) -> N
     if not await can_manage_group(bot, group, user_id, session):
         return
 
-    groups = list((await session.scalars(
-        select(Group)
-        .where(Group.owner_telegram_id == user_id, Group.is_active.is_(True))
-        .order_by(Group.title)
-    )).all())
+    groups = list(
+        (
+            await session.scalars(
+                select(Group)
+                .where(Group.owner_telegram_id == user_id, Group.is_active.is_(True))
+                .order_by(Group.title)
+            )
+        ).all()
+    )
 
     if not groups:
-        await message.reply(
-            "📭 У вас пока нет активных групп Mimoru, где вы владелец."
-        )
+        await message.reply("📭 У вас пока нет активных групп Mimoru, где вы владелец.")
         return
 
     rows = [
-        [InlineKeyboardButton(
-            text=_group_title_or_placeholder(group)[:58],
-            callback_data=f"reqlist:group:{group.id}",
-        )]
+        [
+            InlineKeyboardButton(
+                text=_group_title_or_placeholder(group)[:58],
+                callback_data=f"reqlist:group:{group.id}",
+            )
+        ]
         for group in groups
     ]
-    rows.append([InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")])
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="📥 Входящие заявки", callback_data="reqdeal:seller"
+            )
+        ]
+    )
     rows.append([InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")])
 
     try:
