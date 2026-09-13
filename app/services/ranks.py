@@ -12,7 +12,6 @@ from app.core.config import get_settings
 from app.db.models import Group
 from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEvent
 
-
 DEPUTY_OWNER = "deputy_owner"
 CHIEF_ADMIN = "chief_admin"
 CHAT_ADMIN = "chat_admin"
@@ -21,7 +20,15 @@ HELPER = "helper"
 MAJOR = "major"
 UNTOUCHABLE = "untouchable"
 
-RANK_CODES = (DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN, VOICE_ADMIN, HELPER, MAJOR, UNTOUCHABLE)
+RANK_CODES = (
+    DEPUTY_OWNER,
+    CHIEF_ADMIN,
+    CHAT_ADMIN,
+    VOICE_ADMIN,
+    HELPER,
+    MAJOR,
+    UNTOUCHABLE,
+)
 RANK_LABELS = {
     DEPUTY_OWNER: "Зам. владельца",
     CHIEF_ADMIN: "Глав. админ",
@@ -65,13 +72,38 @@ PERMISSION_LABELS = {
 ROLE_CEILINGS: dict[str, set[str]] = {
     DEPUTY_OWNER: set(PERMISSION_LABELS),
     CHIEF_ADMIN: {
-        "ban", "unban", "mute", "unmute", "kick", "warn", "unwarn", "delete",
-        "restrict_media", "warnings", "info", "history", "promote_admins",
-        "edit_admin_permissions", "assign_helper", "voice_warn", "manage_video_chats",
+        "ban",
+        "unban",
+        "mute",
+        "unmute",
+        "kick",
+        "warn",
+        "unwarn",
+        "delete",
+        "restrict_media",
+        "warnings",
+        "info",
+        "history",
+        "promote_admins",
+        "edit_admin_permissions",
+        "assign_helper",
+        "voice_warn",
+        "manage_video_chats",
     },
     CHAT_ADMIN: {
-        "ban", "unban", "mute", "unmute", "kick", "warn", "unwarn", "delete",
-        "restrict_media", "warnings", "info", "history", "assign_helper",
+        "ban",
+        "unban",
+        "mute",
+        "unmute",
+        "kick",
+        "warn",
+        "unwarn",
+        "delete",
+        "restrict_media",
+        "warnings",
+        "info",
+        "history",
+        "assign_helper",
     },
     VOICE_ADMIN: {"voice_warn", "manage_video_chats", "info", "history"},
     HELPER: {"report_violation", "info"},
@@ -122,7 +154,9 @@ async def get_assignment(
     return await session.scalar(query)
 
 
-async def get_actor_rank(session: AsyncSession, group: Group, user_id: int) -> ActorRank | None:
+async def get_actor_rank(
+    session: AsyncSession, group: Group, user_id: int
+) -> ActorRank | None:
     if is_service_owner(user_id):
         return ActorRank("service_owner", 110, None)
     if group.owner_telegram_id == user_id:
@@ -130,7 +164,9 @@ async def get_actor_rank(session: AsyncSession, group: Group, user_id: int) -> A
     assignment = await get_assignment(session, group.id, user_id)
     if assignment is None or assignment.rank_code not in RANK_LEVELS:
         return None
-    return ActorRank(assignment.rank_code, RANK_LEVELS[assignment.rank_code], assignment)
+    return ActorRank(
+        assignment.rank_code, RANK_LEVELS[assignment.rank_code], assignment
+    )
 
 
 async def effective_permissions(
@@ -209,17 +245,24 @@ async def can_assign_rank(
         return False, "Ваш ранг не позволяет назначить эту должность."
     if actor.level < 100:
         if rank_code == HELPER:
-            if not await actor_has_permission(session, group, actor_id, "assign_helper"):
+            if not await actor_has_permission(
+                session, group, actor_id, "assign_helper"
+            ):
                 return False, "У вашего ранга отключено назначение помощников."
         elif rank_code in ADMIN_RANKS and rank_code != MAJOR:
-            if not await actor_has_permission(session, group, actor_id, "promote_admins"):
+            if not await actor_has_permission(
+                session, group, actor_id, "promote_admins"
+            ):
                 return False, "У вашего ранга отключено назначение администраторов."
     if target_id is not None:
         if target_id == group.owner_telegram_id:
             return False, "Владелец группы не нуждается во внутреннем ранге."
         target = await get_assignment(session, group.id, target_id)
         if target and target.active and actor.level <= rank_level(target.rank_code):
-            return False, "Нельзя изменить ранг участника с равным или более высоким уровнем."
+            return (
+                False,
+                "Нельзя изменить ранг участника с равным или более высоким уровнем.",
+            )
     return True, ""
 
 
@@ -238,13 +281,20 @@ async def can_edit_assignment(
         return False, "Нельзя изменять администратора своего или более высокого ранга."
     if actor.code == CHAT_ADMIN:
         if target.rank_code not in {HELPER, MAJOR}:
-            return False, "Администратор чата может управлять только своим помощником или назначенным Мажёром."
+            return (
+                False,
+                "Администратор чата может управлять только своим помощником или назначенным Мажёром.",
+            )
         if target.assigned_by_telegram_id != actor_id:
             return False, "Эту должность назначил другой администратор."
-        if target.rank_code == HELPER and not await actor_has_permission(session, group, actor_id, "assign_helper"):
+        if target.rank_code == HELPER and not await actor_has_permission(
+            session, group, actor_id, "assign_helper"
+        ):
             return False, "У вашего ранга отключено управление помощниками."
         return True, ""
-    if not await actor_has_permission(session, group, actor_id, "edit_admin_permissions"):
+    if not await actor_has_permission(
+        session, group, actor_id, "edit_admin_permissions"
+    ):
         return False, "У вашего ранга отключено управление правами администраторов."
     return True, ""
 
@@ -263,14 +313,19 @@ async def can_remove_assignment(
 
     if target.rank_code == UNTOUCHABLE:
         if actor.level < RANK_LEVELS[CHIEF_ADMIN]:
-            return False, "Снять Недотрогу может только Глав. админ, Зам. владельца или владелец."
+            return (
+                False,
+                "Снять Недотрогу может только Глав. админ, Зам. владельца или владелец.",
+            )
         return True, ""
 
     if target.rank_code == HELPER:
         if actor.code == CHAT_ADMIN:
             if target.assigned_by_telegram_id != actor_id:
                 return False, "Этого помощника назначил другой администратор."
-            if not await actor_has_permission(session, group, actor_id, "assign_helper"):
+            if not await actor_has_permission(
+                session, group, actor_id, "assign_helper"
+            ):
                 return False, "У вашего ранга отключено управление помощниками."
             return True, ""
         if actor.level > RANK_LEVELS[CHAT_ADMIN]:
@@ -287,7 +342,10 @@ async def can_remove_assignment(
     assigner_level = assigner.level if assigner is not None else 100
     if actor.level > assigner_level:
         return True, ""
-    return False, "Снять этого администратора может тот, кто его назначил, либо руководитель выше назначившего."
+    return (
+        False,
+        "Снять этого администратора может тот, кто его назначил, либо руководитель выше назначившего.",
+    )
 
 
 async def can_moderate_target(
@@ -298,6 +356,10 @@ async def can_moderate_target(
 ) -> tuple[bool, str]:
     if target_id == group.owner_telegram_id:
         return False, "Владельца группы нельзя ограничивать через Mimoru."
+
+    if actor_id == target_id:
+        return False, "Нельзя наказать самого себя."
+
     target = await get_assignment(session, group.id, target_id)
     if target is None:
         return True, ""
@@ -307,7 +369,10 @@ async def can_moderate_target(
     if actor is None:
         return False, "Нет прав на это действие."
     if actor.level <= rank_level(target.rank_code):
-        return False, "Нельзя наказывать администратора своего или более высокого ранга."
+        return (
+            False,
+            "Нельзя наказывать администратора своего или более высокого ранга.",
+        )
     return True, ""
 
 
@@ -336,8 +401,12 @@ async def ensure_telegram_rank(
             **telegram_rights_for_rank(rank_code),
         )
     except (TelegramBadRequest, TelegramForbiddenError):
-        return False, False, (
-            "Mimoru не смогла назначить Telegram-администратора. Проверьте право бота назначать администраторов."
+        return (
+            False,
+            False,
+            (
+                "Mimoru не смогла назначить Telegram-администратора. Проверьте право бота назначать администраторов."
+            ),
         )
     return True, True, ""
 
@@ -403,7 +472,9 @@ async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
         return False
 
 
-async def restore_telegram_rank(bot: Bot, group: Group, assignment: RankAssignment) -> bool:
+async def restore_telegram_rank(
+    bot: Bot, group: Group, assignment: RankAssignment
+) -> bool:
     if assignment.rank_code not in ADMIN_RANKS or not assignment.active:
         return False
     try:

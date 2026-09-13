@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,6 @@ from app.services.ranks import (
 from app.services.ui import panel_header
 from app.utils.user_resolver import resolve_target_user
 
-
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
 COMPLAINT_WORDS = {"жалоба", "доложить", "нарушитель"}
@@ -32,6 +32,8 @@ CLEAR_WARNING_WORDS = {
     "обнулить предупреждения",
     "снять все преды",
 }
+
+log = structlog.get_logger(__name__)
 
 
 async def _active_group(
@@ -55,6 +57,15 @@ def _target_from_reply(message: Message):
     return message.reply_to_message.from_user
 
 
+def _message_link(group: Group, message_id: int) -> str | None:
+    if message_id <= 0:
+        return None
+    chat_id = str(group.telegram_chat_id)
+    if not chat_id.startswith("-100"):
+        return None
+    return f"https://t.me/c/{chat_id[4:]}/{message_id}"
+
+
 async def _notify_complaint_recipients(
     bot: Bot,
     session: AsyncSession,
@@ -67,7 +78,11 @@ async def _notify_complaint_recipients(
 ) -> int:
     reporter_rank = await get_assignment(session, group.id, reporter_id)
     recipients: set[int] = set()
-    if reporter_rank is not None and reporter_rank.rank_code == HELPER and reporter_rank.helper_for_telegram_id:
+    if (
+        reporter_rank is not None
+        and reporter_rank.rank_code == HELPER
+        and reporter_rank.helper_for_telegram_id
+    ):
         recipients.add(reporter_rank.helper_for_telegram_id)
     else:
         if group.owner_telegram_id:
@@ -77,7 +92,9 @@ async def _notify_complaint_recipients(
                 select(RankAssignment.user_telegram_id).where(
                     RankAssignment.group_id == group.id,
                     RankAssignment.active.is_(True),
-                    RankAssignment.rank_code.in_((DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN)),
+                    RankAssignment.rank_code.in_(
+                        (DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN)
+                    ),
                 )
             )
         ).all()
@@ -93,12 +110,36 @@ async def _notify_complaint_recipients(
         f"Сообщение: №{message_id}\n\n"
         "Проверьте ситуацию перед применением наказания.",
     )
+    link = _message_link(group, message_id)
+    keyboard = (
+        InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="Открыть сообщение", url=link),
+                ]
+            ]
+        )
+        if link
+        else None
+    )
+
     for recipient in recipients:
         try:
-            await bot.send_message(recipient, text)
+            await bot.send_message(recipient, text, reply_markup=keyboard)
             delivered += 1
         except (TelegramBadRequest, TelegramForbiddenError):
             continue
+
+    if delivered == 0:
+        log.warning(
+            "complaint_no_recipients",
+            group_id=group.id,
+            telegram_chat_id=group.telegram_chat_id,
+            reporter_id=reporter_id,
+            target_id=target_id,
+            recipients_count=len(recipients),
+        )
+
     return delivered
 
 
@@ -135,7 +176,10 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         reporter_telegram_id=message.from_user.id,
         target_telegram_id=target.id,
         message_id=message.reply_to_message.message_id,
-        message_text=(message.reply_to_message.text or message.reply_to_message.caption or "")[:4000] or None,
+        message_text=(
+            message.reply_to_message.text or message.reply_to_message.caption or ""
+        )[:4000]
+        or None,
         status="pending",
     )
     session.add(complaint)
@@ -153,9 +197,13 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
     )
     await session.commit()
     if delivered:
-        await message.reply("✅ Жалоба принята. Администраторы группы получили уведомление.")
+        await message.reply(
+            "✅ Жалоба принята. Администраторы группы получили уведомление."
+        )
     else:
-        await message.reply("✅ Жалоба сохранена. Сейчас не удалось доставить личное уведомление администраторам.")
+        await message.reply(
+            "✅ Жалоба сохранена. Сейчас не удалось доставить личное уведомление администраторам."
+        )
 
 
 async def _do_unmute(
@@ -220,7 +268,10 @@ async def unmute_combined(message: Message, bot: Bot, session: AsyncSession) -> 
     if message.from_user is None:
         return
     target_id, _ = await resolve_target_user(
-        session, message.chat.id, message, command_keyword="говори",
+        session,
+        message.chat.id,
+        message,
+        command_keyword="говори",
     )
     if target_id is None:
         if message.reply_to_message is None:
@@ -246,7 +297,9 @@ async def clear_all_warnings(message: Message, bot: Bot, session: AsyncSession) 
         return
     if not await can_moderate(bot, session, group, message.from_user.id, "unwarn"):
         return
-    allowed, reason = await can_moderate_target(session, group, message.from_user.id, target.id)
+    allowed, reason = await can_moderate_target(
+        session, group, message.from_user.id, target.id
+    )
     if not allowed:
         await message.reply(reason)
         return
@@ -280,7 +333,9 @@ async def clear_all_warnings(message: Message, bot: Bot, session: AsyncSession) 
     await message.reply(f"✅ Сняты все активные предупреждения: {len(rows)}.")
 
 
-async def _resolve_group_user(session: AsyncSession, group_id: int, raw: str) -> tuple[int | None, str]:
+async def _resolve_group_user(
+    session: AsyncSession, group_id: int, raw: str
+) -> tuple[int | None, str]:
     value = raw.strip()
     if value.isdigit():
         target_id = int(value)
@@ -290,7 +345,11 @@ async def _resolve_group_user(session: AsyncSession, group_id: int, raw: str) ->
                 GroupMember.user_telegram_id == target_id,
             )
         )
-        return (target_id, public_user_token(target_id)) if known is not None else (None, value)
+        return (
+            (target_id, public_user_token(target_id))
+            if known is not None
+            else (None, value)
+        )
     if not value.startswith("@") or len(value) < 2:
         return None, value
     username = value[1:].casefold()
@@ -324,7 +383,10 @@ async def unban_combined(message: Message, bot: Bot, session: AsyncSession) -> N
         return
 
     target_id, target_label = await resolve_target_user(
-        session, message.chat.id, message, command_keyword="разбан",
+        session,
+        message.chat.id,
+        message,
+        command_keyword="разбан",
     )
     if target_id is None:
         if message.reply_to_message is None:

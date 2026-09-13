@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from aiogram import Bot
@@ -12,24 +12,33 @@ from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.ad_market_models import DirectRequiredRule, GlobalPostDelivery, GlobalPostRequest
+from app.db.ad_market_models import (
+    DirectRequiredRule,
+    GlobalPostDelivery,
+    GlobalPostRequest,
+)
 from app.db.models import Group, Punishment, RequiredChannel
 from app.db.rank_models import RankAssignment
 from app.db.session import SessionFactory
 from app.services.ranks import ADMIN_RANKS, restore_telegram_rank
-
 
 log = structlog.get_logger()
 DELIVERY_CLAIM_STALE_AFTER = timedelta(minutes=10)
 UNCERTAIN_DELIVERY_ERROR = "Доставка не подтверждена после прерывания worker; повтор отключён во избежание дубля"
 
 
-def _creative_markup(button_text: str | None, button_url: str | None) -> InlineKeyboardMarkup | None:
+def _creative_markup(
+    button_text: str | None, button_url: str | None
+) -> InlineKeyboardMarkup | None:
     if not button_text or not button_url:
         return None
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text=button_text, url=button_url),
-    ]])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=button_text, url=button_url),
+            ]
+        ]
+    )
 
 
 async def _recover_stale_delivery_claims(
@@ -51,13 +60,17 @@ async def _recover_stale_delivery_claims(
         )
     )
 
-    stale_processing = list((await session.scalars(
-        select(GlobalPostDelivery).where(
-            GlobalPostDelivery.request_id == request_id,
-            GlobalPostDelivery.status == "processing",
-            GlobalPostDelivery.delivered_at <= cutoff,
-        )
-    )).all())
+    stale_processing = list(
+        (
+            await session.scalars(
+                select(GlobalPostDelivery).where(
+                    GlobalPostDelivery.request_id == request_id,
+                    GlobalPostDelivery.status == "processing",
+                    GlobalPostDelivery.delivered_at <= cutoff,
+                )
+            )
+        ).all()
+    )
     for row in stale_processing:
         row.status = "failed"
         row.error_text = UNCERTAIN_DELIVERY_ERROR
@@ -88,10 +101,14 @@ async def _claim_delivery(
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        existing = await session.scalar(select(GlobalPostDelivery.id).where(
-            GlobalPostDelivery.request_id == request_id,
-            GlobalPostDelivery.group_id == group_id,
-        ).limit(1))
+        existing = await session.scalar(
+            select(GlobalPostDelivery.id)
+            .where(
+                GlobalPostDelivery.request_id == request_id,
+                GlobalPostDelivery.group_id == group_id,
+            )
+            .limit(1)
+        )
         if existing is not None:
             return None
         raise
@@ -121,19 +138,26 @@ async def _finalize_request_if_complete(
     item: GlobalPostRequest,
     groups: list[Group],
 ) -> None:
-    deliveries = list((await session.scalars(
-        select(GlobalPostDelivery).where(GlobalPostDelivery.request_id == item.id)
-    )).all())
+    deliveries = list(
+        (
+            await session.scalars(
+                select(GlobalPostDelivery).where(
+                    GlobalPostDelivery.request_id == item.id
+                )
+            )
+        ).all()
+    )
     active_group_ids = {group.id for group in groups}
     attempted_group_ids = {row.group_id for row in deliveries}
     pending_group_ids = {
-        row.group_id for row in deliveries
+        row.group_id
+        for row in deliveries
         if row.status in {"claimed", "processing"} and row.group_id in active_group_ids
     }
     if not active_group_ids.issubset(attempted_group_ids) or pending_group_ids:
         return
 
-    completed_at = datetime.now(timezone.utc)
+    completed_at = datetime.now(UTC)
     result = await session.execute(
         update(GlobalPostRequest)
         .where(
@@ -156,13 +180,23 @@ async def _finalize_request_if_complete(
             f"✅ Рекламный пост #{item.id} опубликован по сети Mimoru.\n"
             f"Успешно: {sent_count} групп.\n"
             f"Недоступно: {failed_count} групп.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📢 Мои рекламные посты", callback_data="gpost:mine")],
-                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="📢 Мои рекламные посты", callback_data="gpost:mine"
+                        )
+                    ],
+                    [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
+                ]
+            ),
         )
-    except (TelegramBadRequest, TelegramForbiddenError):
-        pass
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
+        log.warning(
+            "buyer_notification_failed",
+            buyer_id=item.buyer_telegram_id,
+            error=str(exc),
+        )
 
 
 async def _publish_global_request(bot: Bot, request_id: int) -> None:
@@ -179,17 +213,28 @@ async def _publish_global_request(bot: Bot, request_id: int) -> None:
         if item is None or item.status != "paid":
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _recover_stale_delivery_claims(session, item.id, now)
 
-        candidate_group_ids = list((await session.scalars(
-            select(Group.id).where(Group.is_active.is_(True)).order_by(Group.id)
-        )).all())
-        delivered_group_ids = set((await session.scalars(
-            select(GlobalPostDelivery.group_id).where(GlobalPostDelivery.request_id == item.id)
-        )).all())
+        candidate_group_ids = list(
+            (
+                await session.scalars(
+                    select(Group.id).where(Group.is_active.is_(True)).order_by(Group.id)
+                )
+            ).all()
+        )
+        delivered_group_ids = set(
+            (
+                await session.scalars(
+                    select(GlobalPostDelivery.group_id).where(
+                        GlobalPostDelivery.request_id == item.id
+                    )
+                )
+            ).all()
+        )
         pending_group_ids = [
-            group_id for group_id in candidate_group_ids
+            group_id
+            for group_id in candidate_group_ids
             if group_id not in delivered_group_ids
         ][:50]
 
@@ -264,45 +309,60 @@ async def _publish_global_request(bot: Bot, request_id: int) -> None:
 
     # --- Phase 3: Finalize completion ---
     async with SessionFactory() as session:
-        current_groups = list((await session.scalars(
-            select(Group).where(Group.is_active.is_(True)).order_by(Group.id)
-        )).all())
+        current_groups = list(
+            (
+                await session.scalars(
+                    select(Group).where(Group.is_active.is_(True)).order_by(Group.id)
+                )
+            ).all()
+        )
         refreshed_item = await session.get(GlobalPostRequest, item_id)
         if refreshed_item is not None:
-            await _finalize_request_if_complete(bot, session, refreshed_item, current_groups)
+            await _finalize_request_if_complete(
+                bot, session, refreshed_item, current_groups
+            )
 
 
 async def distribute_global_posts(bot: Bot) -> None:
     async with SessionFactory() as session:
-        ids = list((await session.scalars(
-            select(GlobalPostRequest.id)
-            .where(GlobalPostRequest.status == "paid")
-            .order_by(GlobalPostRequest.paid_at.asc().nullsfirst(), GlobalPostRequest.id.asc())
-            .limit(20)
-        )).all())
+        ids = list(
+            (
+                await session.scalars(
+                    select(GlobalPostRequest.id)
+                    .where(GlobalPostRequest.status == "paid")
+                    .order_by(
+                        GlobalPostRequest.paid_at.asc().nullsfirst(),
+                        GlobalPostRequest.id.asc(),
+                    )
+                    .limit(20)
+                )
+            ).all()
+        )
     for request_id in ids:
         await _publish_global_request(bot, request_id)
 
 
 async def expire_direct_required_rules() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with SessionFactory() as session:
-        candidates = list((await session.execute(
-            select(DirectRequiredRule.id, DirectRequiredRule.group_id).where(
-                DirectRequiredRule.active.is_(True),
-                DirectRequiredRule.mode == "days",
-                DirectRequiredRule.expires_at.is_not(None),
-                DirectRequiredRule.expires_at <= now,
-            )
-        )).all())
+        candidates = list(
+            (
+                await session.execute(
+                    select(DirectRequiredRule.id, DirectRequiredRule.group_id).where(
+                        DirectRequiredRule.active.is_(True),
+                        DirectRequiredRule.mode == "days",
+                        DirectRequiredRule.expires_at.is_not(None),
+                        DirectRequiredRule.expires_at <= now,
+                    )
+                )
+            ).all()
+        )
         for rule_id, group_id in candidates:
             # Owner renewal takes the Group lock first. Match that boundary/order,
             # then reacquire and revalidate the rule so a stale candidate cannot
             # deactivate a rule that was renewed after the initial scan.
             await session.scalar(
-                select(Group)
-                .where(Group.id == group_id)
-                .with_for_update()
+                select(Group).where(Group.id == group_id).with_for_update()
             )
             rule = await session.scalar(
                 select(DirectRequiredRule)
@@ -317,10 +377,12 @@ async def expire_direct_required_rules() -> None:
                 and rule.expires_at <= now
             ):
                 rule.active = False
-                channel = await session.scalar(select(RequiredChannel).where(
-                    RequiredChannel.group_id == rule.group_id,
-                    RequiredChannel.channel_username == rule.channel_username,
-                ))
+                channel = await session.scalar(
+                    select(RequiredChannel).where(
+                        RequiredChannel.group_id == rule.group_id,
+                        RequiredChannel.channel_username == rule.channel_username,
+                    )
+                )
                 if channel is not None:
                     channel.active = False
             # Release the Group/rule locks after each candidate instead of holding
@@ -331,18 +393,24 @@ async def expire_direct_required_rules() -> None:
 async def restore_ranked_admins_after_mute(bot: Bot) -> None:
     """Restore admin rights only after a locked, current no-mute decision."""
     async with SessionFactory() as session:
-        candidate_ids = list((await session.scalars(
-            select(RankAssignment.id).where(
-                RankAssignment.active.is_(True),
-                RankAssignment.restore_after_mute.is_(True),
-                RankAssignment.rank_code.in_(ADMIN_RANKS),
-            )
-        )).all())
+        candidate_ids = list(
+            (
+                await session.scalars(
+                    select(RankAssignment.id).where(
+                        RankAssignment.active.is_(True),
+                        RankAssignment.restore_after_mute.is_(True),
+                        RankAssignment.rank_code.in_(ADMIN_RANKS),
+                    )
+                )
+            ).all()
+        )
 
     for assignment_id in candidate_ids:
         async with SessionFactory() as session:
             group_id = await session.scalar(
-                select(RankAssignment.group_id).where(RankAssignment.id == assignment_id)
+                select(RankAssignment.group_id).where(
+                    RankAssignment.id == assignment_id
+                )
             )
             if group_id is None:
                 continue
@@ -369,12 +437,14 @@ async def restore_ranked_admins_after_mute(bot: Bot) -> None:
                 continue
 
             still_muted = await session.scalar(
-                select(exists().where(
-                    Punishment.group_id == assignment.group_id,
-                    Punishment.user_telegram_id == assignment.user_telegram_id,
-                    Punishment.kind == "mute",
-                    Punishment.active.is_(True),
-                ))
+                select(
+                    exists().where(
+                        Punishment.group_id == assignment.group_id,
+                        Punishment.user_telegram_id == assignment.user_telegram_id,
+                        Punishment.kind == "mute",
+                        Punishment.active.is_(True),
+                    )
+                )
             )
             if still_muted:
                 continue
