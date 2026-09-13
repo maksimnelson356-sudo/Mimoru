@@ -4,9 +4,9 @@ import random
 import re
 from datetime import datetime, timezone
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from redis.asyncio import Redis
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, MessageEntity
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, MessageEntity, ReactionTypeEmoji
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -166,7 +166,7 @@ def _proposal_markup(kind: str, group_id: int, actor_id: int, target_id: int) ->
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.reply_to_message, F.text.casefold().in_(ENTERTAINMENT_ACTIONS))
-async def friendly_fun_action(message: Message, session: AsyncSession, redis: Redis) -> None:
+async def friendly_fun_action(message: Message, bot: Bot, session: AsyncSession, redis: Redis) -> None:
     if message.from_user is None or message.reply_to_message.from_user is None:
         return
     actor, target = message.from_user, message.reply_to_message.from_user
@@ -205,7 +205,17 @@ async def friendly_fun_action(message: Message, session: AsyncSession, redis: Re
 
     text, entities = _render(variant, mentions)
 
-    await message.reply(text, entities=entities)
+    reply_msg = await message.reply(text, entities=entities)
+    _emoji = ACTION_EMOJI.get(action)
+    if _emoji and reply_msg is not None:
+        try:
+            await bot.set_message_reaction(
+                chat_id=reply_msg.chat.id,
+                message_id=reply_msg.message_id,
+                reaction=[ReactionTypeEmoji(emoji=_emoji)],
+            )
+        except Exception as _exc:
+            log.warning("reaction_set_failed", action=action, emoji=_emoji, error=str(_exc))
     group = await _active_group(session, message.chat.id)
     if group is not None:
         event_type = "relationship_action" if action in RELATIONSHIP_ACTIONS else "entertainment_action"
