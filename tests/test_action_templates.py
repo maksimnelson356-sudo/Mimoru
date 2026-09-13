@@ -146,21 +146,21 @@ class TestRenderDeclension:
 
     def test_render_obnyat_full_string(self) -> None:
         text, _ = _render(ACTION_TEMPLATES["обнять"][0], _mentions())
-        assert text == "Алексей обнял Марию 🫂"
+        assert text == "Алексей обнял Марию"
 
     def test_render_ssoritsya_full_string(self) -> None:
         text, _ = _render(ACTION_TEMPLATES["поссориться"][0], _mentions())
-        assert text == "Алексей поссорился с Марией 💢"
+        assert text == "Алексей поссорился с Марией"
 
     def test_render_poprostit_deneg_full_string(self) -> None:
         text, _ = _render(ACTION_TEMPLATES["попросить денег"][0], _mentions())
-        assert text == "Алексей попросил денег у Марии 💸"
+        assert text == "Алексей попросил денег у Марии"
 
     def test_render_non_cyrillic_target(self) -> None:
         """Латиница не должна склоняться."""
         mentions = _mentions(actor="Alex", target="Mary")
         text, _ = _render(ACTION_TEMPLATES["обнять"][0], mentions)
-        assert text == "Alex обнял Mary 🫂"
+        assert text == "Alex обнял Mary"
 
 
 # ── Fallback ─────────────────────────────────────────────────────────────
