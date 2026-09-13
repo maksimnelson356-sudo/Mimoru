@@ -76,6 +76,7 @@ async def _notify_complaint_recipients(
     target_name: str,
     message_id: int,
     message_text: str | None = None,
+    complaint: Complaint | None = None,
 ) -> int:
     reporter_rank = await get_assignment(session, group.id, reporter_id)
     recipients: set[int] = set()
@@ -124,17 +125,38 @@ async def _notify_complaint_recipients(
 
     text = format_action_panel("complaint", fields=fields, footer=footer)
     link = _message_link(group, message_id)
-    keyboard = (
-        InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="Открыть сообщение", url=link),
-                ]
+    rows: list[list[InlineKeyboardButton]] = []
+
+    # Кнопки действий (требуют complaint.id)
+    if complaint is not None:
+        cid = complaint.id
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="✅ Проверено", callback_data=f"complaint:ack:{cid}"
+                ),
+                InlineKeyboardButton(
+                    text="⚠️ Выдать пред", callback_data=f"complaint:warn:{cid}"
+                ),
             ]
         )
-        if link
-        else None
-    )
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="🚫 Забанить", callback_data=f"complaint:ban:{cid}"
+                ),
+                InlineKeyboardButton(
+                    text="🤐 Наказать отправителя",
+                    callback_data=f"complaint:mute_reporter:{cid}",
+                ),
+            ]
+        )
+
+    # Кнопка "Открыть сообщение" (если есть ссылка)
+    if link:
+        rows.append([InlineKeyboardButton(text="Открыть сообщение", url=link)])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
     for recipient in recipients:
         try:
@@ -208,6 +230,7 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         target.full_name or str(target.id),
         message.reply_to_message.message_id,
         complaint.message_text,
+        complaint,
     )
     await session.commit()
     if delivered:
