@@ -25,6 +25,20 @@ GROUP_TYPES = {"group", "supergroup"}
 PUBLIC_ROSTER_WORDS = {"кто админ", "кто админы", "кто администрация", "администрация"}
 
 
+@router.message(F.chat.type.in_(GROUP_TYPES))
+async def debug_any_message(message: Message) -> None:
+    log.warning(
+        "debug_any_message",
+        chat_id=message.chat.id,
+        chat_type=message.chat.type,
+        from_user_id=message.from_user.id if message.from_user else None,
+        text=message.text,
+        entities=[str(e.type) for e in (message.entities or [])],
+        entity_count=len(message.entities or []),
+    )
+    await message.reply("🛠 debug")
+
+
 @router.message(Command("games"), F.chat.type.in_(GROUP_TYPES))
 async def games_command(message: Message) -> None:
     log.warning(
