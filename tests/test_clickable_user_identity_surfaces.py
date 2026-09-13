@@ -43,4 +43,5 @@ def test_user_ids_stay_in_callback_and_storage_but_not_visible_labels() -> None:
     commands = (ROOT / "app/handlers/group_commands.py").read_text(encoding="utf-8")
     assert "target_name=public_user_token(target_id)" in commands
     assert "moderator_name=public_user_token(message.from_user.id)" in commands
-    assert "return (target_id, public_user_token(target_id))" in commands
+    # black разбил return на многострочный — проверяем аргументы
+    assert "target_id, public_user_token(target_id)" in commands

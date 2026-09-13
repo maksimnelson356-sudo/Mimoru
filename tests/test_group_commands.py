@@ -42,7 +42,8 @@ def test_all_warning_reset_and_public_complaints_are_supported() -> None:
     assert "снять все предупреждения" in CLEAR_WARNING_WORDS
     assert "жалоба" in COMPLAINT_WORDS
     assert "Complaint(" in source
-    assert "RankAssignment.rank_code.in_((DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN))" in source
+    assert "RankAssignment.rank_code.in_(" in source
+    assert "(DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN)" in source
     assert 'action="unwarn_all"' not in source
     assert '"unwarn_all"' in source
 
