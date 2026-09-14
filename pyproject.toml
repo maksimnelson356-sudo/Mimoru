@@ -17,7 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9", "pytest-asyncio>=0.24,<1", "ruff>=0.9,<1"]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.24,<1",
+  "ruff>=0.9,<1",
+  "aiogram-devtools[sqlalchemy]>=0.1.1",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
