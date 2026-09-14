@@ -64,7 +64,8 @@ def test_production_background_loop_reaches_rank_restore() -> None:
     assert "await restore_ranked_admins_after_mute(bot)" in loop
 
     main = (ROOT / "app/main.py").read_text(encoding="utf-8")
-    assert "asyncio.create_task(ad_market_background_loop(bot, stop_event)" in main
+    assert "ad_market_task = asyncio.create_task(" in main
+    assert "ad_market_background_loop(bot, stop_event)" in main
 
 
 def test_live_moderation_uses_same_group_serialization_boundary() -> None:

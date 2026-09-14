@@ -8,7 +8,6 @@ Create Date: 2026-09-14
 from alembic import op
 import sqlalchemy as sa
 
-
 revision = "0047_complaint_notifications"
 down_revision = "0046_game_engine_core"
 branch_labels = None

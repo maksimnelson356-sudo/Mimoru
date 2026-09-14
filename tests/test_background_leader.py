@@ -106,8 +106,8 @@ async def test_acquisition_redis_error_retries_without_killing_leader(monkeypatc
 def test_main_starts_leased_background_scheduler() -> None:
     source = (ROOT / "app/main.py").read_text(encoding="utf-8")
     assert "from app.services.background_leader import leader_background_loop" in source
-    assert "create_task(leader_background_loop(bot, redis, stop_event)" in source
-    assert "create_task(background_loop(bot, redis, stop_event)" not in source
+    assert "from app.services.background_leader import background_loop" not in source
+    assert "leader_background_loop(bot, redis, stop_event)" in source
 
 
 def test_lease_uses_compare_and_set_style_redis_scripts() -> None:

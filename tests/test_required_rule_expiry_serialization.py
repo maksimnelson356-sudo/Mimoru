@@ -53,4 +53,5 @@ def test_ad_market_loop_reaches_expiry_worker() -> None:
     assert "await expire_direct_required_rules()" in loop
 
     main = (ROOT / "app/main.py").read_text(encoding="utf-8")
-    assert "asyncio.create_task(ad_market_background_loop(bot, stop_event)" in main
+    assert "ad_market_task = asyncio.create_task(" in main
+    assert "ad_market_background_loop(bot, stop_event)" in main

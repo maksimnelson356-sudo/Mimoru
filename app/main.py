@@ -305,6 +305,18 @@ async def main() -> None:
     configure_logging()
     log = structlog.get_logger()
     settings = get_settings()
+
+    if settings.mimoru_env != "production":
+        log.error(
+            "bot_refuses_to_start",
+            reason="MIMORU_ENV is not production",
+            current_env=settings.mimoru_env,
+        )
+        raise SystemExit(
+            "❌ Bot can only run with MIMORU_ENV=production. "
+            "Set MIMORU_ENV=production in .env to allow startup."
+        )
+
     bot = PlainTextBot(settings.bot_token)
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     runtime_tracker = RuntimeTracker(redis)
@@ -358,6 +370,7 @@ async def main() -> None:
     if settings.devtools_enabled:
         try:
             from aiogram_devtools import setup_devtools
+
             dt = setup_devtools(
                 dp,
                 bot,
@@ -374,6 +387,7 @@ async def main() -> None:
             )
             try:
                 from app.db.session import engine
+
                 dt.add_sqlalchemy_engine(engine)
             except Exception as exc:
                 log.warning("devtools_sql_engine_attach_failed", error=str(exc))
@@ -487,15 +501,26 @@ async def main() -> None:
         await recover_invite_operations()
         await recover_moderation_operation_intents(bot)
         await configure_bot(bot)
-        backlog_stats = await drain_startup_backlog(bot, dp, redis, allowed_updates=allowed_updates)
-        await notify_runtime_incident(bot, settings.service_owner_ids, incident, backlog_stats)
+        backlog_stats = await drain_startup_backlog(
+            bot, dp, redis, allowed_updates=allowed_updates
+        )
+        await notify_runtime_incident(
+            bot, settings.service_owner_ids, incident, backlog_stats
+        )
         await health.start()
-        task = asyncio.create_task(leader_background_loop(bot, redis, stop_event), name="background-loop")
-        ad_market_task = asyncio.create_task(ad_market_background_loop(bot, stop_event), name="ad-market-background-loop")
-        recovery_notice_task = asyncio.create_task(send_recovery_notices(bot, redis, stop_event), name="recovery-notices")
+        task = asyncio.create_task(
+            leader_background_loop(bot, redis, stop_event), name="background-loop"
+        )
+        ad_market_task = asyncio.create_task(
+            ad_market_background_loop(bot, stop_event), name="ad-market-background-loop"
+        )
+        recovery_notice_task = asyncio.create_task(
+            send_recovery_notices(bot, redis, stop_event), name="recovery-notices"
+        )
         me = await bot.get_me()
         health.set_ready(True)
         log.info("bot_started", bot_id=me.id, username=me.username)
+
         await dp.start_polling(bot, allowed_updates=allowed_updates)
         clean_shutdown = True
     except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):

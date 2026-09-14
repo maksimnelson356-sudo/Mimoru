@@ -57,7 +57,8 @@ def test_global_ad_worker_and_service_disable_are_production_reachable() -> None
     assert 'F.data.regexp(r"^service_group_action:\\d+:(enable|disable)$")' in service
     assert 'group.is_active = action == "enable"' in service
 
-    assert "ad_market_task = asyncio.create_task(ad_market_background_loop(bot, stop_event)" in main
+    assert "ad_market_task = asyncio.create_task(" in main
+    assert "ad_market_background_loop(bot, stop_event)" in main
     assert "async def ad_market_background_loop" in tasks
     assert "await distribute_global_posts(bot)" in tasks
     assert "await _publish_global_request(bot, request_id)" in tasks

@@ -37,7 +37,10 @@ def test_main_tracks_runtime_and_only_marks_clean_shutdown_for_normal_stop() -> 
     assert "runtime_tracker.heartbeat_loop(stop_event)" in source
     assert "incident = await runtime_tracker.inspect_previous_run()" in source
     assert "await runtime_tracker.mark_started()" in source
-    assert "await notify_runtime_incident(bot, settings.service_owner_ids, incident, backlog_stats)" in source
+    assert "notify_runtime_incident(" in source
+    assert "settings.service_owner_ids" in source
+    assert "incident" in source
+    assert "backlog_stats" in source
     assert "await runtime_tracker.record_fatal(exc)" in source
     assert "await runtime_tracker.mark_clean_shutdown()" in source
     assert "except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):" in source

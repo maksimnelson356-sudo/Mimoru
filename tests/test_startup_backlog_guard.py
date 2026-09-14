@@ -39,8 +39,8 @@ def test_critical_backlog_updates_are_claimed_before_dispatch() -> None:
 def test_startup_drain_runs_before_polling_and_notice_sender_is_background_task() -> None:
     main = (ROOT / "app/main.py").read_text(encoding="utf-8")
 
-    drain = main.index("await drain_startup_backlog(bot, dp, redis, allowed_updates=allowed_updates)")
-    polling = main.index("await dp.start_polling(bot, allowed_updates=allowed_updates)")
+    drain = main.index("await drain_startup_backlog(")
+    polling = main.index("await dp.start_polling(")
     assert drain < polling
     assert "send_recovery_notices(bot, redis, stop_event)" in main
     assert 'name="recovery-notices"' in main

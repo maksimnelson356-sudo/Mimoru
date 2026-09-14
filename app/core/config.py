@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-
 _PLACEHOLDER_TOKENS = {
     "123456:replace_me",
     "replace_me",
@@ -18,7 +17,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     bot_token: str
-    database_url: str = "postgresql+asyncpg://moderator:moderator@localhost:5432/moderator"
+    database_url: str = (
+        "postgresql+asyncpg://moderator:moderator@localhost:5432/moderator"
+    )
     redis_url: str = "redis://localhost:6379/0"
     service_owner_ids: Annotated[tuple[int, ...], NoDecode] = ()
     support_chat_id: int | None = None
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     health_port: int = 8080
     global_post_price_stars: int = 100
     devtools_enabled: bool = False
+    mimoru_env: str = "development"
 
     @field_validator("bot_token")
     @classmethod
@@ -49,8 +51,14 @@ class Settings(BaseSettings):
     def validate_database_url(cls, value: str) -> str:
         url = value.strip()
         parsed = urlparse(value.replace("postgresql+asyncpg://", "postgresql://", 1))
-        if parsed.scheme not in {"postgresql", "postgres"} or not parsed.hostname or not parsed.path.strip("/"):
-            raise ValueError("DATABASE_URL must be a PostgreSQL URL with host and database name")
+        if (
+            parsed.scheme not in {"postgresql", "postgres"}
+            or not parsed.hostname
+            or not parsed.path.strip("/")
+        ):
+            raise ValueError(
+                "DATABASE_URL must be a PostgreSQL URL with host and database name"
+            )
         return url
 
     @field_validator("redis_url")
@@ -59,7 +67,9 @@ class Settings(BaseSettings):
         url = value.strip()
         parsed = urlparse(url)
         if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
-            raise ValueError("REDIS_URL must use redis:// or rediss:// and contain a host")
+            raise ValueError(
+                "REDIS_URL must use redis:// or rediss:// and contain a host"
+            )
         return url
 
     @field_validator("service_owner_ids", mode="before")
@@ -74,7 +84,9 @@ class Settings(BaseSettings):
         elif isinstance(value, (list, tuple, set)):
             raw = tuple(int(item) for item in value)
         else:
-            raise ValueError("SERVICE_OWNER_IDS must contain Telegram IDs separated by commas")
+            raise ValueError(
+                "SERVICE_OWNER_IDS must contain Telegram IDs separated by commas"
+            )
         if any(item <= 0 for item in raw):
             raise ValueError("SERVICE_OWNER_IDS must contain positive Telegram IDs")
         return tuple(dict.fromkeys(raw))
@@ -100,7 +112,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_positive_limits(cls, value: int) -> int:
         if value <= 0:
-            raise ValueError("numeric moderation/marketplace settings must be greater than zero")
+            raise ValueError(
+                "numeric moderation/marketplace settings must be greater than zero"
+            )
         return value
 
     @field_validator("health_port")
