@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DailyStat, Group
+from app.db.models import DailyStat, Group, UserMessage
 from app.db.rank_models import RankAssignment
 from app.db.session import SessionFactory
 from app.keyboards.home import cancel_input_menu
@@ -29,12 +29,16 @@ async def _remove_cancel_notice(bot: Bot | None, state_data: dict[str, Any]) -> 
     if not isinstance(message_id, int) or not isinstance(chat_id, int):
         return
     try:
-        await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
+        await bot.edit_message_reply_markup(
+            chat_id=chat_id, message_id=message_id, reply_markup=None
+        )
     except TelegramBadRequest:
         pass
 
 
-def _callback_is_cancel_notice(event: CallbackQuery, state_data: dict[str, Any]) -> bool:
+def _callback_is_cancel_notice(
+    event: CallbackQuery, state_data: dict[str, Any]
+) -> bool:
     if event.message is None:
         return False
     return (
@@ -69,17 +73,27 @@ async def _cancel_callback(
         return f"words:{group_id}"
     if name.endswith(":channel_add") and isinstance(group_id, int):
         return f"channels:{group_id}"
-    if (name.endswith(":welcome_text") or name.endswith(":rules_text")) and isinstance(group_id, int):
+    if (name.endswith(":welcome_text") or name.endswith(":rules_text")) and isinstance(
+        group_id, int
+    ):
         return f"settings_detail:{group_id}"
     if name.endswith(":role_add") and isinstance(group_id, int):
         return f"roles:{group_id}"
     if name.endswith(":find_member") and isinstance(group_id, int):
         return f"group_section:{group_id}:members"
-    if (name.endswith(":add_note") or name.endswith(":add_tag")) and isinstance(group_id, int) and isinstance(user_id, int):
+    if (
+        (name.endswith(":add_note") or name.endswith(":add_tag"))
+        and isinstance(group_id, int)
+        and isinstance(user_id, int)
+    ):
         return f"member_card:{group_id}:{user_id}"
     if name.endswith(":adding") and isinstance(group_id, int):
         return f"reasons:{group_id}"
-    if name.endswith(":renaming") and isinstance(group_id, int) and isinstance(reason_id, int):
+    if (
+        name.endswith(":renaming")
+        and isinstance(group_id, int)
+        and isinstance(reason_id, int)
+    ):
         return f"reason_edit:{group_id}:{reason_id}"
 
     # Advertising editor forms keep their logical parent in state data.  These
@@ -102,7 +116,9 @@ def _is_regular_group_message(event: Message) -> bool:
     return not bool(event.new_chat_members or event.left_chat_member)
 
 
-async def _track_daily_message(session: AsyncSession, group_id: int, event: Message) -> None:
+async def _track_daily_message(
+    session: AsyncSession, group_id: int, event: Message
+) -> None:
     """Atomically count one newly-created regular message for any account.
 
     Human users and bot accounts are both part of group activity statistics.
@@ -149,16 +165,26 @@ class DatabaseMiddleware(BaseMiddleware):
                 if tg_user is not None:
                     user = await upsert_user(session, tg_user)
                     chat = getattr(event, "chat", None)
-                    if isinstance(event, Message) and chat is not None and chat.type in {"group", "supergroup"}:
-                        untouchable_exists = select(RankAssignment.id).where(
-                            RankAssignment.group_id == Group.id,
-                            RankAssignment.user_telegram_id == tg_user.id,
-                            RankAssignment.rank_code == UNTOUCHABLE,
-                            RankAssignment.active.is_(True),
-                        ).exists()
+                    if (
+                        isinstance(event, Message)
+                        and chat is not None
+                        and chat.type in {"group", "supergroup"}
+                    ):
+                        untouchable_exists = (
+                            select(RankAssignment.id)
+                            .where(
+                                RankAssignment.group_id == Group.id,
+                                RankAssignment.user_telegram_id == tg_user.id,
+                                RankAssignment.rank_code == UNTOUCHABLE,
+                                RankAssignment.active.is_(True),
+                            )
+                            .exists()
+                        )
                         group_row = (
                             await session.execute(
-                                select(Group, untouchable_exists.label("is_untouchable")).where(
+                                select(
+                                    Group, untouchable_exists.label("is_untouchable")
+                                ).where(
                                     Group.telegram_chat_id == chat.id,
                                     Group.is_active.is_(True),
                                 )
@@ -179,7 +205,17 @@ class DatabaseMiddleware(BaseMiddleware):
                                 return_row=False,
                             )
                             await _track_daily_message(session, group.id, event)
-                    completed_payment = isinstance(event, Message) and event.successful_payment is not None
+                            session.add(
+                                UserMessage(
+                                    group_id=group.id,
+                                    user_telegram_id=tg_user.id,
+                                    message_id=event.message_id,
+                                )
+                            )
+                    completed_payment = (
+                        isinstance(event, Message)
+                        and event.successful_payment is not None
+                    )
                     if user.service_blocked and not completed_payment:
                         if isinstance(event, PreCheckoutQuery):
                             await event.answer(
@@ -187,9 +223,13 @@ class DatabaseMiddleware(BaseMiddleware):
                                 error_message="Доступ к Mimoru ограничен. Новая оплата сейчас недоступна.",
                             )
                         elif isinstance(event, CallbackQuery):
-                            await event.answer("Доступ к Mimoru ограничен.", show_alert=True)
+                            await event.answer(
+                                "Доступ к Mimoru ограничен.", show_alert=True
+                            )
                         elif isinstance(event, Message):
-                            await event.answer("Доступ к Mimoru ограничен. Обратитесь в поддержку.")
+                            await event.answer(
+                                "Доступ к Mimoru ограничен. Обратитесь в поддержку."
+                            )
                         await session.commit()
                         return None
 
@@ -235,9 +275,13 @@ class DatabaseMiddleware(BaseMiddleware):
                     if isinstance(event, CallbackQuery) and event.message is not None:
                         if state_after and state_after != state_before:
                             form_data = await state.get_data()
-                            cancel_callback = await _cancel_callback(state_after, form_data, session)
+                            cancel_callback = await _cancel_callback(
+                                state_after, form_data, session
+                            )
                             try:
-                                await event.message.edit_reply_markup(reply_markup=cancel_input_menu(cancel_callback))
+                                await event.message.edit_reply_markup(
+                                    reply_markup=cancel_input_menu(cancel_callback)
+                                )
                             except TelegramBadRequest:
                                 pass
                             await state.update_data(
@@ -253,15 +297,22 @@ class DatabaseMiddleware(BaseMiddleware):
                                 and _callback_is_cancel_notice(event, state_data_before)
                             ):
                                 await _remove_cancel_notice(bot, state_data_before)
-                    elif isinstance(event, Message) and state_before and not state_after:
+                    elif (
+                        isinstance(event, Message) and state_before and not state_after
+                    ):
                         await _remove_cancel_notice(bot, state_data_before)
                 return result
             except GroupNotConnectedError:
                 await session.rollback()
                 if isinstance(event, CallbackQuery):
-                    await event.answer("Сначала подключите группу командой «подключить».", show_alert=True)
+                    await event.answer(
+                        "Сначала подключите группу командой «подключить».",
+                        show_alert=True,
+                    )
                 elif isinstance(event, Message):
-                    await event.answer("Сначала создатель группы должен подключить Mimoru командой «подключить».")
+                    await event.answer(
+                        "Сначала создатель группы должен подключить Mimoru командой «подключить»."
+                    )
                 return None
             except SQLAlchemyError:
                 await session.rollback()

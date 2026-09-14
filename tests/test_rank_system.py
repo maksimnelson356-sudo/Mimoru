@@ -84,7 +84,7 @@ def test_user_facing_rank_labels_exist() -> None:
 
 def test_untouchable_is_enforced_before_group_handlers() -> None:
     source = open("app/middlewares.py", encoding="utf-8").read()
-    assignment = source.index("untouchable_exists = select(RankAssignment.id).where(")
+    assignment = source.index("untouchable_exists = (")
     active = source.index("RankAssignment.active.is_(True)", assignment)
     rank = source.index("RankAssignment.rank_code == UNTOUCHABLE", assignment)
     gate = source.index("and untouchable", assignment)

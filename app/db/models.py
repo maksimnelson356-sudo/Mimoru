@@ -414,6 +414,22 @@ class ComplaintNotification(Base):
     )
 
 
+class UserMessage(Base):
+    __tablename__ = "user_messages"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user_telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+    )
+
+
 class DailyStat(Base):
     __tablename__ = "daily_stats"
     __table_args__ = (UniqueConstraint("group_id", "user_telegram_id", "date"),)

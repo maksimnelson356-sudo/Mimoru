@@ -17,7 +17,9 @@ def test_blocked_precheckout_is_explicitly_rejected() -> None:
 
 def test_successful_payment_bypasses_service_block_short_circuit() -> None:
     source = (ROOT / "app/middlewares.py").read_text(encoding="utf-8")
-    assert "completed_payment = isinstance(event, Message) and event.successful_payment is not None" in source
+    assert "completed_payment = (" in source
+    assert "isinstance(event, Message)" in source
+    assert "event.successful_payment is not None" in source
     assert "if user.service_blocked and not completed_payment:" in source
 
 
@@ -27,7 +29,8 @@ def test_ordinary_blocked_messages_and_callbacks_stay_denied() -> None:
         '# "Недотрога"', 1
     )[0]
     assert "isinstance(event, CallbackQuery)" in blocked
-    assert 'await event.answer("Доступ к Mimoru ограничен.", show_alert=True)' in blocked
+    assert 'await event.answer(' in blocked
+    assert "Доступ к Mimoru ограничен" in blocked
     assert "isinstance(event, Message)" in blocked
     assert "Обратитесь в поддержку" in blocked
 

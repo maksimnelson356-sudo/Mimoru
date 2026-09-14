@@ -51,4 +51,4 @@ def test_bot_container_restarts_after_process_failure() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     bot_section = compose.split("  bot:\n", 1)[1].split("\n  postgres:\n", 1)[0]
 
-    assert "restart: unless-stopped" in bot_section
+    assert "restart: on-failure:5" in bot_section

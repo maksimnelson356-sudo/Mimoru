@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -7,7 +9,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Complaint, ComplaintNotification, Group
+from app.db.models import Complaint, ComplaintNotification, Group, UserMessage
 from app.services.moderation import execute
 from app.services.public_identity import public_user_token
 
@@ -43,6 +45,48 @@ async def _clear_complaint_buttons(
                 message_id=n.message_id,
                 error=str(exc),
             )
+
+
+async def _delete_user_messages(
+    bot: Bot,
+    session: AsyncSession,
+    group_id: int,
+    user_telegram_id: int,
+    chat_id: int,
+) -> int:
+    """Удаляет сообщения пользователя через deleteMessages.
+    Только сообщения < 47 часов (Telegram не даёт удалять старые).
+    Возвращает количество удалённых.
+    """
+    cutoff = datetime.now(UTC) - timedelta(hours=47)
+    rows = (
+        await session.scalars(
+            select(UserMessage.message_id).where(
+                UserMessage.group_id == group_id,
+                UserMessage.user_telegram_id == user_telegram_id,
+                UserMessage.created_at > cutoff,
+            )
+        )
+    ).all()
+
+    deleted = 0
+    for i in range(0, len(rows), 100):
+        batch = list(rows[i : i + 100])
+        try:
+            await bot.delete_messages(
+                chat_id=chat_id,
+                message_ids=batch,
+            )
+            deleted += len(batch)
+        except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            log.warning(
+                "delete_messages_batch_failed",
+                group_id=group_id,
+                user_telegram_id=user_telegram_id,
+                batch_size=len(batch),
+                error=str(exc),
+            )
+    return deleted
 
 
 async def _get_pending(
@@ -226,6 +270,20 @@ async def complaint_ban_confirm(
         await callback.answer("Группа больше не активна.", show_alert=True)
         return
 
+    deleted = await _delete_user_messages(
+        bot,
+        session,
+        group.id,
+        complaint.target_telegram_id,
+        group.telegram_chat_id,
+    )
+    log.info(
+        "user_messages_deleted",
+        complaint_id=cid,
+        user_telegram_id=complaint.target_telegram_id,
+        deleted=deleted,
+    )
+
     result = await execute(
         bot=bot,
         session=session,
@@ -284,6 +342,20 @@ async def complaint_ban_clean(
     if group is None:
         await callback.answer("Группа больше не активна.", show_alert=True)
         return
+
+    deleted = await _delete_user_messages(
+        bot,
+        session,
+        group.id,
+        complaint.target_telegram_id,
+        group.telegram_chat_id,
+    )
+    log.info(
+        "user_messages_deleted",
+        complaint_id=cid,
+        user_telegram_id=complaint.target_telegram_id,
+        deleted=deleted,
+    )
 
     result = await execute(
         bot=bot,

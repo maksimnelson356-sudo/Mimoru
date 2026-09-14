@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import structlog
 from aiogram import Bot
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
+from sqlalchemy import delete
 
+from app.db.models import UserMessage
+from app.db.session import SessionFactory
 from app.services.runtime import stop_task
-
 
 LEASE_KEY = "mimoru:background-loop:leader"
 LEASE_SECONDS = 30
@@ -23,6 +26,7 @@ INVITE_OPERATION_RECOVERY_SECONDS = 30
 DUPLICATE_REFUND_RECOVERY_SECONDS = 30
 SUBSCRIPTION_REFUND_RECOVERY_SECONDS = 30
 MODERATION_OPERATION_RECOVERY_SECONDS = 30
+USER_MESSAGES_CLEANUP_SECONDS = 3600
 
 # Limit how many recovery tasks can execute concurrently. Each recovery
 # function may open DB connections during Telegram API calls. Capping
@@ -38,6 +42,7 @@ def _get_recovery_semaphore() -> asyncio.Semaphore:
     if _recovery_semaphore is None:
         _recovery_semaphore = asyncio.Semaphore(RECOVERY_CONCURRENCY)
     return _recovery_semaphore
+
 
 _RENEW_SCRIPT = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
@@ -86,7 +91,9 @@ async def _renew_lease(redis: Redis, token: str, local_stop: asyncio.Event) -> b
     return True
 
 
-async def _recover_group_disconnects_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_group_disconnects_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Retry durable group disconnect intents only while this replica is leader."""
     from app.services.group_disconnects import recover_group_disconnects
 
@@ -106,9 +113,13 @@ async def _recover_group_disconnects_periodically(bot: Bot, local_stop: asyncio.
             continue
 
 
-async def _recover_chat_permissions_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_chat_permissions_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Reconcile durable chat-permission intents only while this replica is leader."""
-    from app.services.chat_permission_transitions import recover_chat_permission_transitions
+    from app.services.chat_permission_transitions import (
+        recover_chat_permission_transitions,
+    )
 
     log = structlog.get_logger()
     sem = _get_recovery_semaphore()
@@ -126,7 +137,9 @@ async def _recover_chat_permissions_periodically(bot: Bot, local_stop: asyncio.E
             continue
 
 
-async def _recover_rank_provisioning_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_rank_provisioning_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Reconcile durable rank-provisioning intents only while this replica is leader."""
     from app.services.rank_provisioning import recover_rank_provisioning_intents
 
@@ -146,7 +159,9 @@ async def _recover_rank_provisioning_periodically(bot: Bot, local_stop: asyncio.
             continue
 
 
-async def _recover_join_reviews_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_join_reviews_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Reconcile stale review claims only while this replica owns the leader lease."""
     from app.services.join_request_transitions import recover_join_request_reviews
 
@@ -159,7 +174,9 @@ async def _recover_join_reviews_periodically(bot: Bot, local_stop: asyncio.Event
         except Exception:
             log.exception("join_review_recovery_iteration_failed")
         try:
-            await asyncio.wait_for(local_stop.wait(), timeout=JOIN_REVIEW_RECOVERY_SECONDS)
+            await asyncio.wait_for(
+                local_stop.wait(), timeout=JOIN_REVIEW_RECOVERY_SECONDS
+            )
         except TimeoutError:
             continue
 
@@ -177,12 +194,16 @@ async def _recover_invite_operations_periodically(local_stop: asyncio.Event) -> 
         except Exception:
             log.exception("invite_operation_recovery_iteration_failed")
         try:
-            await asyncio.wait_for(local_stop.wait(), timeout=INVITE_OPERATION_RECOVERY_SECONDS)
+            await asyncio.wait_for(
+                local_stop.wait(), timeout=INVITE_OPERATION_RECOVERY_SECONDS
+            )
         except TimeoutError:
             continue
 
 
-async def _recover_duplicate_refunds_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_duplicate_refunds_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Retry durable duplicate Stars refunds only while this replica is leader."""
     from app.services.global_post_refunds import recover_pending_duplicate_refunds
 
@@ -195,14 +216,20 @@ async def _recover_duplicate_refunds_periodically(bot: Bot, local_stop: asyncio.
         except Exception:
             log.exception("global_post_duplicate_refund_recovery_iteration_failed")
         try:
-            await asyncio.wait_for(local_stop.wait(), timeout=DUPLICATE_REFUND_RECOVERY_SECONDS)
+            await asyncio.wait_for(
+                local_stop.wait(), timeout=DUPLICATE_REFUND_RECOVERY_SECONDS
+            )
         except TimeoutError:
             continue
 
 
-async def _recover_subscription_refunds_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_subscription_refunds_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Retry durable subscription refunds only while this replica is leader."""
-    from app.services.subscription_duplicate_refunds import recover_pending_subscription_duplicate_refunds
+    from app.services.subscription_duplicate_refunds import (
+        recover_pending_subscription_duplicate_refunds,
+    )
     from app.services.subscription_refunds import recover_pending_subscription_refunds
 
     log = structlog.get_logger()
@@ -215,12 +242,16 @@ async def _recover_subscription_refunds_periodically(bot: Bot, local_stop: async
         except Exception:
             log.exception("subscription_refund_recovery_iteration_failed")
         try:
-            await asyncio.wait_for(local_stop.wait(), timeout=SUBSCRIPTION_REFUND_RECOVERY_SECONDS)
+            await asyncio.wait_for(
+                local_stop.wait(), timeout=SUBSCRIPTION_REFUND_RECOVERY_SECONDS
+            )
         except TimeoutError:
             continue
 
 
-async def _recover_moderation_operations_periodically(bot: Bot, local_stop: asyncio.Event) -> None:
+async def _recover_moderation_operations_periodically(
+    bot: Bot, local_stop: asyncio.Event
+) -> None:
     """Reconcile durable moderation side-effect intents only while leader."""
     from app.services.moderation_operations import recover_moderation_operation_intents
 
@@ -235,6 +266,29 @@ async def _recover_moderation_operations_periodically(bot: Bot, local_stop: asyn
         try:
             await asyncio.wait_for(
                 local_stop.wait(), timeout=MODERATION_OPERATION_RECOVERY_SECONDS
+            )
+        except TimeoutError:
+            continue
+
+
+async def _cleanup_user_messages_periodically(local_stop: asyncio.Event) -> None:
+    """Delete old user messages (>49 hours) to keep the table bounded."""
+    log = structlog.get_logger()
+    while not local_stop.is_set():
+        try:
+            async with SessionFactory() as session:
+                cutoff = datetime.now(UTC) - timedelta(hours=49)
+                result = await session.execute(
+                    delete(UserMessage).where(UserMessage.created_at < cutoff)
+                )
+                await session.commit()
+                if result.rowcount:
+                    log.info("user_messages_cleanup", deleted=result.rowcount)
+        except Exception as exc:
+            log.warning("user_messages_cleanup_failed", error=str(exc))
+        try:
+            await asyncio.wait_for(
+                local_stop.wait(), timeout=USER_MESSAGES_CLEANUP_SECONDS
             )
         except TimeoutError:
             continue
@@ -278,6 +332,10 @@ async def _run_leader_worker(bot: Bot, redis: Redis, local_stop: asyncio.Event) 
         _recover_moderation_operations_periodically(bot, local_stop),
         name="moderation-operation-recovery",
     )
+    user_messages_cleanup = asyncio.create_task(
+        _cleanup_user_messages_periodically(local_stop),
+        name="user-messages-cleanup",
+    )
     try:
         await background_loop(bot, redis, local_stop)
     finally:
@@ -290,9 +348,12 @@ async def _run_leader_worker(bot: Bot, redis: Redis, local_stop: asyncio.Event) 
         await stop_task(refund_recovery, timeout=2.0)
         await stop_task(subscription_refund_recovery, timeout=2.0)
         await stop_task(moderation_recovery, timeout=2.0)
+        await stop_task(user_messages_cleanup, timeout=2.0)
 
 
-async def leader_background_loop(bot: Bot, redis: Redis, stop_event: asyncio.Event) -> None:
+async def leader_background_loop(
+    bot: Bot, redis: Redis, stop_event: asyncio.Event
+) -> None:
     """Run the core scheduler on at most one application replica at a time.
 
     The lease is renewed independently from the worker loop. If ownership is lost or
@@ -315,9 +376,15 @@ async def leader_background_loop(bot: Bot, redis: Redis, stop_event: asyncio.Eve
             break
 
         local_stop = asyncio.Event()
-        worker = asyncio.create_task(_run_leader_worker(bot, redis, local_stop), name="background-worker")
-        renewer = asyncio.create_task(_renew_lease(redis, token, local_stop), name="background-lease-renewer")
-        global_stop = asyncio.create_task(stop_event.wait(), name="background-global-stop")
+        worker = asyncio.create_task(
+            _run_leader_worker(bot, redis, local_stop), name="background-worker"
+        )
+        renewer = asyncio.create_task(
+            _renew_lease(redis, token, local_stop), name="background-lease-renewer"
+        )
+        global_stop = asyncio.create_task(
+            stop_event.wait(), name="background-global-stop"
+        )
         try:
             done, _ = await asyncio.wait(
                 {worker, renewer, global_stop},
