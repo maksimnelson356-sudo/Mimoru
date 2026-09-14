@@ -3,7 +3,7 @@ name: mimoru
 services:
   bot:
     build: .
-    restart: unless-stopped
+    restart: on-failure:5
     env_file: .env
     depends_on:
       postgres:
