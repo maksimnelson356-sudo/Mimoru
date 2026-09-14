@@ -4,15 +4,45 @@ import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Complaint, Group
+from app.db.models import Complaint, ComplaintNotification, Group
 from app.services.moderation import execute
 from app.services.public_identity import public_user_token
 
 log = structlog.get_logger(__name__)
 
 router = Router(name=__name__)
+
+
+async def _clear_complaint_buttons(
+    bot: Bot,
+    session: AsyncSession,
+    complaint_id: int,
+) -> None:
+    """Снимает inline-кнопки со всех уведомлений о жалобе."""
+    notifications = (
+        await session.scalars(
+            select(ComplaintNotification).where(
+                ComplaintNotification.complaint_id == complaint_id,
+            )
+        )
+    ).all()
+    for n in notifications:
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=n.admin_telegram_id,
+                message_id=n.message_id,
+                reply_markup=None,
+            )
+        except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            log.warning(
+                "complaint_notification_edit_failed",
+                admin_telegram_id=n.admin_telegram_id,
+                message_id=n.message_id,
+                error=str(exc),
+            )
 
 
 async def _get_pending(
@@ -30,7 +60,9 @@ async def _reject_stale(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.regexp(r"^complaint:ack:\d+$"))
-async def complaint_ack(callback: CallbackQuery, session: AsyncSession) -> None:
+async def complaint_ack(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
     complaint = await _get_pending(session, cid)
     if complaint is None:
@@ -47,7 +79,7 @@ async def complaint_ack(callback: CallbackQuery, session: AsyncSession) -> None:
 
     actor = public_user_token(callback.from_user.id)
     try:
-        await callback.bot.send_message(
+        await bot.send_message(
             group.telegram_chat_id,
             f"✅ Жалоба обработана.\nМодератор: {actor}",
         )
@@ -58,8 +90,12 @@ async def complaint_ack(callback: CallbackQuery, session: AsyncSession) -> None:
             error=str(exc),
         )
 
+    await _clear_complaint_buttons(bot, session, cid)
     if callback.message is not None:
-        await callback.message.edit_reply_markup(reply_markup=None)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass  # уже снято хелпером
     await callback.answer("Отмечено как проверено.")
 
 
@@ -226,8 +262,12 @@ async def complaint_ban_confirm(
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
 
+    await _clear_complaint_buttons(bot, session, cid)
     if callback.message is not None:
-        await callback.message.edit_reply_markup(reply_markup=None)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass  # уже снято хелпером
     await callback.answer("Пользователь забанен.")
 
 
@@ -337,8 +377,12 @@ async def complaint_ban_clean(
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
 
+    await _clear_complaint_buttons(bot, session, cid)
     if callback.message is not None:
-        await callback.message.edit_reply_markup(reply_markup=None)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass  # уже снято хелпером
     await callback.answer(
         "Забанен. Попытка очистки выполнена."
         if cleanup_ok
@@ -452,8 +496,12 @@ async def complaint_mute_reporter_confirm(
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
 
+    await _clear_complaint_buttons(bot, session, cid)
     if callback.message is not None:
-        await callback.message.edit_reply_markup(reply_markup=None)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass  # уже снято хелпером
     await callback.answer("Отправитель наказан.")
 
 

@@ -7,7 +7,14 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Complaint, Group, GroupMember, User, Warning
+from app.db.models import (
+    Complaint,
+    ComplaintNotification,
+    Group,
+    GroupMember,
+    User,
+    Warning,
+)
 from app.db.rank_models import RankAssignment
 from app.services.access import can_moderate
 from app.services.action_panel import format_action_panel
@@ -160,10 +167,21 @@ async def _notify_complaint_recipients(
 
     for recipient in recipients:
         try:
-            await bot.send_message(recipient, text, reply_markup=keyboard)
+            sent = await bot.send_message(recipient, text, reply_markup=keyboard)
             delivered += 1
+            if complaint is not None:
+                session.add(
+                    ComplaintNotification(
+                        complaint_id=complaint.id,
+                        admin_telegram_id=recipient,
+                        message_id=sent.message_id,
+                    )
+                )
         except (TelegramBadRequest, TelegramForbiddenError):
             continue
+
+    if complaint is not None and delivered > 0:
+        await session.commit()
 
     if delivered == 0:
         log.warning(
