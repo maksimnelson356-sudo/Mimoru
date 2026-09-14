@@ -140,8 +140,10 @@ async def complaint_ban_prompt(callback: CallbackQuery, session: AsyncSession) -
         f"👤 Нарушитель: {target}\n\n"
         "Выберите обычный бан или бан с очисткой сохранённых "
         "сообщений пользователя.\n\n"
-        "⚠ Очистка необратима. Telegram удалит не все сообщения, "
-        "если им больше 48 часов."
+        "⚠ Очистка необратима. Telegram удалит не все сообщения:\n"
+        "• сообщения старше 48 часов остаются\n"
+        "• сообщения пользователя, который уже был забанен ранее, "
+        "могут остаться"
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -319,12 +321,16 @@ async def complaint_ban_clean(
     actor = public_user_token(callback.from_user.id)
     target = public_user_token(complaint.target_telegram_id)
     if cleanup_ok:
-        msg = f"🚫🗑 {target} забанен с очисткой сообщений.\nМодератор: {actor}"
+        msg = (
+            f"🚫🗑 {target} забанен с очисткой сообщений.\n"
+            f"⚠ Часть сообщений могла остаться (ограничения Telegram).\n"
+            f"Модератор: {actor}"
+        )
     else:
         msg = (
             f"🚫 {target} забанен.\n"
-            f"⚠ Очистка не удалась полностью (сообщения старше 48 часов "
-            f"удалить нельзя).\nМодератор: {actor}"
+            f"⚠ Очистка не удалась (сообщения старше 48 часов или "
+            f"повторный бан).\nМодератор: {actor}"
         )
     try:
         await bot.send_message(group.telegram_chat_id, msg)
@@ -334,7 +340,9 @@ async def complaint_ban_clean(
     if callback.message is not None:
         await callback.message.edit_reply_markup(reply_markup=None)
     await callback.answer(
-        "Забанен с очисткой." if cleanup_ok else "Забанен (частичная очистка)."
+        "Забанен. Попытка очистки выполнена."
+        if cleanup_ok
+        else "Забанен. Очистка не удалась (ограничения Telegram)."
     )
 
 
