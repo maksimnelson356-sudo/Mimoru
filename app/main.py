@@ -355,6 +355,32 @@ async def main() -> None:
     group_action_aliases.router.message.middleware(sensitive_alias_access_middleware)
     telegram_roles.router.callback_query.middleware(rank_mutation_lock_middleware)
     telegram_roles.router.message.middleware(rank_mutation_lock_middleware)
+    if settings.devtools_enabled:
+        try:
+            from aiogram_devtools import setup_devtools
+            dt = setup_devtools(
+                dp,
+                bot,
+                host="0.0.0.0",
+                port=8001,
+                enabled=True,
+                secret_keys=[
+                    "password",
+                    "api_key",
+                    "bot_token",
+                    "secret",
+                    "token",
+                ],
+            )
+            try:
+                from app.db.session import engine
+                dt.add_sqlalchemy_engine(engine)
+            except Exception as exc:
+                log.warning("devtools_sql_engine_attach_failed", error=str(exc))
+            log.info("devtools_enabled", panel_url="http://127.0.0.1:8001")
+        except Exception as exc:
+            log.warning("devtools_init_failed", error=str(exc))
+
     dp.include_routers(
         fun_preferences.router,
         fun_extras.router,

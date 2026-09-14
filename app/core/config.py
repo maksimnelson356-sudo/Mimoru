@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     health_host: str = "0.0.0.0"
     health_port: int = 8080
     global_post_price_stars: int = 100
+    devtools_enabled: bool = False
 
     @field_validator("bot_token")
     @classmethod
