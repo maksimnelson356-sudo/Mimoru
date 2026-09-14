@@ -261,11 +261,29 @@ async def complaint_ban_clean(
     if result.commit:
         await session.commit()
 
-    # Всегда пробуем очистку — даже если execute вернул failure
-    # (пользователь мог быть уже забанен, тогда execute "не смог",
-    #  но очистка всё равно нужна).
+    # Всегда пробуем очистку.
+    # ВАЖНО: Telegram не удаляет сообщения при повторном
+    # ban_chat_member(revoke_messages=True), если пользователь УЖЕ забанен.
+    # Поэтому сначала снимаем бан (только если он есть), потом баним
+    # с revoke_messages=True — тогда очистка сработает.
     cleanup_ok = False
     cleanup_error = ""
+
+    # Шаг 1: разбанить, если пользователь уже забанен
+    try:
+        await bot.unban_chat_member(
+            chat_id=group.telegram_chat_id,
+            user_id=complaint.target_telegram_id,
+            only_if_banned=True,
+        )
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
+        log.warning(
+            "complaint_ban_clean_unban_failed",
+            complaint_id=cid,
+            error=str(exc),
+        )
+
+    # Шаг 2: забанить с очисткой
     try:
         await bot.ban_chat_member(
             chat_id=group.telegram_chat_id,
