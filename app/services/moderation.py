@@ -60,8 +60,12 @@ class ModerationOutcome(str):
         return obj
 
 
-def _success(text: str, *, commit: bool = True, public_notice: bool = True) -> ModerationOutcome:
-    return ModerationOutcome(text, success=True, commit=commit, public_notice=public_notice)
+def _success(
+    text: str, *, commit: bool = True, public_notice: bool = True
+) -> ModerationOutcome:
+    return ModerationOutcome(
+        text, success=True, commit=commit, public_notice=public_notice
+    )
 
 
 def _failure(text: str) -> ModerationOutcome:
@@ -180,134 +184,372 @@ async def execute(
             "Этот пользователь является Telegram-владельцем или администратором, "
             "который не управляется рангами Mimoru. Сначала синхронизируйте его роль."
         )
-    target_is_admin_rank = bool(target_assignment and target_assignment.rank_code in ADMIN_RANKS)
+    target_is_admin_rank = bool(
+        target_assignment and target_assignment.rank_code in ADMIN_RANKS
+    )
     now = datetime.now(timezone.utc)
     safe_reason = reason.strip() or "Не указана"
 
+    if action in {"ban", "mute"}:
+        existing = await session.scalar(
+            select(Punishment.id)
+            .where(
+                Punishment.group_id == group_id,
+                Punishment.user_telegram_id == target_id,
+                Punishment.kind == action,
+                Punishment.active.is_(True),
+            )
+            .limit(1)
+        )
+        if existing is not None:
+            return _failure(f"У пользователя уже есть активное наказание ({action}).")
+
     if action == "ban":
         if not await _prepare_ranked_admin_punishment(bot, group, target_assignment):
-            return _failure("Telegram не позволил временно снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов.")
+            return _failure(
+                "Telegram не позволил временно снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов."
+            )
         until = now + timedelta(seconds=duration) if duration else None
         try:
-            await bot.ban_chat_member(chat_id, target_id, until_date=int(until.timestamp()) if until else None)
+            await bot.ban_chat_member(
+                chat_id, target_id, until_date=int(until.timestamp()) if until else None
+            )
         except (TelegramBadRequest, TelegramForbiddenError):
             await _restore_after_failed_action(bot, group, target_assignment)
-            return _failure("Telegram не позволил забанить пользователя. Проверьте права Mimoru и состояние участника.")
-        session.add(Punishment(group_id=group_id, user_telegram_id=target_id, moderator_telegram_id=moderator_id, kind="ban", reason=safe_reason, ends_at=until))
+            return _failure(
+                "Telegram не позволил забанить пользователя. Проверьте права Mimoru и состояние участника."
+            )
+        session.add(
+            Punishment(
+                group_id=group_id,
+                user_telegram_id=target_id,
+                moderator_telegram_id=moderator_id,
+                kind="ban",
+                reason=safe_reason,
+                ends_at=until,
+            )
+        )
         if target_is_admin_rank and target_assignment is not None:
             old_rank = target_assignment.rank_code
             target_assignment.active = False
             target_assignment.telegram_admin_managed = False
             target_assignment.restore_after_mute = False
-            add_rank_event(session, group_id=group_id, actor_id=moderator_id, target_id=target_id, action="remove_by_ban", old_rank=old_rank, new_rank=None, details={"reason": safe_reason})
-        log_action(session, group_id, moderator_id, target_id, "ban", safe_reason, {"duration": duration})
-        return _success(manual_action_notice(action="ban", target=target_name, moderator=moderator_name, reason=safe_reason, duration_seconds=duration, actor_role=actor_role))
+            add_rank_event(
+                session,
+                group_id=group_id,
+                actor_id=moderator_id,
+                target_id=target_id,
+                action="remove_by_ban",
+                old_rank=old_rank,
+                new_rank=None,
+                details={"reason": safe_reason},
+            )
+        log_action(
+            session,
+            group_id,
+            moderator_id,
+            target_id,
+            "ban",
+            safe_reason,
+            {"duration": duration},
+        )
+        return _success(
+            manual_action_notice(
+                action="ban",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                duration_seconds=duration,
+                actor_role=actor_role,
+            )
+        )
 
     if action == "unban":
         try:
             await bot.unban_chat_member(chat_id, target_id, only_if_banned=True)
         except (TelegramBadRequest, TelegramForbiddenError):
-            return _failure("Telegram не позволил разблокировать пользователя. Проверьте права Mimoru.")
+            return _failure(
+                "Telegram не позволил разблокировать пользователя. Проверьте права Mimoru."
+            )
         await deactivate_punishments(session, group_id, target_id, "ban")
         log_action(session, group_id, moderator_id, target_id, "unban", safe_reason)
-        return _success(manual_action_notice(action="unban", target=target_name, moderator=moderator_name, reason=safe_reason, actor_role=actor_role))
+        return _success(
+            manual_action_notice(
+                action="unban",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                actor_role=actor_role,
+            )
+        )
 
     if action == "mute":
         if not await _prepare_ranked_admin_punishment(bot, group, target_assignment):
-            return _failure("Telegram не позволил временно снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов.")
+            return _failure(
+                "Telegram не позволил временно снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов."
+            )
         seconds = duration or default_mute
         until = now + timedelta(seconds=seconds)
         try:
-            await bot.restrict_chat_member(chat_id, target_id, permissions=MUTED, until_date=int(until.timestamp()))
+            await bot.restrict_chat_member(
+                chat_id, target_id, permissions=MUTED, until_date=int(until.timestamp())
+            )
         except (TelegramBadRequest, TelegramForbiddenError):
             await _restore_after_failed_action(bot, group, target_assignment)
-            return _failure("Telegram не позволил выдать мут. Проверьте права Mimoru и состояние участника.")
+            return _failure(
+                "Telegram не позволил выдать мут. Проверьте права Mimoru и состояние участника."
+            )
         if target_is_admin_rank and target_assignment is not None:
             target_assignment.restore_after_mute = True
-        session.add(Punishment(group_id=group_id, user_telegram_id=target_id, moderator_telegram_id=moderator_id, kind="mute", reason=safe_reason, ends_at=until))
-        log_action(session, group_id, moderator_id, target_id, "mute", safe_reason, {"duration": seconds, "restore_rank": target_assignment.rank_code if target_is_admin_rank and target_assignment else None})
-        return _success(manual_action_notice(action="mute", target=target_name, moderator=moderator_name, reason=safe_reason, duration_seconds=seconds, actor_role=actor_role))
+        session.add(
+            Punishment(
+                group_id=group_id,
+                user_telegram_id=target_id,
+                moderator_telegram_id=moderator_id,
+                kind="mute",
+                reason=safe_reason,
+                ends_at=until,
+            )
+        )
+        log_action(
+            session,
+            group_id,
+            moderator_id,
+            target_id,
+            "mute",
+            safe_reason,
+            {
+                "duration": seconds,
+                "restore_rank": (
+                    target_assignment.rank_code
+                    if target_is_admin_rank and target_assignment
+                    else None
+                ),
+            },
+        )
+        return _success(
+            manual_action_notice(
+                action="mute",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                duration_seconds=seconds,
+                actor_role=actor_role,
+            )
+        )
 
     if action == "unmute":
         try:
             await bot.restrict_chat_member(chat_id, target_id, permissions=UNMUTED)
         except (TelegramBadRequest, TelegramForbiddenError):
-            return _failure("Telegram не позволил снять мут. Проверьте права Mimoru и состояние участника.")
+            return _failure(
+                "Telegram не позволил снять мут. Проверьте права Mimoru и состояние участника."
+            )
         await deactivate_punishments(session, group_id, target_id, "mute")
         if target_assignment is not None and target_assignment.rank_code in ADMIN_RANKS:
             if await restore_telegram_rank(bot, group, target_assignment):
                 target_assignment.restore_after_mute = False
         log_action(session, group_id, moderator_id, target_id, "unmute", safe_reason)
-        return _success(manual_action_notice(action="unmute", target=target_name, moderator=moderator_name, reason=safe_reason, actor_role=actor_role))
+        return _success(
+            manual_action_notice(
+                action="unmute",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                actor_role=actor_role,
+            )
+        )
 
     if action == "kick":
         if not await _prepare_ranked_admin_punishment(bot, group, target_assignment):
-            return _failure("Telegram не позволил снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов.")
+            return _failure(
+                "Telegram не позволил снять admin-права нижестоящего администратора. Проверьте право Mimoru назначать администраторов."
+            )
         try:
             await bot.ban_chat_member(chat_id, target_id)
         except (TelegramBadRequest, TelegramForbiddenError):
             await _restore_after_failed_action(bot, group, target_assignment)
-            return _failure("Telegram не позволил исключить пользователя. Проверьте права Mimoru и состояние участника.")
+            return _failure(
+                "Telegram не позволил исключить пользователя. Проверьте права Mimoru и состояние участника."
+            )
         try:
             await bot.unban_chat_member(chat_id, target_id, only_if_banned=True)
         except (TelegramBadRequest, TelegramForbiddenError):
-            session.add(Punishment(
-                group_id=group_id,
-                user_telegram_id=target_id,
-                moderator_telegram_id=moderator_id,
-                kind="ban",
-                reason="Не удалось завершить кик: пользователь остался заблокирован",
-                ends_at=None,
-            ))
+            session.add(
+                Punishment(
+                    group_id=group_id,
+                    user_telegram_id=target_id,
+                    moderator_telegram_id=moderator_id,
+                    kind="ban",
+                    reason="Не удалось завершить кик: пользователь остался заблокирован",
+                    ends_at=None,
+                )
+            )
             if target_is_admin_rank and target_assignment is not None:
                 old_rank = target_assignment.rank_code
                 target_assignment.active = False
                 target_assignment.telegram_admin_managed = False
                 target_assignment.restore_after_mute = False
-                add_rank_event(session, group_id=group_id, actor_id=moderator_id, target_id=target_id, action="remove_by_ban", old_rank=old_rank, new_rank=None, details={"reason": "Сбой завершения кика"})
-            log_action(session, group_id, moderator_id, target_id, "kick_failed_ban", safe_reason)
-            return _partial("Telegram заблокировал пользователя, но не смог сразу разблокировать после кика. Пользователь оставлен в бане и записан в журнал.")
+                add_rank_event(
+                    session,
+                    group_id=group_id,
+                    actor_id=moderator_id,
+                    target_id=target_id,
+                    action="remove_by_ban",
+                    old_rank=old_rank,
+                    new_rank=None,
+                    details={"reason": "Сбой завершения кика"},
+                )
+            log_action(
+                session,
+                group_id,
+                moderator_id,
+                target_id,
+                "kick_failed_ban",
+                safe_reason,
+            )
+            return _partial(
+                "Telegram заблокировал пользователя, но не смог сразу разблокировать после кика. Пользователь оставлен в бане и записан в журнал."
+            )
         if target_is_admin_rank and target_assignment is not None:
             old_rank = target_assignment.rank_code
             target_assignment.active = False
             target_assignment.telegram_admin_managed = False
             target_assignment.restore_after_mute = False
-            add_rank_event(session, group_id=group_id, actor_id=moderator_id, target_id=target_id, action="remove_by_kick", old_rank=old_rank, new_rank=None, details={"reason": safe_reason})
+            add_rank_event(
+                session,
+                group_id=group_id,
+                actor_id=moderator_id,
+                target_id=target_id,
+                action="remove_by_kick",
+                old_rank=old_rank,
+                new_rank=None,
+                details={"reason": safe_reason},
+            )
         log_action(session, group_id, moderator_id, target_id, "kick", safe_reason)
-        return _success(manual_action_notice(action="kick", target=target_name, moderator=moderator_name, reason=safe_reason, actor_role=actor_role))
+        return _success(
+            manual_action_notice(
+                action="kick",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                actor_role=actor_role,
+            )
+        )
 
     if action == "warn":
-        session.add(Warning(group_id=group_id, user_telegram_id=target_id, moderator_telegram_id=moderator_id, reason=safe_reason))
+        session.add(
+            Warning(
+                group_id=group_id,
+                user_telegram_id=target_id,
+                moderator_telegram_id=moderator_id,
+                reason=safe_reason,
+            )
+        )
         await session.flush()
         count = await active_warnings_count(session, group_id, target_id)
-        log_action(session, group_id, moderator_id, target_id, "warn", safe_reason, {"active_count": count})
-        notice = manual_action_notice(action="warn", target=target_name, moderator=moderator_name, reason=safe_reason, warning_count=count, warning_limit=warnings_limit, actor_role=actor_role)
+        log_action(
+            session,
+            group_id,
+            moderator_id,
+            target_id,
+            "warn",
+            safe_reason,
+            {"active_count": count},
+        )
+        notice = manual_action_notice(
+            action="warn",
+            target=target_name,
+            moderator=moderator_name,
+            reason=safe_reason,
+            warning_count=count,
+            warning_limit=warnings_limit,
+            actor_role=actor_role,
+        )
         if count >= warnings_limit and not target_is_admin_rank:
             until = now + timedelta(seconds=default_mute)
             try:
-                await bot.restrict_chat_member(chat_id, target_id, permissions=MUTED, until_date=int(until.timestamp()))
+                await bot.restrict_chat_member(
+                    chat_id,
+                    target_id,
+                    permissions=MUTED,
+                    until_date=int(until.timestamp()),
+                )
             except (TelegramBadRequest, TelegramForbiddenError):
                 notice += "\n\n⚠️ Лимит предупреждений достигнут, но Telegram не позволил автоматически выдать мут."
             else:
-                session.add(Punishment(group_id=group_id, user_telegram_id=target_id, moderator_telegram_id=moderator_id, kind="mute", reason="Лимит предупреждений", ends_at=until))
-                log_action(session, group_id, moderator_id, target_id, "auto_mute", "Лимит предупреждений", {"duration": default_mute})
-                notice += "\n\n" + manual_action_notice(action="mute", target=target_name, moderator=moderator_name, reason="достигнут лимит предупреждений", duration_seconds=default_mute, actor_role=actor_role)
+                session.add(
+                    Punishment(
+                        group_id=group_id,
+                        user_telegram_id=target_id,
+                        moderator_telegram_id=moderator_id,
+                        kind="mute",
+                        reason="Лимит предупреждений",
+                        ends_at=until,
+                    )
+                )
+                log_action(
+                    session,
+                    group_id,
+                    moderator_id,
+                    target_id,
+                    "auto_mute",
+                    "Лимит предупреждений",
+                    {"duration": default_mute},
+                )
+                notice += "\n\n" + manual_action_notice(
+                    action="mute",
+                    target=target_name,
+                    moderator=moderator_name,
+                    reason="достигнут лимит предупреждений",
+                    duration_seconds=default_mute,
+                    actor_role=actor_role,
+                )
         elif count >= warnings_limit and target_is_admin_rank:
             notice += "\n\nЛимит предупреждений достигнут, но администратор не был автоматически ограничен."
         return _success(notice)
 
     if action == "unwarn":
-        warning = await session.scalar(select(Warning).where(Warning.group_id == group_id, Warning.user_telegram_id == target_id, Warning.active.is_(True)).order_by(Warning.created_at.desc()))
+        warning = await session.scalar(
+            select(Warning)
+            .where(
+                Warning.group_id == group_id,
+                Warning.user_telegram_id == target_id,
+                Warning.active.is_(True),
+            )
+            .order_by(Warning.created_at.desc())
+        )
         if warning is None:
             return _failure(f"У {target_name} нет активных предупреждений.")
         warning.active = False
         await session.flush()
         count = await active_warnings_count(session, group_id, target_id)
-        log_action(session, group_id, moderator_id, target_id, "unwarn", safe_reason, {"warning_id": warning.id, "active_count": count})
-        return _success(manual_action_notice(action="unwarn", target=target_name, moderator=moderator_name, reason=safe_reason, actor_role=actor_role) + f"\n\nАктивных предупреждений: {count}.")
+        log_action(
+            session,
+            group_id,
+            moderator_id,
+            target_id,
+            "unwarn",
+            safe_reason,
+            {"warning_id": warning.id, "active_count": count},
+        )
+        return _success(
+            manual_action_notice(
+                action="unwarn",
+                target=target_name,
+                moderator=moderator_name,
+                reason=safe_reason,
+                actor_role=actor_role,
+            )
+            + f"\n\nАктивных предупреждений: {count}."
+        )
 
     if action == "warnings":
         count = await active_warnings_count(session, group_id, target_id)
-        return _success(f"⚠️ У {target_name} активных предупреждений: {count}/{warnings_limit}.", commit=False, public_notice=False)
+        return _success(
+            f"⚠️ У {target_name} активных предупреждений: {count}/{warnings_limit}.",
+            commit=False,
+            public_notice=False,
+        )
 
     raise ValueError(f"Unsupported moderation action: {action}")

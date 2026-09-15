@@ -24,9 +24,11 @@ def test_execute_distinguishes_failure_partial_and_success() -> None:
     assert "def _failure(" in source
     assert "def _partial(" in source
     assert "def _success(" in source
-    assert 'return _failure("Telegram не позволил забанить пользователя.' in source
+    assert 'return _failure(' in source
+    assert 'Telegram не позволил забанить пользователя' in source
     assert "return _partial(" in source
-    assert "return _success(manual_action_notice" in source
+    assert "return _success(" in source
+    assert "manual_action_notice" in source
 
 
 def test_reason_callback_uses_outcome_flags_before_success_ui() -> None:
