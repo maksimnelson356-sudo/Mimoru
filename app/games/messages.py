@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.game_models import GameMessage
 from app.games.locks import advisory_xact_lock
-
+from app.services.ui import is_chat_unavailable
 
 log = structlog.get_logger()
 _GAME_PHASE_MESSAGE_LOCK_NAMESPACE = 4_676_945
@@ -200,7 +200,14 @@ async def upsert_phase_message(
         try:
             message = await bot.send_message(chat_id, text, reply_markup=reply_markup)
         except (TelegramBadRequest, TelegramForbiddenError) as error:
-            log.warning("game_phase_message_send_failed", game_id=game_id, error=str(error))
+            if is_chat_unavailable(error):
+                log.debug(
+                    "game_phase_message_send_failed", game_id=game_id, error=str(error)
+                )
+            else:
+                log.warning(
+                    "game_phase_message_send_failed", game_id=game_id, error=str(error)
+                )
             await session.commit()
             return None
         await register_game_message(

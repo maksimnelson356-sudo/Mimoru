@@ -7,12 +7,17 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.game_models import GamePanel, GamePlayerGameStats, GamePlayerStats, GameSession
+from app.db.game_models import (
+    GamePanel,
+    GamePlayerGameStats,
+    GamePlayerStats,
+    GameSession,
+)
 from app.db.models import Group, User
 from app.games.enums import ACTIVE_SESSION_STATUSES, GameSessionStatus
 from app.games.locks import advisory_xact_lock
 from app.games.registry import GameRegistry, game_registry
-
+from app.services.ui import is_chat_unavailable
 
 log = structlog.get_logger()
 _GAME_PANEL_LOCK_NAMESPACE = 4_676_944
@@ -21,26 +26,48 @@ _GAME_PANEL_LOCK_NAMESPACE = 4_676_944
 def panel_markup(*, active_game: GameSession | None) -> InlineKeyboardMarkup:
     if active_game is not None:
         rows = [
-            [InlineKeyboardButton(text="👀 Открыть игру", callback_data=f"gm:open:{active_game.id}")],
-            [InlineKeyboardButton(text="📖 Правила", callback_data=f"gm:rules:{active_game.game_type}")],
+            [
+                InlineKeyboardButton(
+                    text="👀 Открыть игру", callback_data=f"gm:open:{active_game.id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📖 Правила", callback_data=f"gm:rules:{active_game.game_type}"
+                )
+            ],
         ]
-        if active_game.status in {GameSessionStatus.RUNNING.value, GameSessionStatus.RECOVERING.value}:
-            rows.append([InlineKeyboardButton(text="➖ Выйти из игры", callback_data=f"gm:leave:{active_game.id}")])
+        if active_game.status in {
+            GameSessionStatus.RUNNING.value,
+            GameSessionStatus.RECOVERING.value,
+        }:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="➖ Выйти из игры",
+                        callback_data=f"gm:leave:{active_game.id}",
+                    )
+                ]
+            )
         return InlineKeyboardMarkup(inline_keyboard=rows)
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎮 Начать игру", callback_data="gm:list")],
-        [
-            InlineKeyboardButton(text="🏆 Рейтинг", callback_data="gm:rating"),
-            InlineKeyboardButton(text="👤 Мой профиль", callback_data="gm:profile"),
-        ],
-        [
-            InlineKeyboardButton(text="ℹ️ Правила", callback_data="gm:rules:all"),
-            InlineKeyboardButton(text="⚙️ Настройки", callback_data="gm:settings"),
-        ],
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🎮 Начать игру", callback_data="gm:list")],
+            [
+                InlineKeyboardButton(text="🏆 Рейтинг", callback_data="gm:rating"),
+                InlineKeyboardButton(text="👤 Мой профиль", callback_data="gm:profile"),
+            ],
+            [
+                InlineKeyboardButton(text="ℹ️ Правила", callback_data="gm:rules:all"),
+                InlineKeyboardButton(text="⚙️ Настройки", callback_data="gm:settings"),
+            ],
+        ]
+    )
 
 
-def panel_text(*, active_game: GameSession | None, registry: GameRegistry | None = None) -> str:
+def panel_text(
+    *, active_game: GameSession | None, registry: GameRegistry | None = None
+) -> str:
     registry = registry or game_registry
     if active_game is not None:
         definition = registry.get(active_game.game_type)
@@ -60,7 +87,9 @@ def panel_text(*, active_game: GameSession | None, registry: GameRegistry | None
     )
 
 
-async def active_game_for_group(session: AsyncSession, group_id: int) -> GameSession | None:
+async def active_game_for_group(
+    session: AsyncSession, group_id: int
+) -> GameSession | None:
     return await session.scalar(
         select(GameSession)
         .where(
@@ -104,21 +133,42 @@ async def ensure_game_panel(
                 if "message is not modified" in str(error).casefold():
                     await session.commit()
                     return panel
-                log.info("game_panel_recreate", group_id=group.id, message_id=panel.message_id, error=str(error))
+                log.info(
+                    "game_panel_recreate",
+                    group_id=group.id,
+                    message_id=panel.message_id,
+                    error=str(error),
+                )
             except TelegramForbiddenError as error:
-                log.warning("game_panel_edit_forbidden", group_id=group.id, error=str(error))
+                if is_chat_unavailable(error):
+                    log.debug(
+                        "game_panel_edit_forbidden", group_id=group.id, error=str(error)
+                    )
+                else:
+                    log.warning(
+                        "game_panel_edit_forbidden", group_id=group.id, error=str(error)
+                    )
                 await session.commit()
                 return None
 
         try:
-            message = await bot.send_message(group.telegram_chat_id, text_value, reply_markup=markup)
+            message = await bot.send_message(
+                group.telegram_chat_id, text_value, reply_markup=markup
+            )
         except (TelegramBadRequest, TelegramForbiddenError) as error:
-            log.warning("game_panel_send_failed", group_id=group.id, error=str(error))
+            if is_chat_unavailable(error):
+                log.debug("game_panel_send_failed", group_id=group.id, error=str(error))
+            else:
+                log.warning(
+                    "game_panel_send_failed", group_id=group.id, error=str(error)
+                )
             await session.commit()
             return None
 
         if panel is None:
-            panel = GamePanel(group_id=group.id, message_id=message.message_id, pinned=False)
+            panel = GamePanel(
+                group_id=group.id, message_id=message.message_id, pinned=False
+            )
             session.add(panel)
         else:
             panel.message_id = message.message_id
@@ -142,7 +192,9 @@ async def ensure_game_panel(
         raise
 
 
-async def render_profile(session: AsyncSession, *, group_id: int, user_id: int, name: str) -> str:
+async def render_profile(
+    session: AsyncSession, *, group_id: int, user_id: int, name: str
+) -> str:
     stats = await session.scalar(
         select(GamePlayerStats).where(
             GamePlayerStats.group_id == group_id,
@@ -150,13 +202,22 @@ async def render_profile(session: AsyncSession, *, group_id: int, user_id: int, 
         )
     )
     if stats is None:
-        return f"👤 {name}\n\n🎮 Игр: 0\n🏆 Побед: 0\n⭐ Рейтинг: 1000\n🔥 Серия побед: 0"
-    per_game = list((await session.scalars(
-        select(GamePlayerGameStats)
-        .where(GamePlayerGameStats.group_id == group_id, GamePlayerGameStats.user_telegram_id == user_id)
-        .order_by(GamePlayerGameStats.games_played.desc())
-        .limit(3)
-    )).all())
+        return (
+            f"👤 {name}\n\n🎮 Игр: 0\n🏆 Побед: 0\n⭐ Рейтинг: 1000\n🔥 Серия побед: 0"
+        )
+    per_game = list(
+        (
+            await session.scalars(
+                select(GamePlayerGameStats)
+                .where(
+                    GamePlayerGameStats.group_id == group_id,
+                    GamePlayerGameStats.user_telegram_id == user_id,
+                )
+                .order_by(GamePlayerGameStats.games_played.desc())
+                .limit(3)
+            )
+        ).all()
+    )
     lines = [
         f"👤 {name}",
         "",
@@ -184,20 +245,30 @@ def _user_name(user: User | None, telegram_id: int) -> str:
 
 
 async def render_rating(session: AsyncSession, *, group_id: int) -> str:
-    rows = list((await session.scalars(
-        select(GamePlayerStats)
-        .where(GamePlayerStats.group_id == group_id)
-        .order_by(GamePlayerStats.rating.desc(), GamePlayerStats.games_played.desc())
-        .limit(10)
-    )).all())
+    rows = list(
+        (
+            await session.scalars(
+                select(GamePlayerStats)
+                .where(GamePlayerStats.group_id == group_id)
+                .order_by(
+                    GamePlayerStats.rating.desc(), GamePlayerStats.games_played.desc()
+                )
+                .limit(10)
+            )
+        ).all()
+    )
     if not rows:
         return "🏆 РЕЙТИНГ ИГРОКОВ\n\nРейтинговых игр в этой группе ещё не было."
     ids = [row.user_telegram_id for row in rows]
-    users = list((await session.scalars(select(User).where(User.telegram_id.in_(ids)))).all())
+    users = list(
+        (await session.scalars(select(User).where(User.telegram_id.in_(ids)))).all()
+    )
     by_id = {user.telegram_id: user for user in users}
     lines = ["🏆 РЕЙТИНГ ИГРОКОВ", ""]
     medals = ("🥇", "🥈", "🥉")
     for index, stats in enumerate(rows, start=1):
         prefix = medals[index - 1] if index <= 3 else f"{index}."
-        lines.append(f"{prefix} {_user_name(by_id.get(stats.user_telegram_id), stats.user_telegram_id)} — {stats.rating}")
+        lines.append(
+            f"{prefix} {_user_name(by_id.get(stats.user_telegram_id), stats.user_telegram_id)} — {stats.rating}"
+        )
     return "\n".join(lines)

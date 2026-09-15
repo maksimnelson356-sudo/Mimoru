@@ -5,9 +5,10 @@ from html import unescape
 
 from app.utils.duration import human_duration
 
-
 _TAG_RE = re.compile(r"</?[A-Za-z][^>\n]*>")
-_ID_LINE_RE = re.compile(r"(?im)^\s*(?:🆔\s*)?(?:telegram\s+id|id владельца|id группы|id)\s*:\s*-?\d+\s*$\n?")
+_ID_LINE_RE = re.compile(
+    r"(?im)^\s*(?:🆔\s*)?(?:telegram\s+id|id владельца|id группы|id)\s*:\s*-?\d+\s*$\n?"
+)
 _INLINE_ID_RE = re.compile(r"\s*·\s*ID\s+-?\d+", re.IGNORECASE)
 _ASSIGNED_BY_ID_RE = re.compile(r"\s*·\s*назначил\s+-?\d+", re.IGNORECASE)
 _RETIRED_KICK_LINE_RE = re.compile(r"(?im)^\s*кик\s*$\n?")
@@ -29,10 +30,19 @@ def clean_ui_text(text: str) -> str:
     return value
 
 
-def display_name(*, full_name: str | None = None, username: str | None = None, user_id: int | None = None) -> str:
+def display_name(
+    *,
+    full_name: str | None = None,
+    username: str | None = None,
+    user_id: int | None = None,
+) -> str:
     """Return a human-facing label without exposing Telegram IDs."""
     full = clean_ui_text(full_name.strip()) if full_name and full_name.strip() else ""
-    handle = "@" + clean_ui_text(username.strip().lstrip("@")) if username and username.strip() else ""
+    handle = (
+        "@" + clean_ui_text(username.strip().lstrip("@"))
+        if username and username.strip()
+        else ""
+    )
     if full and handle:
         return f"{full} · {handle}"
     if full:
@@ -76,7 +86,9 @@ def manual_action_notice(
         return f"🔇 {actor_nom} {moderator} запретил {target} писать {duration}.{reason_block}"
     if action == "ban":
         duration = f" на {human_duration(duration_seconds)}" if duration_seconds else ""
-        return f"⛔ {actor_nom} {moderator} заблокировал {target}{duration}.{reason_block}"
+        return (
+            f"⛔ {actor_nom} {moderator} заблокировал {target}{duration}.{reason_block}"
+        )
     if action == "kick":
         return f"🚪 {actor_nom} {moderator} исключил {target} из группы.{reason_block}"
     if action == "unmute":
@@ -123,3 +135,22 @@ def panel_header(title: str, subtitle: str | None = None) -> str:
     if subtitle:
         text += f"\n\n{subtitle}"
     return clean_ui_text(text).rstrip()
+
+
+_CHAT_UNAVAILABLE_MARKERS = (
+    "chat not found",
+    "bot was kicked",
+    "bot was blocked",
+    "not enough rights",
+    "member not found",
+    "user not found",
+    "chat_write_forbidden",
+    "have no rights to send a message",
+)
+
+
+def is_chat_unavailable(error: BaseException) -> bool:
+    """True, если ошибка означает, что бот не может работать с чатом
+    (удалён, кикнут, нет прав). Это НЕ ошибка бота — это состояние группы."""
+    message = str(error).casefold()
+    return any(marker in message for marker in _CHAT_UNAVAILABLE_MARKERS)
