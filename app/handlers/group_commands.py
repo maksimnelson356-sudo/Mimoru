@@ -3,7 +3,12 @@ from __future__ import annotations
 import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +17,7 @@ from app.db.models import (
     ComplaintNotification,
     Group,
     GroupMember,
+    Punishment,
     User,
     Warning,
 )
@@ -28,6 +34,7 @@ from app.services.ranks import (
     can_moderate_target,
     get_assignment,
 )
+from app.services.ui import clean_ui_text
 from app.utils.user_resolver import resolve_target_user
 
 router = Router(name=__name__)
@@ -474,3 +481,139 @@ async def unban_combined(message: Message, bot: Bot, session: AsyncSession) -> N
     )
     await session.commit()
     await message.reply(notice)
+
+
+BULK_UNBAN_TRIGGERS = {"разбанить всех", "разбан всех", "снять все баны"}
+
+
+@router.message(
+    F.chat.type.in_(GROUP_TYPES),
+    F.text.casefold().in_(BULK_UNBAN_TRIGGERS),
+)
+async def bulk_unban(message: Message, bot: Bot, session: AsyncSession) -> None:
+    if message.from_user is None:
+        return
+    group = await _active_group(session, message.chat.id)
+    if group is None:
+        return
+    if message.from_user.id != group.owner_telegram_id:
+        await message.reply("Массовый разбан доступен только владельцу группы.")
+        return
+    rows = (
+        await session.scalars(
+            select(Punishment).where(
+                Punishment.group_id == group.id,
+                Punishment.kind == "ban",
+                Punishment.active.is_(True),
+            )
+        )
+    ).all()
+    if not rows:
+        await message.reply("В этой группе нет активных банов.")
+        return
+    if len(rows) > 50:
+        await message.reply(
+            f"В группе {len(rows)} забаненных. Массовый разбан ограничен 50 "
+            f"за раз. Обратитесь к владельцу бота."
+        )
+        return
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"✅ Да, разбанить всех ({len(rows)})",
+                    callback_data=f"bulk_unban:confirm:{group.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отмена",
+                    callback_data=f"bulk_unban:cancel:{group.id}",
+                )
+            ],
+        ]
+    )
+    text = (
+        f"⚠️ Массовый разбан\n\n"
+        f"В группе «{clean_ui_text(group.title)}» сейчас {len(rows)} "
+        f"забаненных пользователей.\n\n"
+        f"Вы уверены, что хотите разбанить всех? Это действие нельзя отменить."
+    )
+    await message.reply(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.regexp(r"^bulk_unban:confirm:\d+$"))
+async def bulk_unban_confirm(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
+    if callback.from_user is None:
+        return
+    group_id = int(callback.data.split(":")[-1])
+    group = await _active_group(session, group_id, for_update=True)
+    if group is None:
+        await callback.answer("Группа больше не активна.", show_alert=True)
+        return
+    if callback.from_user.id != group.owner_telegram_id:
+        await callback.answer(
+            "Массовый разбан доступен только владельцу группы.", show_alert=True
+        )
+        return
+    rows = (
+        await session.scalars(
+            select(Punishment).where(
+                Punishment.group_id == group.id,
+                Punishment.kind == "ban",
+                Punishment.active.is_(True),
+            )
+        )
+    ).all()
+    if not rows:
+        await callback.answer("В этой группе нет активных банов.", show_alert=True)
+        return
+    success_count = 0
+    fail_count = 0
+    for punishment in rows:
+        try:
+            await bot.unban_chat_member(
+                group.telegram_chat_id,
+                punishment.user_telegram_id,
+                only_if_banned=True,
+            )
+            punishment.active = False
+            success_count += 1
+        except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            log.warning(
+                "bulk_unban_failed", user_id=punishment.user_telegram_id, error=str(exc)
+            )
+            fail_count += 1
+    await session.commit()
+    log_action(
+        session,
+        group.id,
+        callback.from_user.id,
+        None,
+        "bulk_unban",
+        "Массовый разбан",
+        {"count": len(rows)},
+    )
+    if callback.message is not None:
+        try:
+            await callback.message.edit_text(
+                f"✅ Разбанено: {success_count} из {len(rows)}.\n"
+                f"Не удалось: {fail_count}."
+            )
+        except TelegramBadRequest:
+            pass
+    await callback.answer(
+        f"Готово: {success_count} разбанено, {fail_count} не удалось."
+    )
+
+
+@router.callback_query(F.data.regexp(r"^bulk_unban:cancel:\d+$"))
+async def bulk_unban_cancel(callback: CallbackQuery) -> None:
+    if callback.message is not None:
+        try:
+            await callback.message.delete()
+        except (TelegramBadRequest, TelegramForbiddenError):
+            pass
+    await callback.answer("Отменено.")
