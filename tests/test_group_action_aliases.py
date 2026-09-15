@@ -53,6 +53,9 @@ def test_activity_counter_rejects_edited_messages() -> None:
 
 def test_alias_handler_uses_injected_bot_for_complaints() -> None:
     source = Path("app/handlers/group_action_aliases.py").read_text(encoding="utf-8")
-    assert "async def readable_group_actions(message: Message, bot: Bot, session: AsyncSession)" in source
+    assert "async def readable_group_actions" in source
+    assert "message: Message" in source
+    assert "bot: Bot" in source
+    assert "session: AsyncSession" in source
     assert "await group_complaint(message, bot, session)" in source
     assert "message.bot" not in source

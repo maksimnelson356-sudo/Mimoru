@@ -4,82 +4,222 @@ from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.fun_models import GameEvent, GroupMarriage
-from app.db.models import Complaint, DailyStat, Group, GroupMember, Punishment, User, Warning
+from app.db.models import (
+    Complaint,
+    DailyStat,
+    Group,
+    GroupMember,
+    Punishment,
+    User,
+    Warning,
+)
 from app.db.rank_models import RankAssignment
 from app.handlers.group_commands import group_complaint
 from app.services.public_identity import public_user_token
 from app.services.ranks import RANK_CODES, RANK_LABELS, get_actor_rank
 
-
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
 
 ADMIN_ROSTER_ALIASES = {
-    "кто тут главный", "кто за порядком", "кто за старшего", "кто у руля", "местная власть",
-    "хранители порядка", "кто тут рулит", "кто тут смотрит", "хозяева группы", "закон и порядок",
+    "кто тут главный",
+    "кто за порядком",
+    "кто за старшего",
+    "кто у руля",
+    "местная власть",
+    "хранители порядка",
+    "кто тут рулит",
+    "кто тут смотрит",
+    "хозяева группы",
+    "закон и порядок",
 }
 SELF_PROFILE_ALIASES = {
-    "моё досье", "мое досье", "личное дело", "моя статистика", "мой профиль", "моя история",
-    "мои данные", "что за мной", "проверить себя", "что обо мне", "мой архив",
-    "кто я", "моя стата", "моя инфа", "инфа обо мне", "информация обо мне",
+    "моё досье",
+    "мое досье",
+    "личное дело",
+    "моя статистика",
+    "мой профиль",
+    "моя история",
+    "мои данные",
+    "что за мной",
+    "проверить себя",
+    "что обо мне",
+    "мой архив",
+    "кто я",
+    "моя стата",
+    "моя инфа",
+    "инфа обо мне",
+    "информация обо мне",
 }
 LOOKUP_ALIASES = {
-    "пробить гражданина", "открыть досье", "личное дело", "проверить участника",
-    "проверить гражданина", "поднять дело", "карточка участника", "что за ним", "история участника",
-    "кто ты", "ты кто", "инфа", "информация",
+    "пробить гражданина",
+    "открыть досье",
+    "личное дело",
+    "проверить участника",
+    "проверить гражданина",
+    "поднять дело",
+    "карточка участника",
+    "что за ним",
+    "история участника",
+    "кто ты",
+    "ты кто",
+    "инфа",
+    "информация",
 }
 BOT_INFO_ALIASES = {
-    "кто ты", "ты кто", "что ты умеешь", "что за бот", "что ты за бот", "кто такая мимору",
-    "что такое мимору", "мимору кто ты",
+    "кто ты",
+    "ты кто",
+    "что ты умеешь",
+    "что за бот",
+    "что ты за бот",
+    "кто такая мимору",
+    "что такое мимору",
+    "мимору кто ты",
 }
 GROUP_STATS_ALIASES = {
-    "стата", "статистика", "стата сутки", "статистика сутки", "стата за сутки", "стата день",
-    "стата неделя", "статистика неделя", "стата за неделю", "статистика за неделю",
-    "статистика группы", "стата группы", "чат инфо", "инфа чата", "активность чата", "активность группы",
-    "топ 10", "топ10", "топ 20", "топ20", "топ 30", "топ30",
+    "стата",
+    "статистика",
+    "стата сутки",
+    "статистика сутки",
+    "стата за сутки",
+    "стата день",
+    "стата неделя",
+    "статистика неделя",
+    "стата за неделю",
+    "статистика за неделю",
+    "статистика группы",
+    "стата группы",
+    "чат инфо",
+    "инфа чата",
+    "активность чата",
+    "активность группы",
+    "топ 10",
+    "топ10",
+    "топ 20",
+    "топ20",
+    "топ 30",
+    "топ30",
 }
 ALL_BANS_ALIASES = {
-    "все забаненные", "кто в бане", "все изгнанные", "кого наказали", "клуб изгнанных",
-    "кого проводили", "все баны", "список банов", "забаненные", "кто забанен",
+    "все забаненные",
+    "кто в бане",
+    "все изгнанные",
+    "кого наказали",
+    "клуб изгнанных",
+    "кого проводили",
+    "все баны",
+    "список банов",
+    "забаненные",
+    "кто забанен",
 }
 ALL_MUTES_ALIASES = {
-    "кто молчит", "все замученные", "все муты", "режим тишины", "тихий час", "обет молчания",
-    "рот на замке", "голос на паузе", "все молчуны", "отдыхают молча", "кого приглушили",
+    "кто молчит",
+    "все замученные",
+    "все муты",
+    "режим тишины",
+    "тихий час",
+    "обет молчания",
+    "рот на замке",
+    "голос на паузе",
+    "все молчуны",
+    "отдыхают молча",
+    "кого приглушили",
 }
 ALL_WARNINGS_ALIASES = {
-    "кого предупредили", "все замечания", "на карандаше", "получили звоночек", "кого предупреждали",
-    "шаг до бана", "список проказников", "особое внимание", "все предупреждения", "предупреждения",
+    "кого предупредили",
+    "все замечания",
+    "на карандаше",
+    "получили звоночек",
+    "кого предупреждали",
+    "шаг до бана",
+    "список проказников",
+    "особое внимание",
+    "все предупреждения",
+    "предупреждения",
 }
 MY_BANS_ALIASES = {
-    "кого я забанил", "кого я выгнал", "мои отпускники", "кого я проводил", "наказанные мной",
-    "мои изгнанники", "мои забаненные", "мои баны", "кого я посадил", "кого я отправил",
+    "кого я забанил",
+    "кого я выгнал",
+    "мои отпускники",
+    "кого я проводил",
+    "наказанные мной",
+    "мои изгнанники",
+    "мои забаненные",
+    "мои баны",
+    "кого я посадил",
+    "кого я отправил",
 }
 MY_MUTES_ALIASES = {
-    "кого я замутил", "мои молчуны", "кого я приглушил", "мой тихий час", "мои молчальники",
-    "кого я заткнул", "поставил на паузу", "кого я утихомирил", "мои муты", "отправил помолчать",
+    "кого я замутил",
+    "мои молчуны",
+    "кого я приглушил",
+    "мой тихий час",
+    "мои молчальники",
+    "кого я заткнул",
+    "поставил на паузу",
+    "кого я утихомирил",
+    "мои муты",
+    "отправил помолчать",
 }
 MY_WARNINGS_ALIASES = {
-    "кого я предупредил", "мои замечания", "мои карточки", "мои кандидаты", "мои звоночки",
-    "я предупреждал", "мои предупреждения", "мои проказники", "мои выговоры", "на моём карандаше",
+    "кого я предупредил",
+    "мои замечания",
+    "мои карточки",
+    "мои кандидаты",
+    "мои звоночки",
+    "я предупреждал",
+    "мои предупреждения",
+    "мои проказники",
+    "мои выговоры",
+    "на моём карандаше",
     "на моем карандаше",
 }
 REPORT_ALIASES = {
-    "сдать нарушителя", "настучать наверх", "доложить старшим", "позвать смотрящего", "вызвать наряд",
-    "есть вопросики", "сигнал наверх", "зовите начальство", "передать старшим", "тут ситуация",
+    "сдать нарушителя",
+    "настучать наверх",
+    "доложить старшим",
+    "позвать смотрящего",
+    "вызвать наряд",
+    "есть вопросики",
+    "сигнал наверх",
+    "зовите начальство",
+    "передать старшим",
+    "тут ситуация",
 }
 
 ALL_ALIASES = (
-    ADMIN_ROSTER_ALIASES | SELF_PROFILE_ALIASES | LOOKUP_ALIASES | BOT_INFO_ALIASES | GROUP_STATS_ALIASES
-    | ALL_BANS_ALIASES | ALL_MUTES_ALIASES | ALL_WARNINGS_ALIASES | MY_BANS_ALIASES | MY_MUTES_ALIASES
-    | MY_WARNINGS_ALIASES | REPORT_ALIASES
+    ADMIN_ROSTER_ALIASES
+    | SELF_PROFILE_ALIASES
+    | LOOKUP_ALIASES
+    | BOT_INFO_ALIASES
+    | GROUP_STATS_ALIASES
+    | ALL_BANS_ALIASES
+    | ALL_MUTES_ALIASES
+    | ALL_WARNINGS_ALIASES
+    | MY_BANS_ALIASES
+    | MY_MUTES_ALIASES
+    | MY_WARNINGS_ALIASES
+    | REPORT_ALIASES
 )
 
-ADMIN_INFO_RANKS = {"owner", "service_owner", "deputy_owner", "chief_admin", "chat_admin", "voice_admin"}
+ADMIN_INFO_RANKS = {
+    "owner",
+    "service_owner",
+    "deputy_owner",
+    "chief_admin",
+    "chat_admin",
+    "voice_admin",
+}
 PROFILE_CALLBACK_PREFIX = "member_profile"
 
 
@@ -88,7 +228,11 @@ def _norm(message: Message) -> str:
 
 
 async def _active_group(session: AsyncSession, chat_id: int) -> Group | None:
-    return await session.scalar(select(Group).where(Group.telegram_chat_id == chat_id, Group.is_active.is_(True)))
+    return await session.scalar(
+        select(Group).where(
+            Group.telegram_chat_id == chat_id, Group.is_active.is_(True)
+        )
+    )
 
 
 async def _user(session: AsyncSession, user_id: int) -> User | None:
@@ -103,24 +247,34 @@ async def _user_name(session: AsyncSession, user_id: int) -> str:
     return public_user_token(user_id)
 
 
-async def _require_admin_info_access(message: Message, session: AsyncSession, group: Group) -> bool:
+async def _require_admin_info_access(
+    message: Message, session: AsyncSession, group: Group
+) -> bool:
     if message.from_user is None:
         return False
     actor = await get_actor_rank(session, group, message.from_user.id)
     if actor is not None and actor.code in ADMIN_INFO_RANKS:
         return True
-    await message.reply("Эта информация доступна только администрации Mimoru этой группы.")
+    await message.reply(
+        "Эта информация доступна только администрации Mimoru этой группы."
+    )
     return False
 
 
-async def _can_view_group_stats(message: Message, session: AsyncSession, group: Group) -> bool:
+async def _can_view_group_stats(
+    message: Message, session: AsyncSession, group: Group
+) -> bool:
     if await _require_admin_info_access(message, session, group):
         return True
-    await message.reply("Свою личную информацию можно посмотреть фразой «кто я» или «моя стата».")
+    await message.reply(
+        "Свою личную информацию можно посмотреть фразой «кто я» или «моя стата»."
+    )
     return False
 
 
-def _profile_keyboard(group_id: int, target_id: int, requester_id: int, active: str) -> InlineKeyboardMarkup:
+def _profile_keyboard(
+    group_id: int, target_id: int, requester_id: int, active: str
+) -> InlineKeyboardMarkup:
     def button(view: str, label: str) -> InlineKeyboardButton:
         prefix = "• " if view == active else ""
         return InlineKeyboardButton(
@@ -128,7 +282,15 @@ def _profile_keyboard(group_id: int, target_id: int, requester_id: int, active: 
             callback_data=f"{PROFILE_CALLBACK_PREFIX}:{group_id}:{target_id}:{requester_id}:{view}",
         )
 
-    return InlineKeyboardMarkup(inline_keyboard=[[button("profile", "👤 Профиль"), button("history", "⚖️ История"), button("games", "🎮 Игры")]])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                button("profile", "👤 Профиль"),
+                button("history", "⚖️ История"),
+                button("games", "🎮 Игры"),
+            ]
+        ]
+    )
 
 
 def _plural_messages(value: int) -> str:
@@ -181,7 +343,15 @@ def _membership_age(value: datetime | None) -> str:
     years, remaining = divmod(days, 365)
     parts: list[str] = []
     if years:
-        ending = "год" if years % 10 == 1 and years % 100 != 11 else "года" if years % 10 in {2, 3, 4} and years % 100 not in {12, 13, 14} else "лет"
+        ending = (
+            "год"
+            if years % 10 == 1 and years % 100 != 11
+            else (
+                "года"
+                if years % 10 in {2, 3, 4} and years % 100 not in {12, 13, 14}
+                else "лет"
+            )
+        )
         parts.append(f"{years} {ending}")
     if remaining or not parts:
         parts.append(f"{remaining} дн")
@@ -190,62 +360,99 @@ def _membership_age(value: datetime | None) -> str:
 
 async def _marriage_line(session: AsyncSession, group_id: int, user_id: int) -> str:
     marriage = await session.scalar(
-        select(GroupMarriage).where(
+        select(GroupMarriage)
+        .where(
             GroupMarriage.group_id == group_id,
             GroupMarriage.active.is_(True),
-            or_(GroupMarriage.user1_telegram_id == user_id, GroupMarriage.user2_telegram_id == user_id),
-        ).order_by(GroupMarriage.created_at.desc())
+            or_(
+                GroupMarriage.user1_telegram_id == user_id,
+                GroupMarriage.user2_telegram_id == user_id,
+            ),
+        )
+        .order_by(GroupMarriage.created_at.desc())
     )
     if marriage is None:
         return "💍 Брак: не состоит"
-    partner_id = marriage.user2_telegram_id if marriage.user1_telegram_id == user_id else marriage.user1_telegram_id
+    partner_id = (
+        marriage.user2_telegram_id
+        if marriage.user1_telegram_id == user_id
+        else marriage.user1_telegram_id
+    )
     partner = await _user_label(session, partner_id)
     since = marriage.created_at.astimezone(timezone.utc).strftime("%d.%m.%Y")
     return f"💍 Брак: в браке с {partner} с {since}"
 
 
-async def _message_periods(session: AsyncSession, group_id: int, user_id: int) -> tuple[int, int, int, int, int]:
+async def _message_periods(
+    session: AsyncSession, group_id: int, user_id: int
+) -> tuple[int, int, int, int, int]:
     today = datetime.now(timezone.utc).date()
     week = (today - timedelta(days=6)).isoformat()
     month = (today - timedelta(days=29)).isoformat()
     today_s = today.isoformat()
-    rows = (await session.execute(
-        select(
-            func.coalesce(func.sum(DailyStat.messages_count).filter(DailyStat.date >= today_s), 0),
-            func.coalesce(func.sum(DailyStat.messages_count).filter(DailyStat.date >= week), 0),
-            func.coalesce(func.sum(DailyStat.messages_count).filter(DailyStat.date >= month), 0),
-            func.coalesce(func.sum(DailyStat.messages_count), 0),
-            func.coalesce(func.sum(DailyStat.deleted_count), 0),
-        ).where(DailyStat.group_id == group_id, DailyStat.user_telegram_id == user_id)
-    )).one()
+    rows = (
+        await session.execute(
+            select(
+                func.coalesce(
+                    func.sum(DailyStat.messages_count).filter(
+                        DailyStat.date >= today_s
+                    ),
+                    0,
+                ),
+                func.coalesce(
+                    func.sum(DailyStat.messages_count).filter(DailyStat.date >= week), 0
+                ),
+                func.coalesce(
+                    func.sum(DailyStat.messages_count).filter(DailyStat.date >= month),
+                    0,
+                ),
+                func.coalesce(func.sum(DailyStat.messages_count), 0),
+                func.coalesce(func.sum(DailyStat.deleted_count), 0),
+            ).where(
+                DailyStat.group_id == group_id, DailyStat.user_telegram_id == user_id
+            )
+        )
+    ).one()
     return tuple(int(value) for value in rows)  # type: ignore[return-value]
 
 
-async def _active_punishment(session: AsyncSession, group_id: int, user_id: int, kind: str) -> Punishment | None:
+async def _active_punishment(
+    session: AsyncSession, group_id: int, user_id: int, kind: str
+) -> Punishment | None:
     return await session.scalar(
-        select(Punishment).where(
+        select(Punishment)
+        .where(
             Punishment.group_id == group_id,
             Punishment.user_telegram_id == user_id,
             Punishment.kind == kind,
             Punishment.active.is_(True),
-        ).order_by(Punishment.created_at.desc())
+        )
+        .order_by(Punishment.created_at.desc())
     )
 
 
 async def _profile_text(session: AsyncSession, group: Group, user_id: int) -> str:
     user_name = await _user_name(session, user_id)
-    member = await session.scalar(select(GroupMember).where(
-        GroupMember.group_id == group.id, GroupMember.user_telegram_id == user_id
-    ))
-    assignment = await session.scalar(select(RankAssignment).where(
-        RankAssignment.group_id == group.id,
-        RankAssignment.user_telegram_id == user_id,
-        RankAssignment.active.is_(True),
-    ))
+    member = await session.scalar(
+        select(GroupMember).where(
+            GroupMember.group_id == group.id, GroupMember.user_telegram_id == user_id
+        )
+    )
+    assignment = await session.scalar(
+        select(RankAssignment).where(
+            RankAssignment.group_id == group.id,
+            RankAssignment.user_telegram_id == user_id,
+            RankAssignment.active.is_(True),
+        )
+    )
     if group.owner_telegram_id == user_id:
         role = "Владелец"
     else:
-        role = RANK_LABELS.get(assignment.rank_code, assignment.rank_code) if assignment else "Простой участник"
+        role = (
+            RANK_LABELS.get(assignment.rank_code, assignment.rank_code)
+            if assignment
+            else "Простой участник"
+        )
 
     ban = await _active_punishment(session, group.id, user_id, "ban")
     if ban is not None:
@@ -255,11 +462,17 @@ async def _profile_text(session: AsyncSession, group: Group, user_id: int) -> st
     else:
         status = "🚪 Покинул чат"
 
-    day_count, week_count, month_count, all_count, deleted = await _message_periods(session, group.id, user_id)
+    day_count, week_count, month_count, all_count, deleted = await _message_periods(
+        session, group.id, user_id
+    )
     marriage = await _marriage_line(session, group.id, user_id)
     last_active = _ago_text(member.last_seen_at if member is not None else None)
     joined_date = member.joined_at if member is not None else None
-    joined = "неизвестно" if joined_date is None else joined_date.astimezone(timezone.utc).strftime("%d.%m.%Y")
+    joined = (
+        "неизвестно"
+        if joined_date is None
+        else joined_date.astimezone(timezone.utc).strftime("%d.%m.%Y")
+    )
     joined_age = _membership_age(joined_date)
 
     return (
@@ -278,15 +491,36 @@ async def _profile_text(session: AsyncSession, group: Group, user_id: int) -> st
 
 async def _history_text(session: AsyncSession, group: Group, user_id: int) -> str:
     label = await _user_name(session, user_id)
-    active_warnings = int(await session.scalar(select(func.count()).select_from(Warning).where(
-        Warning.group_id == group.id, Warning.user_telegram_id == user_id, Warning.active.is_(True)
-    )) or 0)
-    all_warnings = int(await session.scalar(select(func.count()).select_from(Warning).where(
-        Warning.group_id == group.id, Warning.user_telegram_id == user_id
-    )) or 0)
-    complaints = int(await session.scalar(select(func.count()).select_from(Complaint).where(
-        Complaint.group_id == group.id, Complaint.target_telegram_id == user_id
-    )) or 0)
+    active_warnings = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(Warning)
+            .where(
+                Warning.group_id == group.id,
+                Warning.user_telegram_id == user_id,
+                Warning.active.is_(True),
+            )
+        )
+        or 0
+    )
+    all_warnings = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(Warning)
+            .where(Warning.group_id == group.id, Warning.user_telegram_id == user_id)
+        )
+        or 0
+    )
+    complaints = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(Complaint)
+            .where(
+                Complaint.group_id == group.id, Complaint.target_telegram_id == user_id
+            )
+        )
+        or 0
+    )
     mute = await _active_punishment(session, group.id, user_id, "mute")
     ban = await _active_punishment(session, group.id, user_id, "ban")
 
@@ -309,49 +543,88 @@ async def _history_text(session: AsyncSession, group: Group, user_id: int) -> st
 
 async def _games_text(session: AsyncSession, group: Group, user_id: int) -> str:
     label = await _user_name(session, user_id)
-    made = int(await session.scalar(select(func.count(GameEvent.id)).where(
-        GameEvent.group_id == group.id,
-        GameEvent.event_type == "action",
-        GameEvent.actor_telegram_id == user_id,
-        GameEvent.outcome != "bot_wins",
-    )) or 0)
-    received = int(await session.scalar(select(func.count(GameEvent.id)).where(
-        GameEvent.group_id == group.id,
-        GameEvent.event_type == "action",
-        GameEvent.target_telegram_id == user_id,
-        GameEvent.outcome != "bot_wins",
-    )) or 0)
-    accepted_proposals = int(await session.scalar(select(func.count(GameEvent.id)).where(
-        GameEvent.group_id == group.id,
-        GameEvent.event_type == "proposal",
-        GameEvent.target_telegram_id == user_id,
-        GameEvent.outcome == "accepted",
-    )) or 0)
-    marriages = int(await session.scalar(select(func.count(GroupMarriage.id)).where(
-        GroupMarriage.group_id == group.id,
-        or_(GroupMarriage.user1_telegram_id == user_id, GroupMarriage.user2_telegram_id == user_id),
-    )) or 0)
-    bot_attacks = int(await session.scalar(select(func.count(GameEvent.id)).where(
-        GameEvent.group_id == group.id,
-        GameEvent.actor_telegram_id == user_id,
-        or_(GameEvent.event_type == "bot_attack", GameEvent.outcome == "bot_wins"),
-    )) or 0)
-    favorite_rows = (await session.execute(
-        select(GameEvent.action, func.count(GameEvent.id)).where(
-            GameEvent.group_id == group.id,
-            GameEvent.event_type == "action",
-            GameEvent.actor_telegram_id == user_id,
-            GameEvent.outcome != "bot_wins",
-        ).group_by(GameEvent.action).order_by(func.count(GameEvent.id).desc(), GameEvent.action).limit(5)
-    )).all()
+    made = int(
+        await session.scalar(
+            select(func.count(GameEvent.id)).where(
+                GameEvent.group_id == group.id,
+                GameEvent.event_type == "action",
+                GameEvent.actor_telegram_id == user_id,
+                GameEvent.outcome != "bot_wins",
+            )
+        )
+        or 0
+    )
+    received = int(
+        await session.scalar(
+            select(func.count(GameEvent.id)).where(
+                GameEvent.group_id == group.id,
+                GameEvent.event_type == "action",
+                GameEvent.target_telegram_id == user_id,
+                GameEvent.outcome != "bot_wins",
+            )
+        )
+        or 0
+    )
+    accepted_proposals = int(
+        await session.scalar(
+            select(func.count(GameEvent.id)).where(
+                GameEvent.group_id == group.id,
+                GameEvent.event_type == "proposal",
+                GameEvent.target_telegram_id == user_id,
+                GameEvent.outcome == "accepted",
+            )
+        )
+        or 0
+    )
+    marriages = int(
+        await session.scalar(
+            select(func.count(GroupMarriage.id)).where(
+                GroupMarriage.group_id == group.id,
+                or_(
+                    GroupMarriage.user1_telegram_id == user_id,
+                    GroupMarriage.user2_telegram_id == user_id,
+                ),
+            )
+        )
+        or 0
+    )
+    bot_attacks = int(
+        await session.scalar(
+            select(func.count(GameEvent.id)).where(
+                GameEvent.group_id == group.id,
+                GameEvent.actor_telegram_id == user_id,
+                or_(
+                    GameEvent.event_type == "bot_attack",
+                    GameEvent.outcome == "bot_wins",
+                ),
+            )
+        )
+        or 0
+    )
+    favorite_rows = (
+        await session.execute(
+            select(GameEvent.action, func.count(GameEvent.id))
+            .where(
+                GameEvent.group_id == group.id,
+                GameEvent.event_type == "action",
+                GameEvent.actor_telegram_id == user_id,
+                GameEvent.outcome != "bot_wins",
+            )
+            .group_by(GameEvent.action)
+            .order_by(func.count(GameEvent.id).desc(), GameEvent.action)
+            .limit(5)
+        )
+    ).all()
 
     lines = [
-        f"🎮 Игровая статистика — {label}", "",
+        f"🎮 Игровая статистика — {label}",
+        "",
         f"🎭 Действий совершено: {made}",
         f"🎯 Действий получено: {received}",
         f"💌 Принятых предложений: {accepted_proposals}",
         f"💍 Браков за всё время: {marriages}",
-        f"🤖 Нападений на Mimoru: {bot_attacks}", "",
+        f"🤖 Нападений на Mimoru: {bot_attacks}",
+        "",
         "❤️ Любимые действия:",
     ]
     if favorite_rows:
@@ -362,7 +635,9 @@ async def _games_text(session: AsyncSession, group: Group, user_id: int) -> str:
     return "\n".join(lines)
 
 
-async def _profile_view_text(session: AsyncSession, group: Group, user_id: int, view: str) -> str:
+async def _profile_view_text(
+    session: AsyncSession, group: Group, user_id: int, view: str
+) -> str:
     if view == "history":
         return await _history_text(session, group, user_id)
     if view == "games":
@@ -370,12 +645,16 @@ async def _profile_view_text(session: AsyncSession, group: Group, user_id: int, 
     return await _profile_text(session, group, user_id)
 
 
-async def _send_profile(message: Message, session: AsyncSession, group: Group, target_id: int) -> None:
+async def _send_profile(
+    message: Message, session: AsyncSession, group: Group, target_id: int
+) -> None:
     if message.from_user is None:
         return
     await message.reply(
         await _profile_text(session, group, target_id),
-        reply_markup=_profile_keyboard(group.id, target_id, message.from_user.id, "profile"),
+        reply_markup=_profile_keyboard(
+            group.id, target_id, message.from_user.id, "profile"
+        ),
     )
 
 
@@ -397,12 +676,14 @@ async def member_profile_tab(callback: CallbackQuery, session: AsyncSession) -> 
         await callback.answer("Карточка устарела. Откройте её заново.", show_alert=True)
         return
     if callback.from_user.id != requester_id:
-        await callback.answer("Не для тебя мать кнопки прислала, отдыхай! Выпей лучше валерьянки и узбогойся...", show_alert=True)
+        await callback.answer("Эта кнопка не для вас.", show_alert=True)
         return
     if view not in {"profile", "history", "games"}:
         await callback.answer("Неизвестный раздел.", show_alert=True)
         return
-    group = await session.scalar(select(Group).where(Group.id == group_id, Group.is_active.is_(True)))
+    group = await session.scalar(
+        select(Group).where(Group.id == group_id, Group.is_active.is_(True))
+    )
     if group is None or callback.message.chat.id != group.telegram_chat_id:
         await callback.answer("Эта карточка больше недоступна.", show_alert=True)
         return
@@ -418,7 +699,9 @@ async def member_profile_tab(callback: CallbackQuery, session: AsyncSession) -> 
     await callback.answer()
 
 
-async def _window_stats(session: AsyncSession, group_id: int, start_day: str | None) -> tuple[int, int]:
+async def _window_stats(
+    session: AsyncSession, group_id: int, start_day: str | None
+) -> tuple[int, int]:
     query = select(
         func.coalesce(func.sum(DailyStat.messages_count), 0),
         func.count(func.distinct(DailyStat.user_telegram_id)),
@@ -437,16 +720,24 @@ async def _top_activity(
     start_day: str | None = None,
 ) -> list[tuple[int, int]]:
     total = func.sum(DailyStat.messages_count)
-    query = select(DailyStat.user_telegram_id, total.label("total")).where(DailyStat.group_id == group_id)
+    query = select(DailyStat.user_telegram_id, total.label("total")).where(
+        DailyStat.group_id == group_id
+    )
     if start_day is not None:
         query = query.where(DailyStat.date >= start_day)
-    rows = (await session.execute(
-        query.group_by(DailyStat.user_telegram_id).order_by(total.desc(), DailyStat.user_telegram_id).limit(limit)
-    )).all()
+    rows = (
+        await session.execute(
+            query.group_by(DailyStat.user_telegram_id)
+            .order_by(total.desc(), DailyStat.user_telegram_id)
+            .limit(limit)
+        )
+    ).all()
     return [(int(row[0]), int(row[1])) for row in rows]
 
 
-async def _group_stats(message: Message, session: AsyncSession, group: Group, text: str) -> None:
+async def _group_stats(
+    message: Message, session: AsyncSession, group: Group, text: str
+) -> None:
     now_day = datetime.now(timezone.utc).date()
     today = now_day.isoformat()
     week = (now_day - timedelta(days=6)).isoformat()
@@ -459,43 +750,70 @@ async def _group_stats(message: Message, session: AsyncSession, group: Group, te
             lines.append("Пока нет учтённых сообщений.")
         else:
             for index, (user_id, count) in enumerate(rows, start=1):
-                lines.append(f"{index}. {await _user_label(session, user_id)} — {count} сообщений")
+                lines.append(
+                    f"{index}. {await _user_label(session, user_id)} — {count} сообщений"
+                )
         await message.reply("\n".join(lines))
         return
 
     if "сут" in text or "день" in text:
         total, active = await _window_stats(session, group.id, today)
         rows = await _top_activity(session, group.id, limit=10, start_day=today)
-        lines = ["📊 СТАТИСТИКА ЗА СУТКИ", "", f"💬 Сообщений: {total}", f"👥 Писали сегодня: {active}"]
+        lines = [
+            "📊 СТАТИСТИКА ЗА СУТКИ",
+            "",
+            f"💬 Сообщений: {total}",
+            f"👥 Писали сегодня: {active}",
+        ]
         if rows:
             lines += ["", "🔥 Самые активные:"]
             for index, (user_id, count) in enumerate(rows, start=1):
-                lines.append(f"{index}. {await _user_label(session, user_id)} — {count}")
+                lines.append(
+                    f"{index}. {await _user_label(session, user_id)} — {count}"
+                )
         await message.reply("\n".join(lines))
         return
 
     if "недел" in text:
         total, active = await _window_stats(session, group.id, week)
         rows = await _top_activity(session, group.id, limit=10, start_day=week)
-        lines = ["📊 СТАТИСТИКА ЗА 7 ДНЕЙ", "", f"💬 Сообщений: {total}", f"👥 Активных участников: {active}"]
+        lines = [
+            "📊 СТАТИСТИКА ЗА 7 ДНЕЙ",
+            "",
+            f"💬 Сообщений: {total}",
+            f"👥 Активных участников: {active}",
+        ]
         if rows:
             lines += ["", "🔥 Самые активные:"]
             for index, (user_id, count) in enumerate(rows, start=1):
-                lines.append(f"{index}. {await _user_label(session, user_id)} — {count}")
+                lines.append(
+                    f"{index}. {await _user_label(session, user_id)} — {count}"
+                )
         await message.reply("\n".join(lines))
         return
 
     total_all, active_all = await _window_stats(session, group.id, None)
     total_today, active_today = await _window_stats(session, group.id, today)
     total_week, active_week = await _window_stats(session, group.id, week)
-    present = int(await session.scalar(select(func.count()).select_from(GroupMember).where(
-        GroupMember.group_id == group.id, GroupMember.is_present.is_(True)
-    )) or 0)
+    present = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(GroupMember)
+            .where(GroupMember.group_id == group.id, GroupMember.is_present.is_(True))
+        )
+        or 0
+    )
     top = await _top_activity(session, group.id, limit=5)
     lines = [
-        "📊 СТАТИСТИКА ГРУППЫ", "", f"🏠 {group.title}", f"👥 Участников известно сейчас: {present}", "",
-        f"💬 Сообщений всего: {total_all}", f"☀️ За сутки: {total_today} · писали {active_today}",
-        f"📅 За 7 дней: {total_week} · писали {active_week}", f"👤 Всего писали: {active_all}",
+        "📊 СТАТИСТИКА ГРУППЫ",
+        "",
+        f"🏠 {group.title}",
+        f"👥 Участников известно сейчас: {present}",
+        "",
+        f"💬 Сообщений всего: {total_all}",
+        f"☀️ За сутки: {total_today} · писали {active_today}",
+        f"📅 За 7 дней: {total_week} · писали {active_week}",
+        f"👤 Всего писали: {active_all}",
     ]
     if top:
         lines += ["", "🔥 ТОП-5 ПО СООБЩЕНИЯМ"]
@@ -504,16 +822,28 @@ async def _group_stats(message: Message, session: AsyncSession, group: Group, te
     await message.reply("\n".join(lines))
 
 
-async def _punishment_list(message: Message, session: AsyncSession, group: Group, *, kind: str, mine: bool) -> None:
+async def _punishment_list(
+    message: Message, session: AsyncSession, group: Group, *, kind: str, mine: bool
+) -> None:
     query = select(Punishment).where(
-        Punishment.group_id == group.id, Punishment.kind == kind, Punishment.active.is_(True)
+        Punishment.group_id == group.id,
+        Punishment.kind == kind,
+        Punishment.active.is_(True),
     )
     if mine and message.from_user is not None:
         query = query.where(Punishment.moderator_telegram_id == message.from_user.id)
-    rows = list((await session.scalars(query.order_by(Punishment.created_at.desc()).limit(30))).all())
+    rows = list(
+        (
+            await session.scalars(
+                query.order_by(Punishment.created_at.desc()).limit(30)
+            )
+        ).all()
+    )
     noun = "бане" if kind == "ban" else "муте"
-    title = ("🚫 Мои баны" if kind == "ban" else "🔇 Мои муты") if mine else (
-        "🚫 Кто в бане" if kind == "ban" else "🔇 Кто в муте"
+    title = (
+        ("🚫 Мои баны" if kind == "ban" else "🔇 Мои муты")
+        if mine
+        else ("🚫 Кто в бане" if kind == "ban" else "🔇 Кто в муте")
     )
     if not rows:
         await message.reply(f"{title}\n\nСейчас список пуст.")
@@ -522,16 +852,28 @@ async def _punishment_list(message: Message, session: AsyncSession, group: Group
     for index, row in enumerate(rows, start=1):
         target = await _user_label(session, row.user_telegram_id)
         moderator = await _user_label(session, row.moderator_telegram_id)
-        until = "без срока" if row.ends_at is None else row.ends_at.astimezone(timezone.utc).strftime("до %d.%m %H:%M UTC")
+        until = (
+            "без срока"
+            if row.ends_at is None
+            else row.ends_at.astimezone(timezone.utc).strftime("до %d.%m %H:%M UTC")
+        )
         lines.append(f"{index}. {target} · {noun} · {until} · выдал {moderator}")
     await message.reply("\n".join(lines))
 
 
-async def _warning_list(message: Message, session: AsyncSession, group: Group, *, mine: bool) -> None:
-    query = select(Warning).where(Warning.group_id == group.id, Warning.active.is_(True))
+async def _warning_list(
+    message: Message, session: AsyncSession, group: Group, *, mine: bool
+) -> None:
+    query = select(Warning).where(
+        Warning.group_id == group.id, Warning.active.is_(True)
+    )
     if mine and message.from_user is not None:
         query = query.where(Warning.moderator_telegram_id == message.from_user.id)
-    rows = list((await session.scalars(query.order_by(Warning.created_at.desc()).limit(30))).all())
+    rows = list(
+        (
+            await session.scalars(query.order_by(Warning.created_at.desc()).limit(30))
+        ).all()
+    )
     title = "⚠️ Мои предупреждения" if mine else "⚠️ Предупреждения группы"
     if not rows:
         await message.reply(f"{title}\n\nАктивных предупреждений нет.")
@@ -550,12 +892,14 @@ def _bot_info_text() -> str:
         "Помогаю с модерацией, жалобами, статистикой участников, ролями и развлечениями.\n"
         "Напиши «кто я» или «моя стата» — покажу твоё досье.\n"
         "Ответь «кто ты» или «инфа» на чужое сообщение — покажу карточку участника.\n"
-        "Для полного списка возможностей используй /help или /comands."
+        "Для полного списка возможностей используй /help или /commands."
     )
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.text.casefold().in_(ALL_ALIASES))
-async def readable_group_actions(message: Message, bot: Bot, session: AsyncSession) -> None:
+async def readable_group_actions(
+    message: Message, bot: Bot, session: AsyncSession
+) -> None:
     text = _norm(message)
     group = await _active_group(session, message.chat.id)
     if group is None:
@@ -605,12 +949,23 @@ async def readable_group_actions(message: Message, bot: Bot, session: AsyncSessi
         return
 
     if text in ADMIN_ROSTER_ALIASES:
-        rows = list((await session.scalars(select(RankAssignment).where(
-            RankAssignment.group_id == group.id, RankAssignment.active.is_(True)
-        ))).all())
+        rows = list(
+            (
+                await session.scalars(
+                    select(RankAssignment).where(
+                        RankAssignment.group_id == group.id,
+                        RankAssignment.active.is_(True),
+                    )
+                )
+            ).all()
+        )
         lines = ["👑 Кто за порядком?"]
         if group.owner_telegram_id:
-            lines += ["", "👑 Владелец", f"• {await _user_label(session, group.owner_telegram_id)}"]
+            lines += [
+                "",
+                "👑 Владелец",
+                f"• {await _user_label(session, group.owner_telegram_id)}",
+            ]
         by_rank: dict[str, list[RankAssignment]] = {code: [] for code in RANK_CODES}
         for row in rows:
             if row.rank_code in by_rank:
