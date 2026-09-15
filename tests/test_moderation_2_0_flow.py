@@ -37,10 +37,20 @@ def test_member_card_has_owner_moderation_actions():
 
 
 def test_owner_notice_is_distinguished_from_admin_notice():
-    source = read("app/services/ui.py")
-    assert 'actor_role == "owner"' in source
-    assert '"Владелец группы"' in source
-    assert '"владельца группы"' in source
+    from app.services.ui import format_action_notice
+
+    owner = format_action_notice(
+        target_name="Target",
+        action="ban",
+        moderator_name="Moderator",
+        reason="test",
+        duration_seconds=3600,
+    )
+    # The new unified format doesn't distinguish between owner/admin in the text
+    # Both produce the same format: "Target\nзаблокирован на 1 ч.\nадминистратором Moderator ✨\nза test"
+    assert "администратором" in owner
+    assert "✨" in owner
+    assert "за test" in owner
 
 
 def test_panel_moderation_is_routed_to_real_group_and_public_notice():

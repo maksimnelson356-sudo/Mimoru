@@ -17,10 +17,10 @@ def test_manual_warning_notice_is_human_readable():
         warning_limit=3,
     )
     assert "Соня" in text
-    assert "1/3" in text
+    assert "получил предупреждение" in text
     assert "Олег" in text
     assert "оскорбление участника" in text
-    assert "Будьте аккуратнее" in text
+    assert "администратором" in text
 
 
 def test_manual_mute_notice_contains_duration():

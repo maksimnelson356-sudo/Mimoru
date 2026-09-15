@@ -68,36 +68,13 @@ def manual_action_notice(
     reason = clean_ui_text(reason or "").strip()
     if reason.casefold() == "не указана":
         reason = ""
-    actor_nom = "Владелец группы" if actor_role == "owner" else "Администратор"
-    actor_gen = "владельца группы" if actor_role == "owner" else "администратора"
-    reason_block = f"\n\nПричина: {reason}." if reason else ""
-
-    if action == "warn":
-        count = warning_count or 1
-        limit = warning_limit or 3
-        reason_text = f" за {reason}" if reason else ""
-        return (
-            f"⚠️ {target}, Вам выдано предупреждение {count}/{limit} "
-            f"от {actor_gen} {moderator}{reason_text}.\n\n"
-            "Будьте аккуратнее!"
-        )
-    if action == "mute":
-        duration = human_duration(duration_seconds or 0)
-        return f"🔇 {actor_nom} {moderator} запретил {target} писать {duration}.{reason_block}"
-    if action == "ban":
-        duration = f" на {human_duration(duration_seconds)}" if duration_seconds else ""
-        return (
-            f"⛔ {actor_nom} {moderator} заблокировал {target}{duration}.{reason_block}"
-        )
-    if action == "kick":
-        return f"🚪 {actor_nom} {moderator} исключил {target} из группы.{reason_block}"
-    if action == "unmute":
-        return f"✅ {actor_nom} {moderator} снял ограничения с {target}."
-    if action == "unban":
-        return f"✅ {actor_nom} {moderator} разблокировал {target}."
-    if action == "unwarn":
-        return f"✅ {actor_nom} {moderator} снял последнее предупреждение с {target}."
-    return f"✅ Действие выполнено для {target}."
+    return format_action_notice(
+        target_name=target,
+        action=action,
+        moderator_name=moderator,
+        reason=reason if reason else None,
+        duration_seconds=duration_seconds,
+    )
 
 
 def automatic_action_notice(
@@ -154,3 +131,46 @@ def is_chat_unavailable(error: BaseException) -> bool:
     (удалён, кикнут, нет прав). Это НЕ ошибка бота — это состояние группы."""
     message = str(error).casefold()
     return any(marker in message for marker in _CHAT_UNAVAILABLE_MARKERS)
+
+
+_ACTION_LABELS = {
+    "ban": "заблокирован",
+    "mute": "замучен",
+    "warn": "получил предупреждение",
+    "kick": "исключён",
+    "unban": "разблокирован",
+    "unmute": "размучен",
+    "unwarn": "предупреждение снято",
+}
+
+_ACTIONS_WITH_DURATION = {"ban", "mute"}
+
+
+def format_action_notice(
+    *,
+    target_name: str,
+    action: str,
+    moderator_name: str,
+    reason: str | None = None,
+    duration_seconds: int | None = None,
+) -> str:
+    """Единый формат уведомления о модерации в группе.
+
+    Пример:
+        @target
+        заблокирован
+        администратором @moderator ✨
+        за Спам
+    """
+    verb = _ACTION_LABELS.get(action, action)
+    suffix = ""
+    if action in _ACTIONS_WITH_DURATION and duration_seconds:
+        suffix = f" на {human_duration(duration_seconds)}"
+    lines = [
+        target_name,
+        f"{verb}{suffix}",
+        f"администратором {moderator_name} ✨",
+    ]
+    if reason and reason.strip():
+        lines.append(f"за {reason.strip()}")
+    return "\n".join(lines)
