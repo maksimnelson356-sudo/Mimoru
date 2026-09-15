@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, Punishment
 from app.db.rank_models import RankAssignment
 from app.handlers import group_commands, member_center, reason_admin
+from app.handlers.complaint_actions import _delete_user_messages
 from app.services.access import can_moderate, is_service_owner
 from app.services.moderation import execute
 from app.services.moderation_operations import (
@@ -601,6 +602,21 @@ async def _durable_ban_execute(
         return
 
     try:
+        if cleanup:
+            deleted = await _delete_user_messages(
+                bot,
+                session,
+                group.id,
+                target_id,
+                group.telegram_chat_id,
+            )
+            log.info(
+                "user_messages_deleted",
+                target_id=target_id,
+                deleted=deleted,
+                source="moderation_durable_guard",
+            )
+
         result = await execute(
             bot=bot,
             session=session,
