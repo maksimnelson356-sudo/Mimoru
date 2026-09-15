@@ -270,6 +270,7 @@ async def _do_unmute(
     if group is None:
         return
     if not await can_moderate(bot, session, group, message.from_user.id, "unmute"):
+        await message.reply("У вас нет права размутить пользователя.")
         return
     notice = await execute(
         bot=bot,
@@ -297,6 +298,7 @@ async def _do_unban(
     if group is None:
         return
     if not await can_moderate(bot, session, group, message.from_user.id, "unban"):
+        await message.reply("У вас нет права разбанить пользователя.")
         return
     notice = await execute(
         bot=bot,
@@ -353,6 +355,7 @@ async def clear_all_warnings(message: Message, bot: Bot, session: AsyncSession) 
     if group is None:
         return
     if not await can_moderate(bot, session, group, message.from_user.id, "unwarn"):
+        await message.reply("У вас нет права снимать предупреждения.")
         return
     allowed, reason = await can_moderate_target(
         session, group, message.from_user.id, target.id
@@ -437,6 +440,7 @@ async def unban_combined(message: Message, bot: Bot, session: AsyncSession) -> N
     if group is None:
         return
     if not await can_moderate(bot, session, group, message.from_user.id, "unban"):
+        await message.reply("У вас нет права разбанить пользователя.")
         return
 
     target_id, target_label = await resolve_target_user(
