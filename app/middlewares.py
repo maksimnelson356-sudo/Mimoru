@@ -165,12 +165,15 @@ class DatabaseMiddleware(BaseMiddleware):
                 untouchable = False
                 if tg_user is not None:
                     user = await upsert_user(session, tg_user)
-                    chat = getattr(event, "chat", None)
-                    if (
-                        isinstance(event, Message)
-                        and chat is not None
-                        and chat.type in {"group", "supergroup"}
-                    ):
+
+                    # Determine chat for both Message and CallbackQuery in groups
+                    chat = None
+                    if isinstance(event, Message):
+                        chat = getattr(event, "chat", None)
+                    elif isinstance(event, CallbackQuery) and event.message is not None:
+                        chat = event.message.chat
+
+                    if chat is not None and chat.type in {"group", "supergroup"}:
                         untouchable_exists = (
                             select(RankAssignment.id)
                             .where(
@@ -197,6 +200,7 @@ class DatabaseMiddleware(BaseMiddleware):
 
                             if subscription_state(group) == "expired":
                                 allowed = False
+                                # Allow "бан" command in Message
                                 if isinstance(event, Message) and event.text:
                                     first_word = (
                                         event.text.strip()
@@ -206,6 +210,10 @@ class DatabaseMiddleware(BaseMiddleware):
                                         else ""
                                     )
                                     if first_word == "бан":
+                                        allowed = True
+                                # Allow modreason:* callbacks for moderation flow
+                                if isinstance(event, CallbackQuery) and event.data:
+                                    if event.data.startswith("modreason:"):
                                         allowed = True
                                 if not allowed:
                                     if isinstance(event, Message):
@@ -235,22 +243,23 @@ class DatabaseMiddleware(BaseMiddleware):
                             # upsert_user() already ran above, and this hot path does
                             # not need the GroupMember ORM row back. Avoid repeating
                             # the user upsert and returning a member row per message.
-                            await track_group_member(
-                                session,
-                                group.id,
-                                tg_user,
-                                present=True,
-                                ensure_user=False,
-                                return_row=False,
-                            )
-                            await _track_daily_message(session, group.id, event)
-                            session.add(
-                                UserMessage(
-                                    group_id=group.id,
-                                    user_telegram_id=tg_user.id,
-                                    message_id=event.message_id,
+                            if isinstance(event, Message):
+                                await track_group_member(
+                                    session,
+                                    group.id,
+                                    tg_user,
+                                    present=True,
+                                    ensure_user=False,
+                                    return_row=False,
                                 )
-                            )
+                                await _track_daily_message(session, group.id, event)
+                                session.add(
+                                    UserMessage(
+                                        group_id=group.id,
+                                        user_telegram_id=tg_user.id,
+                                        message_id=event.message_id,
+                                    )
+                                )
                     completed_payment = (
                         isinstance(event, Message)
                         and event.successful_payment is not None
