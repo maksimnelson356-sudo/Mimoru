@@ -436,13 +436,13 @@ async def complaint_ban_clean(
         msg = (
             f"🚫🗑 {target} забанен с очисткой сообщений.\n"
             f"⚠ Часть сообщений могла остаться (ограничения Telegram).\n"
-            f"Модератор: {actor}"
+            f"Модератор: {actor}."
         )
     else:
         msg = (
             f"🚫 {target} забанен.\n"
             f"⚠ Очистка не удалась (сообщения старше 48 часов или "
-            f"повторный бан).\nМодератор: {actor}"
+            f"повторный бан).\nМодератор: {actor}."
         )
     try:
         await bot.send_message(group.telegram_chat_id, msg)

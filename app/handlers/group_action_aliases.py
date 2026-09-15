@@ -354,7 +354,7 @@ def _membership_age(value: datetime | None) -> str:
         )
         parts.append(f"{years} {ending}")
     if remaining or not parts:
-        parts.append(f"{remaining} дн")
+        parts.append(f"{remaining} дней")
     return " ".join(parts)
 
 
@@ -747,7 +747,7 @@ async def _group_stats(
         rows = await _top_activity(session, group.id, limit=limit)
         lines = [f"🏆 ТОП {limit} ПО АКТИВНОСТИ", "", f"🏠 {group.title}", ""]
         if not rows:
-            lines.append("Пока нет учтённых сообщений.")
+            lines.append("Пока нет учтенных сообщений.")
         else:
             for index, (user_id, count) in enumerate(rows, start=1):
                 lines.append(
@@ -857,7 +857,7 @@ async def _punishment_list(
             if row.ends_at is None
             else row.ends_at.astimezone(timezone.utc).strftime("до %d.%m %H:%M UTC")
         )
-        lines.append(f"{index}. {target} · {noun} · {until} · выдал {moderator}")
+        lines.append(f"{index}. {target} · {noun} · {until} · выдал {moderator}.")
     await message.reply("\n".join(lines))
 
 
@@ -882,7 +882,7 @@ async def _warning_list(
     for index, row in enumerate(rows, start=1):
         target = await _user_label(session, row.user_telegram_id)
         moderator = await _user_label(session, row.moderator_telegram_id)
-        lines.append(f"{index}. {target} · {row.reason} · выдал {moderator}")
+        lines.append(f"{index}. {target} · {row.reason} · выдал {moderator}.")
     await message.reply("\n".join(lines))
 
 
