@@ -1,26 +1,45 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    LabeledPrice,
+    Message,
+)
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.ad_market_models import GlobalPostRequest, RequiredAdDealRequest, RequiredAdListing
+from app.db.ad_market_models import (
+    GlobalPostRequest,
+    RequiredAdDealRequest,
+    RequiredAdListing,
+)
 from app.db.models import Group
 from app.handlers.ad_market_v3 import RequiredDealForm, RequiredListingForm
-from app.handlers.required_direct import ActivationError, activate_deal_subscription, restrict_existing_unsubscribed_members
-from app.services.required_resources import normalize_public_telegram_resource, validate_invite_link
+from app.handlers.required_direct import (
+    ActivationError,
+    activate_deal_subscription,
+    restrict_existing_unsubscribed_members,
+)
+from app.services.required_resources import (
+    normalize_public_telegram_resource,
+    validate_invite_link,
+)
 from app.services.ui import clean_ui_text, panel_header
 
 router = Router(name=__name__)
 settings = get_settings()
+log = structlog.get_logger(__name__)
 
 
 def _contact_url(user_id: int) -> str:
@@ -45,19 +64,35 @@ async def _send_global_invoice(bot: Bot, item: GlobalPostRequest) -> None:
         description="Одобренный рекламный пост для публикации во всех активных группах Mimoru.",
         payload=f"globalpost:{item.id}",
         currency="XTR",
-        prices=[LabeledPrice(label="Глобальный рекламный пост", amount=item.price_stars)],
+        prices=[
+            LabeledPrice(label="Глобальный рекламный пост", amount=item.price_stars)
+        ],
         provider_token="",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"⭐ Оплатить {item.price_stars} Stars", pay=True)],
-            [InlineKeyboardButton(text="◀️ Мои рекламные посты", callback_data="gpost:mine")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"⭐ Оплатить {item.price_stars} Stars", pay=True
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="◀️ Мои рекламные посты", callback_data="gpost:mine"
+                    )
+                ],
+            ]
+        ),
     )
 
 
 @router.callback_query(F.data.regexp(r"^gpost:(approve|reject):\d+$"))
-async def atomic_global_review(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def atomic_global_review(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if callback.from_user.id not in settings.service_owner_ids:
-        await callback.answer("Это действие доступно только создателю Mimoru.", show_alert=True)
+        await callback.answer(
+            "Это действие доступно только создателю Mimoru.", show_alert=True
+        )
         return
     _, decision, raw_id = callback.data.split(":")
     item = await session.scalar(
@@ -70,7 +105,7 @@ async def atomic_global_review(callback: CallbackQuery, bot: Bot, session: Async
         return
 
     item.reviewed_by_telegram_id = callback.from_user.id
-    item.reviewed_at = datetime.now(timezone.utc)
+    item.reviewed_at = datetime.now(UTC)
     item.status = "approved" if decision == "approve" else "rejected"
     await session.commit()
 
@@ -80,9 +115,16 @@ async def atomic_global_review(callback: CallbackQuery, bot: Bot, session: Async
             await bot.send_message(
                 item.buyer_telegram_id,
                 f"✅ Рекламный пост #{item.id} одобрен создателем Mimoru. Оплатите счёт ниже — после успешной оплаты публикация начнётся автоматически во всех активных группах Mimoru.",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="📢 Мои рекламные посты", callback_data="gpost:mine")]
-                ]),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text="📢 Мои рекламные посты",
+                                callback_data="gpost:mine",
+                            )
+                        ]
+                    ]
+                ),
             )
             await _send_global_invoice(bot, item)
         except (TelegramBadRequest, TelegramForbiddenError):
@@ -96,12 +138,24 @@ async def atomic_global_review(callback: CallbackQuery, bot: Bot, session: Async
             await bot.send_message(
                 item.buyer_telegram_id,
                 f"❌ Рекламный пост #{item.id} не прошёл проверку создателем Mimoru.",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="📢 Мои рекламные посты", callback_data="gpost:mine")]
-                ]),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text="📢 Мои рекламные посты",
+                                callback_data="gpost:mine",
+                            )
+                        ]
+                    ]
+                ),
             )
-        except (TelegramBadRequest, TelegramForbiddenError):
-            pass
+        except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            log.warning(
+                "ad_rejection_notify_failed",
+                buyer_id=item.buyer_telegram_id,
+                item_id=item.id,
+                error=str(exc),
+            )
 
     await callback.message.edit_text(panel_header("Проверка завершена", status))
     await callback.answer("Решение сохранено")
@@ -151,7 +205,11 @@ async def atomic_required_listing_price(
         .where(RequiredAdListing.seller_group_id == group.id)
         .with_for_update()
     )
-    count = current_count if current_count is not None else (listing.member_count_snapshot if listing is not None else 0)
+    count = (
+        current_count
+        if current_count is not None
+        else (listing.member_count_snapshot if listing is not None else 0)
+    )
     if listing is None:
         listing = RequiredAdListing(
             seller_group_id=group.id,
@@ -177,10 +235,17 @@ async def atomic_required_listing_price(
             "Объявление опубликовано",
             f"Группа: {clean_ui_text(group.title)}\nУчастников: {count:,}\nМинимальный срок: {listing.min_days} дн.\nЦена: {price} {_unit_label(listing.price_unit)}",
         ),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ К объявлению", callback_data=f"reqlist:group:{group.id}")],
-            [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="◀️ К объявлению",
+                        callback_data=f"reqlist:group:{group.id}",
+                    )
+                ],
+                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
+            ]
+        ),
     )
 
 
@@ -191,7 +256,9 @@ async def atomic_required_listing_toggle(
 ) -> None:
     listing_id = int(callback.data.split(":")[-1])
     group_id = await session.scalar(
-        select(RequiredAdListing.seller_group_id).where(RequiredAdListing.id == listing_id)
+        select(RequiredAdListing.seller_group_id).where(
+            RequiredAdListing.id == listing_id
+        )
     )
     if group_id is None:
         await callback.answer("Объявление недоступно.", show_alert=True)
@@ -234,12 +301,32 @@ async def atomic_required_listing_toggle(
             f"Цена: {clean_ui_text(listing.price_text)} {_unit_label(listing.price_unit)}\n"
             f"Статус: {status}",
         ),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✏️ Изменить условия", callback_data=f"reqlist:start:{group.id}")],
-            [InlineKeyboardButton(text="⏸ Скрыть" if listing.active else "▶️ Опубликовать", callback_data=f"reqlist:toggle:{listing.id}")],
-            [InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")],
-            [InlineKeyboardButton(text="◀️ К моим группам", callback_data="ads:sell:required")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✏️ Изменить условия",
+                        callback_data=f"reqlist:start:{group.id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="⏸ Скрыть" if listing.active else "▶️ Опубликовать",
+                        callback_data=f"reqlist:toggle:{listing.id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="📥 Входящие заявки", callback_data="reqdeal:seller"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="◀️ К моим группам", callback_data="ads:sell:required"
+                    )
+                ],
+            ]
+        ),
     )
     await callback.answer("Статус объявления изменён")
 
@@ -299,11 +386,19 @@ async def atomic_required_deal_target(
 
     group = await session.get(Group, listing.seller_group_id)
     current_count = await _member_count(bot, group) if group is not None else None
-    count = current_count if current_count is not None else listing.member_count_snapshot
-    if group is not None and current_count is not None and current_count != listing.member_count_snapshot:
+    count = (
+        current_count if current_count is not None else listing.member_count_snapshot
+    )
+    if (
+        group is not None
+        and current_count is not None
+        and current_count != listing.member_count_snapshot
+    ):
         listing.member_count_snapshot = current_count
         await session.commit()
-    group_title = clean_ui_text(group.title) if group is not None else "Группа недоступна"
+    group_title = (
+        clean_ui_text(group.title) if group is not None else "Группа недоступна"
+    )
     seller_text = panel_header(
         "Новый запрос на ОП",
         f"Ваша группа: {group_title}\n"
@@ -316,17 +411,38 @@ async def atomic_required_deal_target(
         await bot.send_message(
             listing.seller_owner_telegram_id,
             seller_text,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💬 Связаться с покупателем", url=_contact_url(message.from_user.id))],
-                [
-                    InlineKeyboardButton(text="✅ Принять", callback_data=f"reqdeal:accept:{deal.id}"),
-                    InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reqdeal:reject:{deal.id}"),
-                ],
-                [InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="💬 Связаться с покупателем",
+                            url=_contact_url(message.from_user.id),
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="✅ Принять", callback_data=f"reqdeal:accept:{deal.id}"
+                        ),
+                        InlineKeyboardButton(
+                            text="❌ Отклонить",
+                            callback_data=f"reqdeal:reject:{deal.id}",
+                        ),
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="📥 Входящие заявки", callback_data="reqdeal:seller"
+                        )
+                    ],
+                ]
+            ),
         )
-    except (TelegramBadRequest, TelegramForbiddenError):
-        pass
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
+        log.warning(
+            "ad_trade_notify_failed",
+            seller_id=listing.seller_owner_telegram_id,
+            deal_id=deal.id,
+            error=str(exc),
+        )
 
     await state.clear()
     await message.answer(
@@ -334,11 +450,22 @@ async def atomic_required_deal_target(
             "Запрос отправлен",
             f"Запрос #{deal.id} отправлен владельцу группы «{group_title}». Результат придёт обоим участникам сделки.",
         ),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Связаться с продавцом", url=_contact_url(listing.seller_owner_telegram_id))],
-            [InlineKeyboardButton(text="📨 Мои запросы", callback_data="reqdeal:buyer")],
-            [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="💬 Связаться с продавцом",
+                        url=_contact_url(listing.seller_owner_telegram_id),
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="📨 Мои запросы", callback_data="reqdeal:buyer"
+                    )
+                ],
+                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
+            ]
+        ),
     )
 
 
@@ -357,7 +484,9 @@ async def atomic_required_deal_decision(
             RequiredAdDealRequest.listing_id,
             RequiredAdListing.seller_group_id,
         )
-        .join(RequiredAdListing, RequiredAdListing.id == RequiredAdDealRequest.listing_id)
+        .join(
+            RequiredAdListing, RequiredAdListing.id == RequiredAdDealRequest.listing_id
+        )
         .where(RequiredAdDealRequest.id == deal_id)
     )
     ids = snapshot.one_or_none()
@@ -422,17 +551,20 @@ async def atomic_required_deal_decision(
             )
             await session.commit()
             activation_ok = True
-            asyncio.create_task(restrict_existing_unsubscribed_members(
-                bot, redis,
-                group_id=group.id,
-                telegram_chat_id=group.telegram_chat_id,
-                channels=[deal.target_resource],
-            ))
+            asyncio.create_task(
+                restrict_existing_unsubscribed_members(
+                    bot,
+                    redis,
+                    group_id=group.id,
+                    telegram_chat_id=group.telegram_chat_id,
+                    channels=[deal.target_resource],
+                )
+            )
         except ActivationError as exc:
             activation_error = str(exc)
 
     deal.status = "accepted" if accepted else "rejected"
-    deal.decided_at = datetime.now(timezone.utc)
+    deal.decided_at = datetime.now(UTC)
     await session.commit()
 
     result = "✅ Запрос принят" if accepted else "❌ Запрос отклонён"
@@ -456,11 +588,22 @@ async def atomic_required_deal_decision(
             f"Группа: {group_title}\nРесурс покупателя: {clean_ui_text(deal.target_resource)}\n\n"
             f"Результат отправлен покупателю.{seller_extra}",
         ),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Связаться с покупателем", url=_contact_url(deal.buyer_telegram_id))],
-            [InlineKeyboardButton(text="📥 Входящие заявки", callback_data="reqdeal:seller")],
-            [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="💬 Связаться с покупателем",
+                        url=_contact_url(deal.buyer_telegram_id),
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="📥 Входящие заявки", callback_data="reqdeal:seller"
+                    )
+                ],
+                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
+            ]
+        ),
     )
     try:
         if accepted and activation_ok:
@@ -484,12 +627,28 @@ async def atomic_required_deal_decision(
         await bot.send_message(
             deal.buyer_telegram_id,
             panel_header(result, buyer_notice),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💬 Связаться с продавцом", url=_contact_url(deal.seller_telegram_id))],
-                [InlineKeyboardButton(text="📨 Мои запросы", callback_data="reqdeal:buyer")],
-                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="💬 Связаться с продавцом",
+                            url=_contact_url(deal.seller_telegram_id),
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="📨 Мои запросы", callback_data="reqdeal:buyer"
+                        )
+                    ],
+                    [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
+                ]
+            ),
         )
-    except (TelegramBadRequest, TelegramForbiddenError):
-        pass
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
+        log.warning(
+            "ad_broadcast_failed",
+            buyer_id=deal.buyer_telegram_id,
+            deal_id=deal.id,
+            error=str(exc),
+        )
     await callback.answer("Решение сохранено")
