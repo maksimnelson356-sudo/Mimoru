@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import structlog
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+)
 from aiogram.types import ChatPermissions
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, Punishment
-from app.services.captcha_state import VERIFIED, delete_captcha_state, refresh_captcha_state_ttl
-
+from app.services.captcha_state import (
+    VERIFIED,
+    delete_captcha_state,
+    refresh_captcha_state_ttl,
+)
+from app.services.ui import is_chat_unavailable
 
 UNRESTRICTED = ChatPermissions(
     can_send_messages=True,
@@ -48,9 +56,7 @@ async def finalize_verified_captcha(
     The caller commits/rolls back the DB transaction to release the lock.
     """
     group = await session.scalar(
-        select(Group)
-        .where(Group.telegram_chat_id == chat_id)
-        .with_for_update()
+        select(Group).where(Group.telegram_chat_id == chat_id).with_for_update()
     )
     if group is None or not group.is_active:
         if await redis.get(key) == VERIFIED:
@@ -61,12 +67,14 @@ async def finalize_verified_captcha(
         return VERIFICATION_FINISHED
 
     active_mute = await session.scalar(
-        select(Punishment.id).where(
+        select(Punishment.id)
+        .where(
             Punishment.group_id == group.id,
             Punishment.user_telegram_id == user_id,
             Punishment.kind == "mute",
             Punishment.active.is_(True),
-        ).limit(1)
+        )
+        .limit(1)
     )
     if active_mute is not None:
         await delete_captcha_state(redis, key, VERIFIED)
@@ -75,12 +83,21 @@ async def finalize_verified_captcha(
     try:
         await bot.restrict_chat_member(chat_id, user_id, permissions=UNRESTRICTED)
     except (TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError) as error:
-        structlog.get_logger().warning(
-            "captcha_verified_unrestrict_failed",
-            chat_id=chat_id,
-            user_id=user_id,
-            error=str(error),
-        )
+        logger = structlog.get_logger()
+        if is_chat_unavailable(error):
+            logger.debug(
+                "captcha_verified_unrestrict_failed",
+                chat_id=chat_id,
+                user_id=user_id,
+                error=str(error),
+            )
+        else:
+            logger.warning(
+                "captcha_verified_unrestrict_failed",
+                chat_id=chat_id,
+                user_id=user_id,
+                error=str(error),
+            )
         await refresh_captcha_state_ttl(redis, key, VERIFIED)
         return VERIFICATION_RETRY
 

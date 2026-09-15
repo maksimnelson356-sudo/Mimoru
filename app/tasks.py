@@ -31,6 +31,7 @@ from app.services.plans import feature_available
 from app.services.safety import warning_expiry_cutoff
 from app.services.scheduling import next_occurrence
 from app.services.timezones import to_local
+from app.services.ui import is_chat_unavailable
 
 UNMUTED = ChatPermissions(
     can_send_messages=True,
@@ -80,11 +81,18 @@ async def expire_punishments(bot: Bot) -> None:
                     )
                 punishment.active = False
             except (TelegramBadRequest, TelegramForbiddenError) as error:
-                log.warning(
-                    "punishment_expiry_failed",
-                    punishment_id=punishment.id,
-                    error=str(error),
-                )
+                if is_chat_unavailable(error):
+                    log.debug(
+                        "punishment_expiry_failed",
+                        punishment_id=punishment.id,
+                        error=str(error),
+                    )
+                else:
+                    log.warning(
+                        "punishment_expiry_failed",
+                        punishment_id=punishment.id,
+                        error=str(error),
+                    )
         await session.commit()
 
 

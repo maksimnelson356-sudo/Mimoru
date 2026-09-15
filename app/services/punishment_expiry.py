@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.db.models import Group, Punishment
 from app.db.session import SessionFactory
-
+from app.services.ui import is_chat_unavailable
 
 UNMUTED = ChatPermissions(
     can_send_messages=True,
@@ -39,13 +39,17 @@ async def expire_punishments(bot: Bot, redis: Redis) -> None:
     now = datetime.now(timezone.utc)
 
     async with SessionFactory() as session:
-        candidates = list((await session.execute(
-            select(Punishment.id, Punishment.group_id).where(
-                Punishment.active.is_(True),
-                Punishment.ends_at.is_not(None),
-                Punishment.ends_at <= now,
-            )
-        )).all())
+        candidates = list(
+            (
+                await session.execute(
+                    select(Punishment.id, Punishment.group_id).where(
+                        Punishment.active.is_(True),
+                        Punishment.ends_at.is_not(None),
+                        Punishment.ends_at <= now,
+                    )
+                )
+            ).all()
+        )
 
     for punishment_id, group_id in candidates:
         async with SessionFactory() as session:
@@ -74,13 +78,15 @@ async def expire_punishments(bot: Bot, redis: Redis) -> None:
             await session.flush()
 
             another_active = await session.scalar(
-                select(Punishment.id).where(
+                select(Punishment.id)
+                .where(
                     Punishment.group_id == punishment.group_id,
                     Punishment.user_telegram_id == punishment.user_telegram_id,
                     Punishment.kind == punishment.kind,
                     Punishment.active.is_(True),
                     Punishment.id != punishment.id,
-                ).limit(1)
+                )
+                .limit(1)
             )
             if another_active is not None:
                 await session.commit()
@@ -108,11 +114,18 @@ async def expire_punishments(bot: Bot, redis: Redis) -> None:
                     )
             except (TelegramBadRequest, TelegramForbiddenError) as error:
                 await session.rollback()
-                log.warning(
-                    "punishment_expiry_failed",
-                    punishment_id=punishment_id,
-                    error=str(error),
-                )
+                if is_chat_unavailable(error):
+                    log.debug(
+                        "punishment_expiry_failed",
+                        punishment_id=punishment_id,
+                        error=str(error),
+                    )
+                else:
+                    log.warning(
+                        "punishment_expiry_failed",
+                        punishment_id=punishment_id,
+                        error=str(error),
+                    )
                 continue
 
             await session.commit()
