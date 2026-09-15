@@ -3,7 +3,7 @@ from typing import Any
 
 import structlog
 from aiogram import BaseMiddleware, Bot
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, PreCheckoutQuery, TelegramObject
 from sqlalchemy import select
@@ -16,6 +16,7 @@ from app.db.rank_models import RankAssignment
 from app.db.session import SessionFactory
 from app.keyboards.home import cancel_input_menu
 from app.services.deleted_accounts import track_group_member
+from app.services.plans import subscription_state
 from app.services.ranks import UNTOUCHABLE
 from app.services.repositories import GroupNotConnectedError, upsert_user
 
@@ -193,6 +194,44 @@ class DatabaseMiddleware(BaseMiddleware):
                         if group_row is not None:
                             group = group_row[0]
                             untouchable = bool(group_row[1])
+
+                            if subscription_state(group) == "expired":
+                                allowed = False
+                                if isinstance(event, Message) and event.text:
+                                    first_word = (
+                                        event.text.strip()
+                                        .split(maxsplit=1)[0]
+                                        .casefold()
+                                        if event.text.strip()
+                                        else ""
+                                    )
+                                    if first_word == "бан":
+                                        allowed = True
+                                if not allowed:
+                                    if isinstance(event, Message):
+                                        try:
+                                            await event.reply(
+                                                "⏸ Тариф группы истёк.\n\n"
+                                                "Продлить тариф может владелец группы в ЛС бота: /start"
+                                            )
+                                        except (
+                                            TelegramBadRequest,
+                                            TelegramForbiddenError,
+                                        ):
+                                            pass
+                                    elif isinstance(event, CallbackQuery):
+                                        try:
+                                            await event.answer(
+                                                "Тариф группы истёк. Продлите в ЛС бота.",
+                                                show_alert=True,
+                                            )
+                                        except (
+                                            TelegramBadRequest,
+                                            TelegramForbiddenError,
+                                        ):
+                                            pass
+                                    return
+
                             # upsert_user() already ran above, and this hot path does
                             # not need the GroupMember ORM row back. Avoid repeating
                             # the user upsert and returning a member row per message.

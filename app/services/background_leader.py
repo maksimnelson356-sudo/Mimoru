@@ -6,12 +6,14 @@ from uuid import uuid4
 
 import structlog
 from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
-from app.db.models import UserMessage
+from app.db.models import Group, UserMessage
 from app.db.session import SessionFactory
+from app.services.plans import effective_plan, remaining_days, subscription_state
 from app.services.runtime import stop_task
 
 LEASE_KEY = "mimoru:background-loop:leader"
@@ -27,6 +29,7 @@ DUPLICATE_REFUND_RECOVERY_SECONDS = 30
 SUBSCRIPTION_REFUND_RECOVERY_SECONDS = 30
 MODERATION_OPERATION_RECOVERY_SECONDS = 30
 USER_MESSAGES_CLEANUP_SECONDS = 3600
+PLAN_NOTICE_SECONDS = 3600  # раз в час
 
 # Limit how many recovery tasks can execute concurrently. Each recovery
 # function may open DB connections during Telegram API calls. Capping
@@ -294,6 +297,54 @@ async def _cleanup_user_messages_periodically(local_stop: asyncio.Event) -> None
             continue
 
 
+async def _notify_plan_expiry_periodically(
+    bot: Bot, redis: Redis, local_stop: asyncio.Event
+) -> None:
+    """Раз в час проверять группы с remaining_days in {3,2,1} и слать ЛС владельцу."""
+    log = structlog.get_logger()
+    while not local_stop.is_set():
+        try:
+            async with SessionFactory() as session:
+                groups = (
+                    await session.scalars(
+                        select(Group).where(Group.is_active.is_(True))
+                    )
+                ).all()
+            for group in groups:
+                state = subscription_state(group)
+                if state not in {"active", "trial"}:
+                    continue
+                days = remaining_days(group)
+                if days not in {3, 2, 1}:
+                    continue
+                if not group.owner_telegram_id:
+                    continue
+                key = f"mimoru:plan_notice:{group.id}:{days}"
+                if not await redis.set(key, "1", nx=True, ex=20 * 3600):
+                    continue
+                try:
+                    await bot.send_message(
+                        group.owner_telegram_id,
+                        f"⏰ Напоминание о подписке\n\n"
+                        f"Группа «{group.title}» — тариф "
+                        f"{effective_plan(group).upper()} истекает через {days} дн.\n\n"
+                        f"Продлить: /start в ЛС бота",
+                    )
+                except (TelegramBadRequest, TelegramForbiddenError) as exc:
+                    log.warning(
+                        "plan_notice_failed",
+                        group_id=group.id,
+                        owner_id=group.owner_telegram_id,
+                        error=str(exc),
+                    )
+        except Exception as exc:
+            log.warning("plan_notice_loop_failed", error=str(exc))
+        try:
+            await asyncio.wait_for(local_stop.wait(), timeout=PLAN_NOTICE_SECONDS)
+        except TimeoutError:
+            continue
+
+
 async def _run_leader_worker(bot: Bot, redis: Redis, local_stop: asyncio.Event) -> None:
     """Recover durable external-side-effect intents before normal scheduled work."""
     from app.services.group_disconnects import recover_group_disconnects
@@ -336,6 +387,10 @@ async def _run_leader_worker(bot: Bot, redis: Redis, local_stop: asyncio.Event) 
         _cleanup_user_messages_periodically(local_stop),
         name="user-messages-cleanup",
     )
+    plan_notice = asyncio.create_task(
+        _notify_plan_expiry_periodically(bot, redis, local_stop),
+        name="plan-expiry-notice",
+    )
     try:
         await background_loop(bot, redis, local_stop)
     finally:
@@ -349,6 +404,7 @@ async def _run_leader_worker(bot: Bot, redis: Redis, local_stop: asyncio.Event) 
         await stop_task(subscription_refund_recovery, timeout=2.0)
         await stop_task(moderation_recovery, timeout=2.0)
         await stop_task(user_messages_cleanup, timeout=2.0)
+        await stop_task(plan_notice, timeout=2.0)
 
 
 async def leader_background_loop(
