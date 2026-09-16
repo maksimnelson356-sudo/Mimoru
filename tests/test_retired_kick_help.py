@@ -39,4 +39,5 @@ def test_public_command_reference_does_not_advertise_kick():
 
 def test_historical_kick_log_label_is_preserved():
     panel = (ROOT / "app/handlers/panel.py").read_text(encoding="utf-8")
-    assert '"kick": "кик"' in panel
+    # Check for the action verb in the new format dictionary
+    assert '"kick": "исключён"' in panel

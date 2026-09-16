@@ -1,9 +1,11 @@
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -279,41 +281,87 @@ async def contextual_antiflood_set(
     await callback.answer("Сохранено")
 
 
+_ACTION_ICONS = {
+    "ban": "🔨",
+    "unban": "✅",
+    "mute": "🔇",
+    "unmute": "🔊",
+    "warn": "⚠️",
+    "unwarn": "✅",
+    "kick": "🚪",
+    "auto_mute": "🤖",
+    "automut": "🤖",
+    "filter_repeat": "🛡",
+    "antiflood_mute": "🌊",
+    "complaint_resolved": "📩",
+    "complaint_rejected": "📩",
+    "deleted_accounts_cleanup": "🧹",
+    "unwarn_all": "✅",
+    "remove_by_ban": "🎖",
+    "remove_by_kick": "🎖",
+}
+
+_ACTION_VERBS = {
+    "ban": "забанен",
+    "unban": "разбанен",
+    "mute": "замучен",
+    "unmute": "размучен",
+    "warn": "получил предупреждение",
+    "unwarn": "предупреждение снято",
+    "kick": "исключён",
+    "auto_mute": "автомут",
+    "automut": "автомут",
+    "filter_repeat": "фильтр: повтор",
+    "antiflood_mute": "антифлуд: мут",
+    "complaint_resolved": "жалоба обработана",
+    "complaint_rejected": "жалоба отклонена",
+    "deleted_accounts_cleanup": "очистка удалённых",
+    "unwarn_all": "сняты все предупреждения",
+    "remove_by_ban": "снятие ранга (бан)",
+    "remove_by_kick": "снятие ранга (кик)",
+}
+
+PAGE_SIZE = 10
+
+
 @router.callback_query(F.data.regexp(r"^logs:\d+$"))
+@router.callback_query(F.data.regexp(r"^logs:\d+:page:\d+$"))
 async def moderation_logs_with_contextual_back(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
-    group_id = int(callback.data.split(":")[-1])
+    parts = callback.data.split(":")
+    group_id = int(parts[1])
+    page = int(parts[3]) if len(parts) > 3 and parts[2] == "page" else 0
+
     group = await _owned_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
+
+    offset = page * PAGE_SIZE
+
     logs = list(
         (
             await session.scalars(
                 select(ModerationLog)
                 .where(ModerationLog.group_id == group.id)
                 .order_by(ModerationLog.created_at.desc())
-                .limit(30)
+                .offset(offset)
+                .limit(PAGE_SIZE)
             )
         ).all()
     )
-    names = {
-        "ban": "бан",
-        "unban": "разбан",
-        "mute": "мут",
-        "unmute": "размут",
-        "kick": "кик",
-        "warn": "предупреждение",
-        "unwarn": "снято предупреждение",
-        "auto_mute": "автомут",
-        "remove_by_ban": "снятие ранга (бан)",
-        "remove_by_kick": "снятие ранга (кик)",
-        "unwarn_all": "сняты все предупреждения",
-        "deleted_accounts_cleanup": "очистка удалённых аккаунтов",
-        "complaint_resolved": "жалоба обработана",
-        "complaint_rejected": "жалоба отклонена",
-    }
+
+    total = (
+        await session.scalar(
+            select(func.count())
+            .select_from(ModerationLog)
+            .where(ModerationLog.group_id == group.id)
+        )
+        or 0
+    )
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+
     lines = []
     for item in logs:
         target = (
@@ -324,27 +372,55 @@ async def moderation_logs_with_contextual_back(
         actor = (
             public_user_token(item.actor_telegram_id) if item.actor_telegram_id else "—"
         )
-        action_label = names.get(item.action, item.action)
-        reason_part = (
-            f" · {item.reason[:50]}…"
-            if item.reason and len(item.reason) > 50
-            else (f" · {item.reason}" if item.reason else "")
-        )
+        icon = _ACTION_ICONS.get(item.action, "•")
+        verb = _ACTION_VERBS.get(item.action, item.action)
+        time_str = item.created_at.strftime("%d.%m %H:%M")
+        reason_part = f" · {item.reason}" if item.reason else ""
         lines.append(
-            f"• {item.created_at:%d.%m %H:%M} — {action_label}: {target} "
-            f"(модератор {actor}){reason_part}"
+            f"{icon} {time_str}\n" f"{target} {verb}\n" f"👮 {actor}{reason_part}"
         )
-    text = (
-        panel_header("Журнал модерации")
-        + "\n\n"
-        + ("\n".join(lines) if lines else "Журнал пока пуст.")
+
+    text = panel_header("Журнал модерации") + "\n\n"
+    text += "\n\n".join(lines) if lines else "Журнал пока пуст."
+
+    # Pagination buttons
+    rows = []
+    if page > 0 or page + 1 < total_pages:
+        nav_row = []
+        if page > 0:
+            nav_row.append(
+                InlineKeyboardButton(
+                    text="◀ Назад",
+                    callback_data=f"logs:{group.id}:page:{page - 1}",
+                )
+            )
+        if total_pages > 1:
+            nav_row.append(
+                InlineKeyboardButton(
+                    text=f"{page + 1}/{total_pages}",
+                    callback_data="noop",
+                )
+            )
+        if page + 1 < total_pages:
+            nav_row.append(
+                InlineKeyboardButton(
+                    text="Вперёд ▶",
+                    callback_data=f"logs:{group.id}:page:{page + 1}",
+                )
+            )
+        rows.append(nav_row)
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="◀ К модерации",
+                callback_data=f"group_section:{group.id}:moderation",
+            )
+        ]
     )
-    await callback.message.edit_text(
-        text,
-        reply_markup=_back(
-            f"group_section:{group.id}:moderation", "◀️ Назад к модерации"
-        ),
-    )
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=rows)
+
+    await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
 
