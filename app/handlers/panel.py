@@ -41,6 +41,7 @@ from app.services.plans import (
     subscription_state,
 )
 from app.services.public_identity import public_user_token
+from app.services.ranks import get_assignment as _get_assignment
 from app.services.ui import panel_header
 
 router = Router(name=__name__)
@@ -80,6 +81,49 @@ async def owned_group(
     if for_update:
         query = query.with_for_update()
     return await session.scalar(query)
+
+
+_ADM_RANKS_FOR_PANEL = {"deputy_owner", "chief_admin", "chat_admin"}
+
+
+async def accessible_group(
+    session: AsyncSession,
+    group_id: int,
+    user_id: int,
+    *,
+    for_update: bool = False,
+) -> Group | None:
+    """Group доступная пользователю для просмотра.
+
+    Владелец и service_owner — полный доступ.
+    DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN — read-only (просмотр).
+    Остальные — None.
+    """
+    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
+    if for_update:
+        query = query.with_for_update()
+    group = await session.scalar(query)
+    if group is None:
+        return None
+    if is_service_owner(user_id):
+        return group
+    if group.owner_telegram_id == user_id:
+        return group
+    assignment = await _get_assignment(session, group.id, user_id)
+    if (
+        assignment is not None
+        and assignment.active
+        and assignment.rank_code in _ADM_RANKS_FOR_PANEL
+    ):
+        return group
+    return None
+
+
+def is_read_only_for(group: Group, user_id: int) -> bool:
+    """True, если пользователь — админ (не владелец и не service_owner)."""
+    if is_service_owner(user_id):
+        return False
+    return group.owner_telegram_id != user_id
 
 
 @router.message(
@@ -142,7 +186,7 @@ async def panel_groups(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^group:\d+$"))
 async def open_group(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
@@ -163,7 +207,7 @@ async def open_group(callback: CallbackQuery, session: AsyncSession) -> None:
 )
 async def group_section(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group_id, section = callback.data.split(":")
-    group = await owned_group(session, int(raw_group_id), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group_id), callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -236,7 +280,7 @@ async def toggle_setting(callback: CallbackQuery, session: AsyncSession) -> None
 @router.callback_query(F.data.regexp(r"^words:\d+$"))
 async def show_words(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -263,7 +307,7 @@ async def show_words(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^channels:\d+$"))
 async def show_channels(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -344,7 +388,7 @@ async def show_logs(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(parts[1])
     page = int(parts[3]) if len(parts) > 3 and parts[2] == "page" else 0
 
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -436,7 +480,7 @@ async def show_logs(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^roles:\d+$"))
 async def show_roles(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -463,7 +507,7 @@ async def show_roles(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^plan:\d+$"))
 async def show_plan(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -516,7 +560,7 @@ async def show_plan(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^plan_compare:\d+$"))
 async def plan_compare(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -532,7 +576,7 @@ async def plan_compare(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^plan_history:\d+$"))
 async def plan_history(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
