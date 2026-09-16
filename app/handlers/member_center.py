@@ -334,7 +334,9 @@ async def member_punish(
     callback: CallbackQuery, bot: Bot, session: AsyncSession, redis: Redis
 ) -> None:
     _, raw_group, raw_user, action = callback.data.split(":")
-    group = await accessible_group(session, int(raw_group), callback.from_user.id)
+    group = await owned_group(
+        session, int(raw_group), callback.from_user.id, for_update=True
+    )
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return

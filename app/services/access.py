@@ -46,7 +46,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "unmute": False,
         "kick": False,
         "warn": True,
-        "unwarn": False,
+        "unwarn": True,
         "warnings": True,
         "info": True,
         "history": True,
@@ -108,6 +108,24 @@ ADMIN_RANKS_FOR_PANEL: frozenset[str] = frozenset(
 )
 
 
+async def _get_assignment(
+    session: AsyncSession,
+    group_id: int,
+    user_id: int,
+) -> RankAssignment | None:
+    """Получить активное назначение ранга для пользователя в группе."""
+    return await session.scalar(
+        select(RankAssignment)
+        .where(
+            RankAssignment.group_id == group_id,
+            RankAssignment.user_telegram_id == user_id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(ADMIN_RANKS_FOR_PANEL),
+        )
+        .limit(1)
+    )
+
+
 async def is_group_admin(
     session: AsyncSession,
     group: Group,
@@ -150,6 +168,26 @@ async def _get_assignment(
         )
         .limit(1)
     )
+
+
+async def owned_group(
+    session: AsyncSession,
+    group_id: int,
+    user_id: int,
+    *,
+    for_update: bool = False,
+) -> Group | None:
+    """Group доступная пользователю для управления (owner / service_owner).
+
+    Владелец и service_owner — полный доступ.
+    Остальные — None.
+    """
+    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
+    if not is_service_owner(user_id):
+        query = query.where(Group.owner_telegram_id == user_id)
+    if for_update:
+        query = query.with_for_update()
+    return await session.scalar(query)
 
 
 async def accessible_group(

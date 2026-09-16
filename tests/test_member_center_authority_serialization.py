@@ -61,7 +61,6 @@ def test_member_reads_and_punishment_staging_remain_non_locking() -> None:
         "member_tags",
         "complaints",
         "complaint_detail",
-        "member_punish",
     ):
         body = _handler(source, name)
         assert "for_update=True" not in body

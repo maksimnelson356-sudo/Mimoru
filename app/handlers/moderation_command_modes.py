@@ -6,7 +6,12 @@ import secrets
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import BaseFilter
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, GroupMember, User
 from app.db.moderation_command_models import ModerationCommandPreference
 from app.keyboards.panel import moderation_duration_picker, moderation_reason_picker
-from app.services.access import can_moderate, is_service_owner
+from app.services.access import (
+    accessible_group,
+    can_moderate,
+    is_service_owner,
+    owned_group,
+)
 from app.services.moderation import execute
 from app.services.moderation_reasons import active_reasons
 from app.services.permissions import target_is_protected
@@ -22,7 +32,6 @@ from app.services.public_identity import public_user_token
 from app.services.ranks import can_moderate_target
 from app.services.ui import panel_header
 from app.utils.duration import parse_duration
-
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
@@ -74,18 +83,24 @@ class ModerationCommandModeFilter(BaseFilter):
 
 async def _active_group(session: AsyncSession, chat_id: int) -> Group | None:
     return await session.scalar(
-        select(Group).where(Group.telegram_chat_id == chat_id, Group.is_active.is_(True))
+        select(Group).where(
+            Group.telegram_chat_id == chat_id, Group.is_active.is_(True)
+        )
     )
 
 
-async def _owned_group(session: AsyncSession, group_id: int, user_id: int) -> Group | None:
+async def _owned_group(
+    session: AsyncSession, group_id: int, user_id: int
+) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
         query = query.where(Group.owner_telegram_id == user_id)
     return await session.scalar(query)
 
 
-async def _preference(session: AsyncSession, group_id: int) -> ModerationCommandPreference:
+async def _preference(
+    session: AsyncSession, group_id: int
+) -> ModerationCommandPreference:
     row = await session.get(ModerationCommandPreference, group_id)
     if row is None:
         row = ModerationCommandPreference(group_id=group_id, mode="both")
@@ -97,24 +112,57 @@ async def _preference(session: AsyncSession, group_id: int) -> ModerationCommand
 
 
 def _moderation_menu(group_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚩 Жалобы", callback_data=f"complaints:{group_id}")],
-        [InlineKeyboardButton(text="📌 Причины наказаний", callback_data=f"reasons:{group_id}")],
-        [InlineKeyboardButton(text="🔇 Мут по умолчанию", callback_data=f"setting_num:{group_id}:defaultmute")],
-        [InlineKeyboardButton(text="⌨️ Режим админ-команд", callback_data=f"modcmd_mode:{group_id}")],
-        [
-            InlineKeyboardButton(text="👮 Модераторы", callback_data=f"roles:{group_id}"),
-            InlineKeyboardButton(text="📋 Журнал", callback_data=f"logs:{group_id}"),
-        ],
-        [InlineKeyboardButton(text="ℹ️ Как модерировать", callback_data=f"moderation_help:{group_id}")],
-        [InlineKeyboardButton(text="◀️ Назад к группе", callback_data=f"group:{group_id}")],
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚩 Жалобы", callback_data=f"complaints:{group_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Причины наказаний", callback_data=f"reasons:{group_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔇 Мут по умолчанию",
+                    callback_data=f"setting_num:{group_id}:defaultmute",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⌨️ Режим админ-команд",
+                    callback_data=f"modcmd_mode:{group_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👮 Модераторы", callback_data=f"roles:{group_id}"
+                ),
+                InlineKeyboardButton(
+                    text="📋 Журнал", callback_data=f"logs:{group_id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="ℹ️ Как модерировать",
+                    callback_data=f"moderation_help:{group_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="◀️ Назад к группе", callback_data=f"group:{group_id}"
+                )
+            ],
+        ]
+    )
 
 
 @router.callback_query(F.data.regexp(r"^group_section:\d+:moderation$"))
 async def moderation_section(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, _ = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -133,15 +181,24 @@ def _mode_keyboard(group_id: int, current: str) -> InlineKeyboardMarkup:
             callback_data=f"modcmd_set:{group_id}:{mode}",
         )
 
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [button("text")],
-        [button("buttons")],
-        [button("both")],
-        [InlineKeyboardButton(text="◀️ Модерация", callback_data=f"group_section:{group_id}:moderation")],
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [button("text")],
+            [button("buttons")],
+            [button("both")],
+            [
+                InlineKeyboardButton(
+                    text="◀️ Модерация",
+                    callback_data=f"group_section:{group_id}:moderation",
+                )
+            ],
+        ]
+    )
 
 
-async def _render_mode(callback: CallbackQuery, session: AsyncSession, group: Group) -> None:
+async def _render_mode(
+    callback: CallbackQuery, session: AsyncSession, group: Group
+) -> None:
     pref = await _preference(session, group.id)
     await session.commit()
     text = panel_header(
@@ -152,23 +209,27 @@ async def _render_mode(callback: CallbackQuery, session: AsyncSession, group: Gr
         "✅ Оба режима — если во второй строке есть причина, действие выполняется сразу; если второй строки с причиной нет, открываются кнопки.\n\n"
         "В первой строке можно указывать только команду, пользователя и срок, например: мут @user 2ч или мут @user 1 мин.",
     )
-    await callback.message.edit_text(text, reply_markup=_mode_keyboard(group.id, pref.mode))
+    await callback.message.edit_text(
+        text, reply_markup=_mode_keyboard(group.id, pref.mode)
+    )
 
 
 @router.callback_query(F.data.regexp(r"^modcmd_mode:\d+$"))
 async def moderation_mode(callback: CallbackQuery, session: AsyncSession) -> None:
-    group = await _owned_group(session, int(callback.data.split(":")[-1]), callback.from_user.id)
+    group = await accessible_group(
+        session, int(callback.data.split(":")[-1]), callback.from_user.id
+    )
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
-    await _render_mode(callback, session, group)
-    await callback.answer()
 
 
 @router.callback_query(F.data.regexp(r"^modcmd_set:\d+:(buttons|text|both)$"))
 async def moderation_mode_set(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, mode = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group), callback.from_user.id)
+    group = await owned_group(
+        session, int(raw_group), callback.from_user.id, for_update=True
+    )
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -179,7 +240,9 @@ async def moderation_mode_set(callback: CallbackQuery, session: AsyncSession) ->
     await callback.answer("Режим сохранён")
 
 
-async def _username_target(session: AsyncSession, group_id: int, raw: str) -> int | None:
+async def _username_target(
+    session: AsyncSession, group_id: int, raw: str
+) -> int | None:
     username = raw.lstrip("@").casefold()
     return await session.scalar(
         select(User.telegram_id)
@@ -249,7 +312,10 @@ async def _parse_target_and_duration(
     args: list[str],
 ) -> tuple[int | None, int | None, str | None]:
     target_id = None
-    if message.reply_to_message is not None and message.reply_to_message.from_user is not None:
+    if (
+        message.reply_to_message is not None
+        and message.reply_to_message.from_user is not None
+    ):
         target_id = message.reply_to_message.from_user.id
 
     duration = None
@@ -265,7 +331,11 @@ async def _parse_target_and_duration(
         if target_id is None and token.startswith("@"):
             resolved = await _username_target(session, group.id, token)
             if resolved is None:
-                return None, duration, f"Пользователь {token} не найден среди известных участников группы."
+                return (
+                    None,
+                    duration,
+                    f"Пользователь {token} не найден среди известных участников группы.",
+                )
             target_id = int(resolved)
             continue
         unknown.append(token)
@@ -273,7 +343,11 @@ async def _parse_target_and_duration(
     if unknown:
         return None, duration, "Не удалось разобрать пользователя или срок команды."
     if target_id is None:
-        return None, duration, "Укажите пользователя: ответом на сообщение, @username или Telegram ID."
+        return (
+            None,
+            duration,
+            "Укажите пользователя: ответом на сообщение, @username или Telegram ID.",
+        )
     return target_id, duration, None
 
 
@@ -290,7 +364,9 @@ async def _check_target(
         return "Нельзя применить эту команду к себе."
     if target_id == group.owner_telegram_id:
         return "Нельзя применить действие к владельцу группы."
-    allowed, reason = await can_moderate_target(session, group, message.from_user.id, target_id)
+    allowed, reason = await can_moderate_target(
+        session, group, message.from_user.id, target_id
+    )
     if not allowed:
         return reason
     try:
@@ -324,9 +400,13 @@ async def _open_buttons(
         "warnings_limit": group.settings.warnings_limit,
         "default_mute": group.settings.default_mute_seconds,
         "origin": "group",
-        "actor_role": "owner" if message.from_user.id == group.owner_telegram_id else "admin",
+        "actor_role": (
+            "owner" if message.from_user.id == group.owner_telegram_id else "admin"
+        ),
     }
-    await redis.setex(f"mimoru:modpending:{token}", 600, json.dumps(payload, ensure_ascii=False))
+    await redis.setex(
+        f"mimoru:modpending:{token}", 600, json.dumps(payload, ensure_ascii=False)
+    )
     if action == "mute" and duration is None:
         await message.reply(
             f"🔇 На сколько ограничить {public_user_token(target_id)}?",
@@ -336,7 +416,9 @@ async def _open_buttons(
     reasons = await active_reasons(session, group.id, action)
     if not reasons:
         await redis.delete(f"mimoru:modpending:{token}")
-        await message.reply("Для этого действия нет активных причин. Владелец группы может добавить их в панели Mimoru.")
+        await message.reply(
+            "Для этого действия нет активных причин. Владелец группы может добавить их в панели Mimoru."
+        )
         return
     labels = {"warn": "предупреждения", "mute": "мута", "ban": "блокировки"}
     await message.reply(
@@ -413,7 +495,11 @@ async def moderation_command_mode(
                 default_mute=group.settings.default_mute_seconds,
                 target_name=public_user_token(target_id),
                 moderator_name=public_user_token(message.from_user.id),
-                actor_role="owner" if message.from_user.id == group.owner_telegram_id else "admin",
+                actor_role=(
+                    "owner"
+                    if message.from_user.id == group.owner_telegram_id
+                    else "admin"
+                ),
             )
             await session.commit()
             await message.reply(result)
