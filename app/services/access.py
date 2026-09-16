@@ -7,25 +7,50 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.models import Group, GroupModerator
+from app.db.models import Group
+from app.db.rank_models import RankAssignment
 
 # Compatibility defaults for legacy handlers that still import this symbol.
 # Runtime authorization is now based on app.services.ranks and rank_assignments.
 DEFAULT_ROLE_PERMISSIONS = {
     "senior": {
-        "ban": True, "unban": True, "mute": True, "unmute": True,
-        "kick": False, "warn": True, "unwarn": True, "warnings": True,
-        "info": True, "history": True, "delete": True,
+        "ban": True,
+        "unban": True,
+        "mute": True,
+        "unmute": True,
+        "kick": False,
+        "warn": True,
+        "unwarn": True,
+        "warnings": True,
+        "info": True,
+        "history": True,
+        "delete": True,
     },
     "moderator": {
-        "ban": False, "unban": False, "mute": True, "unmute": True,
-        "kick": False, "warn": True, "unwarn": True, "warnings": True,
-        "info": True, "history": True, "delete": True,
+        "ban": False,
+        "unban": False,
+        "mute": True,
+        "unmute": True,
+        "kick": False,
+        "warn": True,
+        "unwarn": True,
+        "warnings": True,
+        "info": True,
+        "history": True,
+        "delete": True,
     },
     "helper": {
-        "ban": False, "unban": False, "mute": False, "unmute": False,
-        "kick": False, "warn": True, "unwarn": False, "warnings": True,
-        "info": True, "history": True, "delete": False,
+        "ban": False,
+        "unban": False,
+        "mute": False,
+        "unmute": False,
+        "kick": False,
+        "warn": True,
+        "unwarn": False,
+        "warnings": True,
+        "info": True,
+        "history": True,
+        "delete": False,
     },
 }
 
@@ -40,28 +65,6 @@ async def is_telegram_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
     except (TelegramBadRequest, TelegramForbiddenError):
         return False
     return member.status in {ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR}
-
-
-async def is_group_owner(group: Group, user_id: int) -> bool:
-    return group.owner_telegram_id == user_id or is_service_owner(user_id)
-
-
-async def get_internal_moderator(
-    session: AsyncSession,
-    group_id: int,
-    user_id: int,
-) -> GroupModerator | None:
-    """Compatibility lookup for legacy code.
-
-    New authorization must use rank_assignments through app.services.ranks.
-    """
-    return await session.scalar(
-        select(GroupModerator).where(
-            GroupModerator.group_id == group_id,
-            GroupModerator.user_telegram_id == user_id,
-            GroupModerator.active.is_(True),
-        )
-    )
 
 
 async def can_moderate(
@@ -81,7 +84,9 @@ async def can_moderate(
     return await can_use_rank_permission(bot, session, group, user_id, action)
 
 
-async def can_manage_group(bot: Bot, group: Group, user_id: int, session: AsyncSession | None = None) -> bool:
+async def can_manage_group(
+    bot: Bot, group: Group, user_id: int, session: AsyncSession | None = None
+) -> bool:
     if is_service_owner(user_id):
         return True
     if group.owner_telegram_id == user_id:
@@ -92,3 +97,89 @@ async def can_manage_group(bot: Bot, group: Group, user_id: int, session: AsyncS
 
     actor = await get_actor_rank_with_access(bot, session, group, user_id)
     return bool(actor is not None and actor.code == "deputy_owner")
+
+
+ADMIN_RANKS_FOR_PANEL: frozenset[str] = frozenset(
+    {
+        "deputy_owner",
+        "chief_admin",
+        "chat_admin",
+    }
+)
+
+
+async def is_group_admin(
+    session: AsyncSession,
+    group: Group,
+    telegram_id: int,
+) -> bool:
+    """True, если telegram_id — owner группы ИЛИ админ с активным рангом."""
+    if group.owner_telegram_id == telegram_id:
+        return True
+    found = await session.scalar(
+        select(RankAssignment.id)
+        .where(
+            RankAssignment.group_id == group.id,
+            RankAssignment.user_telegram_id == telegram_id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(ADMIN_RANKS_FOR_PANEL),
+        )
+        .limit(1)
+    )
+    return found is not None
+
+
+async def is_group_owner(group: Group, telegram_id: int) -> bool:
+    """True, если telegram_id — прямой owner группы."""
+    return group.owner_telegram_id == telegram_id
+
+
+async def _get_assignment(
+    session: AsyncSession,
+    group_id: int,
+    user_id: int,
+) -> RankAssignment | None:
+    """Получить активное назначение ранга для пользователя в группе."""
+    return await session.scalar(
+        select(RankAssignment)
+        .where(
+            RankAssignment.group_id == group_id,
+            RankAssignment.user_telegram_id == user_id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(ADMIN_RANKS_FOR_PANEL),
+        )
+        .limit(1)
+    )
+
+
+async def accessible_group(
+    session: AsyncSession,
+    group_id: int,
+    user_id: int,
+    *,
+    for_update: bool = False,
+) -> Group | None:
+    """Group доступная пользователю для просмотра.
+
+    Владелец и service_owner — полный доступ.
+    DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN — read-only (просмотр).
+    Остальные — None.
+    """
+    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
+    if for_update:
+        query = query.with_for_update()
+    group = await session.scalar(query)
+    if group is None:
+        return None
+    if is_service_owner(user_id):
+        return group
+    if group.owner_telegram_id == user_id:
+        return group
+    assignment = await _get_assignment(session, group.id, user_id)
+    if (
+        assignment is not None
+        and assignment.active
+        and assignment.rank_code in ADMIN_RANKS_FOR_PANEL
+    ):
+        return group
+    return None

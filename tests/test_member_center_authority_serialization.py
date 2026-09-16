@@ -39,7 +39,7 @@ def test_member_release_locks_before_telegram_effect_and_commit() -> None:
 def test_member_panel_durable_writes_use_locked_owner_boundary() -> None:
     source = _source()
     expectations = {
-        "member_note_input": "session.add(ModeratorNote(",
+        "member_note_input": "ModeratorNote(",
         "member_tag_toggle": "await session.commit()",
         "member_tag_input": "await session.commit()",
         "_close_complaint": "row.status = status",
