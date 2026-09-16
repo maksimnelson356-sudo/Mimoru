@@ -5,7 +5,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -16,6 +16,7 @@ from app.db.models import (
     ModerationLog,
     RequiredChannel,
 )
+from app.db.rank_models import RankAssignment
 from app.keyboards.panel import (
     analytics_menu,
     channels_admin_menu,
@@ -157,12 +158,26 @@ async def panel_commands(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "panel:groups")
 async def panel_groups(callback: CallbackQuery, session: AsyncSession) -> None:
+    admin_subq = (
+        select(RankAssignment.id)
+        .where(
+            RankAssignment.group_id == Group.id,
+            RankAssignment.user_telegram_id == callback.from_user.id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(_ADM_RANKS_FOR_PANEL),
+        )
+        .exists()
+    )
+
     groups = (
         await session.scalars(
             select(Group)
             .where(
-                Group.owner_telegram_id == callback.from_user.id,
                 Group.is_active.is_(True),
+                or_(
+                    Group.owner_telegram_id == callback.from_user.id,
+                    admin_subq,
+                ),
             )
             .order_by(Group.title)
         )
