@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from aiogram import Bot, F, Router
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, GroupMember, User
+from app.db.rank_models import RankAssignment
 from app.keyboards.home import group_home_menu
 from app.services.access import is_service_owner
 from app.services.client_access import set_group_service_active
@@ -14,8 +15,9 @@ from app.services.plans import effective_plan, remaining_days, subscription_stat
 from app.services.telegram_admins import sync_telegram_administrators
 from app.services.ui import panel_header
 
-
 router = Router(name=__name__)
+
+_ADMIN_RANKS_FOR_PANEL = {"deputy_owner", "chief_admin", "chat_admin"}
 
 # Rank management needs promote_members; voice administrators also rely on the
 # bot being able to configure video-chat rights when it promotes them.
@@ -51,38 +53,94 @@ def _user_name(user: User | None, telegram_id: int | None) -> str:
 
 @router.callback_query(F.data == "panel:groups")
 async def user_groups(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
-    groups = list((await session.scalars(
-        select(Group).where(
-            Group.owner_telegram_id == callback.from_user.id,
-            Group.is_active.is_(True),
-        ).order_by(Group.created_at.desc())
-    )).all())
+    admin_subq = (
+        select(RankAssignment.id)
+        .where(
+            RankAssignment.group_id == Group.id,
+            RankAssignment.user_telegram_id == callback.from_user.id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(_ADMIN_RANKS_FOR_PANEL),
+        )
+        .exists()
+    )
+
+    groups = list(
+        (
+            await session.scalars(
+                select(Group)
+                .where(
+                    Group.is_active.is_(True),
+                    or_(
+                        Group.owner_telegram_id == callback.from_user.id,
+                        admin_subq,
+                    ),
+                )
+                .order_by(Group.created_at.desc())
+            )
+        ).all()
+    )
     rows: list[list[InlineKeyboardButton]] = []
     for group in groups:
-        rows.append([InlineKeyboardButton(
-            text=(await _label(bot, group))[:58],
-            callback_data=f"group:{group.id}",
-        )])
-    rows.append([InlineKeyboardButton(text="🔎 Найти по ID / @username", callback_data="group_lookup:user")])
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=(await _label(bot, group))[:58],
+                    callback_data=f"group:{group.id}",
+                )
+            ]
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="🔎 Найти по ID / @username", callback_data="group_lookup:user"
+            )
+        ]
+    )
     me = await bot.get_me()
     admin_url = f"https://t.me/{me.username or 'mimorubot'}?startgroup&admin={GROUP_ADMIN_RIGHTS}"
-    rows.append([InlineKeyboardButton(text="➕ Добавить Mimoru администратором", url=admin_url)])
-    rows.append([InlineKeyboardButton(text="◀️ Главное меню", callback_data="panel:home")])
+    rows.append(
+        [InlineKeyboardButton(text="➕ Добавить Mimoru администратором", url=admin_url)]
+    )
+    rows.append(
+        [InlineKeyboardButton(text="◀️ Главное меню", callback_data="panel:home")]
+    )
     text = panel_header(
         "Мои группы",
-        "Группы показываются по Telegram ID и публичному @username. Нажмите нужную группу или найдите её вручную."
-        if groups else "Подключённых групп пока нет. Добавьте Mimoru администратором в группу и напишите там «подключить».",
+        (
+            "Группы показываются по Telegram ID и публичному @username. Нажмите нужную группу или найдите её вручную."
+            if groups
+            else "Подключённых групп пока нет. Добавьте Mimoru администратором в группу и напишите там «подключить»."
+        ),
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await callback.message.edit_text(
+        text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
+    )
     await callback.answer()
 
 
 @router.callback_query(F.data.regexp(r"^group:\d+$"))
-async def user_group_card(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def user_group_card(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     group_id = int(callback.data.split(":")[-1])
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(callback.from_user.id):
-        query = query.where(Group.owner_telegram_id == callback.from_user.id)
+        admin_subq = (
+            select(RankAssignment.id)
+            .where(
+                RankAssignment.group_id == Group.id,
+                RankAssignment.user_telegram_id == callback.from_user.id,
+                RankAssignment.active.is_(True),
+                RankAssignment.rank_code.in_(_ADMIN_RANKS_FOR_PANEL),
+            )
+            .exists()
+        )
+        query = query.where(
+            or_(
+                Group.owner_telegram_id == callback.from_user.id,
+                admin_subq,
+            )
+        )
     group = await session.scalar(query)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
@@ -108,7 +166,9 @@ async def user_group_card(callback: CallbackQuery, bot: Bot, session: AsyncSessi
     await callback.answer()
 
 
-async def _service_groups(callback: CallbackQuery, bot: Bot, session: AsyncSession, mode: str) -> None:
+async def _service_groups(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession, mode: str
+) -> None:
     if not is_service_owner(callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -117,61 +177,137 @@ async def _service_groups(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         query = query.where(Group.is_active.is_(True))
     elif mode == "disabled":
         query = query.where(Group.is_active.is_(False))
-    groups = list((await session.scalars(query.order_by(Group.created_at.desc()).limit(50))).all())
-    rows = [[
-        InlineKeyboardButton(text="✅ Активные", callback_data="service:groups:active"),
-        InlineKeyboardButton(text="⛔ Отключённые", callback_data="service:groups:disabled"),
-    ]]
+    groups = list(
+        (await session.scalars(query.order_by(Group.created_at.desc()).limit(50))).all()
+    )
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="✅ Активные", callback_data="service:groups:active"
+            ),
+            InlineKeyboardButton(
+                text="⛔ Отключённые", callback_data="service:groups:disabled"
+            ),
+        ]
+    ]
     for group in groups:
         status = "✅" if group.is_active else "⛔"
         identity = await _label(bot, group)
-        rows.append([InlineKeyboardButton(
-            text=f"{status} {identity[:45]} · {effective_plan(group).upper()}",
-            callback_data=f"service_group:{group.id}",
-        )])
-    rows.append([InlineKeyboardButton(text="🔎 Найти по ID / @username", callback_data="group_lookup:service")])
-    rows.append([InlineKeyboardButton(text="◀️ Панель Mimoru", callback_data="service:home")])
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{status} {identity[:45]} · {effective_plan(group).upper()}",
+                    callback_data=f"service_group:{group.id}",
+                )
+            ]
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="🔎 Найти по ID / @username", callback_data="group_lookup:service"
+            )
+        ]
+    )
+    rows.append(
+        [InlineKeyboardButton(text="◀️ Панель Mimoru", callback_data="service:home")]
+    )
     await callback.message.edit_text(
-        panel_header("Группы", "ID — это Telegram chat ID. Если у группы есть публичный username, он показан рядом."),
+        panel_header(
+            "Группы",
+            "ID — это Telegram chat ID. Если у группы есть публичный username, он показан рядом.",
+        ),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "service:groups")
-async def service_groups_all(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def service_groups_all(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     await _service_groups(callback, bot, session, "all")
 
 
 @router.callback_query(F.data.regexp(r"^service:groups:(active|disabled)$"))
-async def service_groups_filtered(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def service_groups_filtered(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     await _service_groups(callback, bot, session, callback.data.rsplit(":", 1)[1])
 
 
-async def _render_service_group(callback: CallbackQuery, bot: Bot, session: AsyncSession, group: Group) -> None:
-    owner = await session.scalar(select(User).where(User.telegram_id == group.owner_telegram_id)) if group.owner_telegram_id else None
-    members = int(await session.scalar(select(func.count()).select_from(GroupMember).where(
-        GroupMember.group_id == group.id,
-        GroupMember.is_present.is_(True),
-    )) or 0)
+async def _render_service_group(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession, group: Group
+) -> None:
+    owner = (
+        await session.scalar(
+            select(User).where(User.telegram_id == group.owner_telegram_id)
+        )
+        if group.owner_telegram_id
+        else None
+    )
+    members = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(GroupMember)
+            .where(
+                GroupMember.group_id == group.id,
+                GroupMember.is_present.is_(True),
+            )
+        )
+        or 0
+    )
     identity = await _label(bot, group)
     days = remaining_days(group)
-    expires = group.plan_expires_at.strftime("%d.%m.%Y %H:%M UTC") if group.plan_expires_at else "без срока"
+    expires = (
+        group.plan_expires_at.strftime("%d.%m.%Y %H:%M UTC")
+        if group.plan_expires_at
+        else "без срока"
+    )
     rows = [
-        [InlineKeyboardButton(text="💎 Управление тарифом", callback_data=f"service_plan:{group.id}")],
         [
-            InlineKeyboardButton(text="🩺 Проверить Telegram", callback_data=f"service_group_health:{group.id}"),
-            InlineKeyboardButton(text="📊 Статистика", callback_data=f"service_group_stats:{group.id}"),
+            InlineKeyboardButton(
+                text="💎 Управление тарифом", callback_data=f"service_plan:{group.id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🩺 Проверить Telegram",
+                callback_data=f"service_group_health:{group.id}",
+            ),
+            InlineKeyboardButton(
+                text="📊 Статистика", callback_data=f"service_group_stats:{group.id}"
+            ),
         ],
     ]
     if group.owner_telegram_id:
-        rows.append([InlineKeyboardButton(text="👤 Открыть владельца", callback_data=f"service_client:{group.owner_telegram_id}")])
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="👤 Открыть владельца",
+                    callback_data=f"service_client:{group.owner_telegram_id}",
+                )
+            ]
+        )
     action = "disable" if group.is_active else "enable"
-    rows.append([InlineKeyboardButton(
-        text="⛔ Отключить обслуживание" if group.is_active else "✅ Включить обслуживание",
-        callback_data=f"service_group_confirm:{group.id}:{action}",
-    )])
-    rows.append([InlineKeyboardButton(text="◀️ Ко всем группам", callback_data="service:groups")])
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=(
+                    "⛔ Отключить обслуживание"
+                    if group.is_active
+                    else "✅ Включить обслуживание"
+                ),
+                callback_data=f"service_group_confirm:{group.id}:{action}",
+            )
+        ]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="◀️ Ко всем группам", callback_data="service:groups"
+            )
+        ]
+    )
     text = panel_header("Карточка группы", identity)
     text += (
         f"\n\nСтатус Mimoru: {'✅ обслуживание включено' if group.is_active else '⛔ обслуживание отключено'}"
@@ -185,11 +321,15 @@ async def _render_service_group(callback: CallbackQuery, bot: Bot, session: Asyn
         text += f"\nОсталось дней: {days}"
     if group.created_at:
         text += f"\nДобавлена в Mimoru: {group.created_at:%d.%m.%Y}"
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await callback.message.edit_text(
+        text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
+    )
 
 
 @router.callback_query(F.data.regexp(r"^service_group:\d+$"))
-async def service_group_card(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def service_group_card(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if not is_service_owner(callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -202,7 +342,9 @@ async def service_group_card(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
 
 @router.callback_query(F.data.regexp(r"^service_group_confirm:\d+:(enable|disable)$"))
-async def service_group_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def service_group_confirm(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if not is_service_owner(callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -219,16 +361,29 @@ async def service_group_confirm(callback: CallbackQuery, bot: Bot, session: Asyn
     )
     await callback.message.edit_text(
         panel_header("Подтверждение", f"{identity}\n\n{description}"),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да, подтвердить", callback_data=f"service_group_action:{group.id}:{action}")],
-            [InlineKeyboardButton(text="◀️ Отмена", callback_data=f"service_group:{group.id}")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✅ Да, подтвердить",
+                        callback_data=f"service_group_action:{group.id}:{action}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="◀️ Отмена", callback_data=f"service_group:{group.id}"
+                    )
+                ],
+            ]
+        ),
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.regexp(r"^service_group_action:\d+:(enable|disable)$"))
-async def service_group_action(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
+async def service_group_action(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if not is_service_owner(callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -242,7 +397,9 @@ async def service_group_action(callback: CallbackQuery, bot: Bot, session: Async
         await callback.answer("Группа не найдена.", show_alert=True)
         return
     if result.blocked_owner:
-        await callback.answer("Сначала разблокируйте клиента-владельца группы.", show_alert=True)
+        await callback.answer(
+            "Сначала разблокируйте клиента-владельца группы.", show_alert=True
+        )
         return
     await _render_service_group(callback, bot, session, result.group)
     await callback.answer("Сохранено")
