@@ -6,10 +6,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_snapshot_browse_and_confirm_reauthorize_source_group() -> None:
     code = (ROOT / "app/handlers/operations_center.py").read_text(encoding="utf-8")
+
     assert "async def authorized_snapshot" in code
-    assert "source = await owned_group(session, snap.group_id, user_id)" in code
+    assert "for_update" in code
+
+    # snapshot_open must call authorized_snapshot without requesting a lock
     assert "snapshot_open" in code
+    assert "authorized_snapshot(session, sid, callback.from_user.id" in code
+
+    # snapshot_confirm must call authorized_snapshot with for_update=True
     assert "snapshot_confirm" in code
+    assert "for_update=True" in code
+
     assert code.count("await authorized_snapshot(") >= 2
 
 

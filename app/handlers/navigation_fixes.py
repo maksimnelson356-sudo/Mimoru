@@ -9,28 +9,16 @@ from aiogram.types import (
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DailyStat, Group, ModerationLog, User
+from app.db.models import DailyStat, ModerationLog, User
 from app.keyboards.home import automation_menu, moderation_menu, protection_menu
-from app.services.access import is_service_owner
+from app.services.access import accessible_group, owned_group
 from app.services.public_identity import public_user_token
 from app.services.ui import clean_ui_text, panel_header
 
 router = Router(name=__name__)
 
 
-async def _owned_group(
-    session: AsyncSession,
-    group_id: int,
-    user_id: int,
-    *,
-    for_update: bool = False,
-) -> Group | None:
-    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
-    if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
-    if for_update:
-        query = query.with_for_update()
-    return await session.scalar(query)
+
 
 
 def _warning_limit_menu(group_id: int, current: int) -> InlineKeyboardMarkup:
@@ -157,7 +145,7 @@ async def setup_start_with_contextual_cancel(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer(
             "Настройка доступна только владельцу группы.", show_alert=True
@@ -175,7 +163,7 @@ async def setup_start_with_contextual_cancel(
 @router.callback_query(F.data.regexp(r"^automation_warning_limit:\d+$"))
 async def warning_limit(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -192,11 +180,11 @@ async def warning_limit(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^automation_warning_limit_set:\d+:[1-5]$"))
 async def warning_limit_set(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group_id, raw_value = callback.data.split(":")
-    group = await _owned_group(
+    group = await owned_group(
         session, int(raw_group_id), callback.from_user.id, for_update=True
     )
     if group is None:
-        await callback.answer("Нет доступа.", show_alert=True)
+        await callback.answer("Настройка доступна только владельцу группы.", show_alert=True)
         return
     group.settings.warnings_limit = int(raw_value)
     await session.commit()
@@ -212,7 +200,7 @@ async def contextual_setting_num(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     _, raw_group_id, field = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group_id), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group_id), callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -237,7 +225,7 @@ async def contextual_default_mute_set(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     _, raw_group_id, _, raw_value = callback.data.split(":")
-    group = await _owned_group(
+    group = await owned_group(
         session, int(raw_group_id), callback.from_user.id, for_update=True
     )
     value = int(raw_value)
@@ -261,10 +249,10 @@ async def contextual_antiflood_set(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     _, raw_group_id, raw_limit, raw_window = callback.data.split(":")
-    group = await _owned_group(
+    limit, window = int(raw_limit), int(raw_window)
+    group = await owned_group(
         session, int(raw_group_id), callback.from_user.id, for_update=True
     )
-    limit, window = int(raw_limit), int(raw_window)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -333,7 +321,7 @@ async def moderation_logs_with_contextual_back(
     group_id = int(parts[1])
     page = int(parts[3]) if len(parts) > 3 and parts[2] == "page" else 0
 
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -429,7 +417,7 @@ async def member_activity_with_contextual_back(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -478,11 +466,11 @@ async def member_history_with_contextual_back(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     _, raw_group_id, raw_user_id = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group_id), callback.from_user.id)
-    user_id = int(raw_user_id)
+    group = await accessible_group(session, int(raw_group_id), callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
+    user_id = int(raw_user_id)
     rows = list(
         (
             await session.scalars(

@@ -11,16 +11,22 @@ def _handler(source: str, name: str) -> str:
 
 def test_navigation_setting_mutations_lock_but_menus_do_not() -> None:
     source = (ROOT / "app/handlers/navigation_fixes.py").read_text(encoding="utf-8")
-    helper = source.split("async def _owned_group(", 1)[1].split("def _warning_limit_menu", 1)[0]
-    assert "for_update: bool = False" in helper
-    assert "query = query.with_for_update()" in helper
+    assert "def _warning_limit_menu" in source
 
-    for name in ("warning_limit_set", "contextual_default_mute_set", "contextual_antiflood_set"):
+    for name in (
+        "warning_limit_set",
+        "contextual_default_mute_set",
+        "contextual_antiflood_set",
+    ):
         body = _handler(source, name)
         assert "for_update=True" in body
         assert body.index("for_update=True") < body.index("await session.commit()")
 
-    for name in ("warning_limit", "contextual_setting_num", "moderation_logs_with_contextual_back"):
+    for name in (
+        "warning_limit",
+        "contextual_setting_num",
+        "moderation_logs_with_contextual_back",
+    ):
         assert "for_update=True" not in _handler(source, name)
 
 

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import MemberTag, MemberTagAssignment, ModerationLog, ModeratorNote
 from app.handlers.member_center import MemberCenterForm, _member_card, owned_group
+from app.services.access import accessible_group
 from app.services.public_identity import public_user_token
 from app.services.ui import panel_header
 
@@ -81,7 +82,7 @@ def _contextual_member_markup(markup: InlineKeyboardMarkup, source: str, group_i
 
 
 async def _render_card(callback: CallbackQuery, session: AsyncSession, source: str, group_id: int, user_id: int) -> None:
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -109,7 +110,7 @@ async def member_card_explicit(callback: CallbackQuery, session: AsyncSession) -
 async def member_history_context(callback: CallbackQuery, session: AsyncSession) -> None:
     _, source, raw_group, raw_user = callback.data.split(":")
     group_id, user_id = int(raw_group), int(raw_user)
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -135,7 +136,7 @@ async def member_history_context(callback: CallbackQuery, session: AsyncSession)
 
 
 async def _render_tags(callback: CallbackQuery, session: AsyncSession, source: str, group_id: int, user_id: int) -> None:
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -262,7 +263,7 @@ async def member_tag_input_context(message: Message, session: AsyncSession, stat
 
 
 async def _render_notes(callback: CallbackQuery, session: AsyncSession, source: str, group_id: int, user_id: int) -> None:
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return

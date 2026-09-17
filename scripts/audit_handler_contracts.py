@@ -33,6 +33,7 @@ EXPECTED_DUPLICATE_WINNERS = {
     "F.data.regexp('^group:\\\\d+$')": "group_directory.user_group_card",
     "F.data.regexp('^group_disconnect_do:\\\\d+$')": "group_onboarding_flow.disconnect_group_crash_safe",
     "F.data.regexp('^logs:\\\\d+$')": "navigation_fixes.moderation_logs_with_contextual_back",
+    "F.data.regexp('^logs:\\\\d+:page:\\\\d+$')": "navigation_fixes.moderation_logs_with_contextual_back",
     "F.data.regexp('^member_card:\\\\d+:-?\\\\d+$')": "member_navigation.member_card_context",
     "F.data.regexp('^member_history:\\\\d+:-?\\\\d+$')": "navigation_fixes.member_history_with_contextual_back",
     "F.data.regexp('^members_stats:\\\\d+$')": "navigation_fixes.member_activity_with_contextual_back",

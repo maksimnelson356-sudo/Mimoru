@@ -17,7 +17,7 @@ from app.db.models import Group, User
 from app.db.rank_models import RankAssignment
 from app.handlers.ad_market_v3 import _group_title_or_placeholder
 from app.handlers.group_commands import group_complaint
-from app.services.access import can_manage_group, is_service_owner
+from app.services.access import accessible_group, can_manage_group
 from app.services.ranks import RANK_CODES, RANK_LABELS
 from app.services.ui import panel_header
 
@@ -185,21 +185,12 @@ async def oftop_command(message: Message, bot: Bot) -> None:
         )
 
 
-async def _owned_group(
-    session: AsyncSession, group_id: int, user_id: int
-) -> Group | None:
-    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
-    if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
-    return await session.scalar(query)
-
-
 @router.callback_query(F.data.regexp(r"^group_disconnect:\d+$"))
 async def group_disconnect_confirm(
     callback: CallbackQuery, session: AsyncSession
 ) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer(
             "Группа не найдена или у вас нет доступа.", show_alert=True
@@ -234,7 +225,7 @@ async def group_disconnect_do(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer(
             "Группа уже отключена или у вас нет доступа.", show_alert=True

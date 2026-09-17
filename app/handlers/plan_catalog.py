@@ -7,7 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, Payment
-from app.services.plans import effective_plan, paid_plan, remaining_days, subscription_state
+from app.services.access import accessible_group, is_service_owner, owned_group
+from app.services.plans import (
+    effective_plan,
+    paid_plan,
+    remaining_days,
+    subscription_state,
+)
 from app.services.ui import clean_ui_text, panel_header
 
 
@@ -121,18 +127,7 @@ def _purchase_keyboard(group_id: int, plan_code: str, source: str) -> InlineKeyb
     ])
 
 
-async def _owned_groups(session: AsyncSession, owner_id: int) -> list[Group]:
-    return list((await session.scalars(
-        select(Group).where(Group.owner_telegram_id == owner_id, Group.is_active.is_(True)).order_by(Group.title)
-    )).all())
 
-
-async def _owned_group(session: AsyncSession, group_id: int, owner_id: int) -> Group | None:
-    return await session.scalar(select(Group).where(
-        Group.id == group_id,
-        Group.owner_telegram_id == owner_id,
-        Group.is_active.is_(True),
-    ))
 
 
 @router.callback_query(F.data == "panel:plans")
@@ -169,7 +164,13 @@ async def catalog_compare(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.regexp(r"^plans_choose_group:(standard|pro)$"))
 async def choose_group(callback: CallbackQuery, session: AsyncSession) -> None:
     plan_code = callback.data.rsplit(":", 1)[1]
-    groups = await _owned_groups(session, callback.from_user.id)
+    groups = list((
+        await session.scalars(
+            select(Group)
+            .where(Group.is_active.is_(True))
+            .order_by(Group.title)
+        )
+    ).all())
     text = panel_header(
         "Выберите группу",
         f"Тариф: {plan_code.upper()}\n\nВыберите группу, для которой хотите оформить подписку."
@@ -182,7 +183,7 @@ async def choose_group(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^plan:\d+$"))
 async def group_plan(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
@@ -203,7 +204,7 @@ async def group_plan(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^plans_apply:(standard|pro):\d+:(catalog|group)$"))
 async def plan_for_group(callback: CallbackQuery, session: AsyncSession) -> None:
     _, plan_code, raw_group_id, source = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group_id), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group_id), callback.from_user.id)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
@@ -215,7 +216,9 @@ async def plan_for_group(callback: CallbackQuery, session: AsyncSession) -> None
 @router.callback_query(F.data.regexp(r"^plan_checkout:\d+:(standard|pro):(catalog|group)$"))
 async def checkout(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group_id, plan_code, source = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group_id), callback.from_user.id)
+    group = await owned_group(
+        session, int(raw_group_id), callback.from_user.id, for_update=True
+    )
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
@@ -263,7 +266,7 @@ async def invoice_back(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.regexp(r"^plans_history:\d+$"))
 async def history(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return

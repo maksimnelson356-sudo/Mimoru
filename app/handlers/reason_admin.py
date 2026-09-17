@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, ModerationReason
 from app.keyboards.panel import moderation_reason_picker, reason_delete_confirm, reason_edit_menu, reasons_menu
-from app.services.access import is_service_owner
+from app.services.access import accessible_group, is_service_owner
 from app.services.moderation_reasons import ensure_default_reasons, normalize_actions
 from app.services.ui import panel_header
 from app.services.plans import plan_limit
@@ -62,7 +62,7 @@ async def reasons(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^reason_add:\d+$"))
 async def reason_add(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -104,7 +104,7 @@ async def reason_add_text(message: Message, session: AsyncSession, state: FSMCon
 async def reason_edit(callback: CallbackQuery, session: AsyncSession) -> None:
     _, g, r = callback.data.split(":")
     group_id, reason_id = int(g), int(r)
-    if not await owned_group(session, group_id, callback.from_user.id):
+    if not await accessible_group(session, group_id, callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
     row = await get_reason(session, group_id, reason_id)
@@ -160,7 +160,7 @@ async def reason_toggle(callback: CallbackQuery, session: AsyncSession) -> None:
 async def reason_rename(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     _, g, r = callback.data.split(":")
     group_id, reason_id = int(g), int(r)
-    if not await owned_group(session, group_id, callback.from_user.id):
+    if not await accessible_group(session, group_id, callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
     row = await get_reason(session, group_id, reason_id)
@@ -198,7 +198,7 @@ async def reason_rename_text(message: Message, session: AsyncSession, state: FSM
 async def reason_delete_ask(callback: CallbackQuery, session: AsyncSession) -> None:
     _, g, r = callback.data.split(":")
     group_id, reason_id = int(g), int(r)
-    if not await owned_group(session, group_id, callback.from_user.id):
+    if not await accessible_group(session, group_id, callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True); return
     row = await get_reason(session, group_id, reason_id)
     if not row:
@@ -222,7 +222,7 @@ async def reason_delete(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^moderation_help:\d+$"))
 async def moderation_help(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    if not await owned_group(session, group_id, callback.from_user.id):
+    if not await accessible_group(session, group_id, callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True); return
     text = panel_header("Как модерировать") + "\n\nОтветьте на сообщение участника одной из команд:\n<code>пред</code>\n<code>мут 5м</code>\n<code>кик</code>\n<code>бан</code>\n\nMimoru покажет причины этой группы кнопками и выполнит действие только после выбора."
     from app.keyboards.panel import moderation_menu

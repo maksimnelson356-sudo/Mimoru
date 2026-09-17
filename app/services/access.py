@@ -152,24 +152,6 @@ async def is_group_owner(group: Group, telegram_id: int) -> bool:
     return group.owner_telegram_id == telegram_id
 
 
-async def _get_assignment(
-    session: AsyncSession,
-    group_id: int,
-    user_id: int,
-) -> RankAssignment | None:
-    """Получить активное назначение ранга для пользователя в группе."""
-    return await session.scalar(
-        select(RankAssignment)
-        .where(
-            RankAssignment.group_id == group_id,
-            RankAssignment.user_telegram_id == user_id,
-            RankAssignment.active.is_(True),
-            RankAssignment.rank_code.in_(ADMIN_RANKS_FOR_PANEL),
-        )
-        .limit(1)
-    )
-
-
 async def owned_group(
     session: AsyncSession,
     group_id: int,
