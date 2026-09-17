@@ -127,7 +127,7 @@ async def guided_group_home(callback: CallbackQuery, bot: Bot, session: AsyncSes
             "📊 Статистика — показатели именно этой группы.\n"
             "📝 Контент — слова и правила.\n"
             "⚙️ Настройки — поведение Mimoru.\n"
-            f"\nТариф группы: {effective_plan(group).upper()}",
+            f"\nТариф группы: {effective_plan(group).upper()}" + (f" · до {group.plan_expires_at:%d.%m.%Y}" if group.plan_expires_at else ""),
         ),
         reply_markup=group_home_menu(group.id),
     )

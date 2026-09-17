@@ -33,10 +33,13 @@ async def _label(bot: Bot, group: Group) -> str:
 
 def _plan_label(group: Group) -> str:
     state = subscription_state(group)
+    expires = ""
+    if group.plan_expires_at:
+        expires = f" · до {group.plan_expires_at:%d.%m.%Y}"
     if state == "trial":
-        return "🧪 TRIAL"
+        return f"🧪 TRIAL{expires}"
     if state == "active":
-        return f"💎 {effective_plan(group).upper()}"
+        return f"💎 {effective_plan(group).upper()}{expires}"
     if state == "expired":
         return "⌛ истёк"
     return "🆓 FREE"
@@ -159,7 +162,7 @@ async def user_group_card(
             "📊 Статистика — показатели именно этой группы.\n"
             "📝 Контент — слова и правила.\n"
             "⚙️ Настройки — поведение Mimoru.\n"
-            f"\nТариф группы: {effective_plan(group).upper()}",
+            f"\nТариф группы: {effective_plan(group).upper()}" + (f" · до {group.plan_expires_at:%d.%m.%Y}" if group.plan_expires_at else ""),
         ),
         reply_markup=group_home_menu(group.id),
     )

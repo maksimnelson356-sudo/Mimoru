@@ -208,7 +208,7 @@ async def open_group(callback: CallbackQuery, session: AsyncSession) -> None:
     await callback.message.edit_text(
         panel_header(
             group.title,
-            f"ID: {group.telegram_chat_id}\nТариф: {effective_plan(group).upper()}",
+            f"ID: {group.telegram_chat_id}\nТариф: {effective_plan(group).upper()}" + (f" · до {group.plan_expires_at:%d.%m.%Y}" if group.plan_expires_at else ""),
         ),
         reply_markup=group_menu(group),
     )

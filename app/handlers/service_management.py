@@ -38,10 +38,13 @@ def _user_name(user: User | None, telegram_id: int | None) -> str:
 
 def _plan_label(group: Group) -> str:
     state = subscription_state(group)
+    expires = ""
+    if group.plan_expires_at:
+        expires = f" · до {group.plan_expires_at:%d.%m.%Y}"
     if state == "trial":
-        return "🧪 TRIAL"
+        return f"🧪 TRIAL{expires}"
     if state == "active":
-        return f"💎 {effective_plan(group).upper()}"
+        return f"💎 {effective_plan(group).upper()}{expires}"
     if state == "expired":
         return "⌛ истёк"
     return "🆓 FREE"
