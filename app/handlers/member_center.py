@@ -46,7 +46,7 @@ from app.services.moderation import UNMUTED, deactivate_punishments, log_action
 from app.services.moderation_reasons import active_reasons
 from app.services.people import calculate_reputation, days_since, trust_label
 from app.services.permissions import target_is_protected
-from app.services.public_identity import public_user_token
+from app.services.public_identity import public_user_token, stored_visible_name
 from app.services.ui import manual_action_notice, panel_header
 
 router = Router(name=__name__)
@@ -584,10 +584,11 @@ async def people_segment(callback: CallbackQuery, session: AsyncSession) -> None
     rows = []
     for member, user in result:
         suffix = member.last_seen_at.strftime("%d.%m") if member.last_seen_at else "—"
+        name = await stored_visible_name(member.user_telegram_id)
         rows.append(
             (
                 member.user_telegram_id,
-                f"{public_user_token(member.user_telegram_id)} · {suffix}",
+                f"{name} · {suffix}",
             )
         )
     await callback.message.edit_text(
