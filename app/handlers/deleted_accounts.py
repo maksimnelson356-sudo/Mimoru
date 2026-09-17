@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 from aiogram import Bot, F, Router
 from aiogram.types import CallbackQuery
@@ -9,8 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, GroupMember, User
 from app.keyboards.panel import deleted_accounts_confirm_menu, deleted_accounts_menu
-from app.services.access import is_service_owner
-from app.services.deleted_accounts import deleted_accounts_count, remove_deleted_accounts, scan_known_members
+from app.services.access import accessible_group, is_service_owner
+from app.services.deleted_accounts import (
+    deleted_accounts_count,
+    remove_deleted_accounts,
+    scan_known_members,
+)
 from app.services.moderation import log_action
 from app.services.ui import clean_ui_text, panel_header
 
@@ -59,7 +63,7 @@ async def _screen(session: AsyncSession, group: Group) -> tuple[str, object]:
         lines.append(f"• {label} · {uid}")
     checked_label = "ещё не выполнялась"
     if last_checked is not None:
-        checked_label = last_checked.astimezone(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+        checked_label = last_checked.astimezone(UTC).strftime("%d.%m.%Y %H:%M UTC")
     text = (
         panel_header("Удалённые аккаунты", group.title)
         + f"\n\n🪦 Найдено: {deleted}"
@@ -78,7 +82,7 @@ async def _screen(session: AsyncSession, group: Group) -> tuple[str, object]:
 @router.callback_query(F.data.regexp(r"^deleted_accounts:\d+$"))
 async def deleted_accounts_screen(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -118,7 +122,7 @@ async def deleted_accounts_scan(callback: CallbackQuery, bot: Bot, session: Asyn
 @router.callback_query(F.data.regexp(r"^deleted_accounts_remove_confirm:\d+$"))
 async def deleted_accounts_remove_confirm(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
