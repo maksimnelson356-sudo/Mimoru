@@ -27,7 +27,7 @@ from app.keyboards.panel import (
     warnings_limit_menu,
     words_admin_menu,
 )
-from app.services.access import DEFAULT_ROLE_PERMISSIONS, is_service_owner
+from app.services.access import DEFAULT_ROLE_PERMISSIONS, accessible_group, is_service_owner
 from app.services.plans import plan_limit
 from app.services.ui import panel_header
 
@@ -77,9 +77,8 @@ def effective_permissions(item: GroupModerator) -> dict[str, bool]:
 @router.callback_query(F.data.regexp(r"^word_add:\d+$"))
 async def word_add(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     group_id = int(callback.data.split(":")[1])
-    if not await owned_group(session, group_id, callback.from_user.id):
-        await callback.answer("Нет доступа.", show_alert=True)
-        return
+    if not await accessible_group(session, group_id, callback.from_user.id):
+        await callback.answer("Нет доступа.", show_alert=True); return
     await state.set_state(ControlForm.word_add)
     await state.update_data(group_id=group_id)
     await callback.message.edit_text(panel_header("Новое запрещённое слово", "Отправьте слово или фразу одним сообщением."))
@@ -128,7 +127,7 @@ async def word_remove(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^channel_add:\d+$"))
 async def channel_add(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     group_id = int(callback.data.split(":")[1])
-    if not await owned_group(session, group_id, callback.from_user.id):
+    if not await accessible_group(session, group_id, callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True); return
     await state.set_state(ControlForm.channel_add)
     await state.update_data(group_id=group_id)
@@ -180,7 +179,7 @@ async def channel_remove(callback: CallbackQuery, session: AsyncSession) -> None
 @router.callback_query(F.data.regexp(r"^settings_detail:\d+$"))
 async def settings_detail(callback: CallbackQuery, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True); return
     await callback.message.edit_text(panel_header("Параметры группы", "Основные значения можно менять без команд."), reply_markup=settings_detail_menu(group))
@@ -190,7 +189,7 @@ async def settings_detail(callback: CallbackQuery, session: AsyncSession) -> Non
 @router.callback_query(F.data.regexp(r"^setting_text:\d+:(welcome|rules)$"))
 async def setting_text(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     _, raw_group, field = callback.data.split(":")
-    group_id = int(raw_group); group = await owned_group(session, group_id, callback.from_user.id)
+    group_id = int(raw_group); group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True); return
     await state.set_state(ControlForm.welcome_text if field == "welcome" else ControlForm.rules_text)
@@ -229,7 +228,7 @@ async def save_rules(message: Message, session: AsyncSession, state: FSMContext)
 @router.callback_query(F.data.regexp(r"^setting_num:\d+:(warnings|defaultmute|antiflood)$"))
 async def setting_num(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, field = callback.data.split(":")
-    group_id = int(raw_group); group = await owned_group(session, group_id, callback.from_user.id)
+    group_id = int(raw_group); group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True); return
     if field == "warnings":
@@ -274,7 +273,7 @@ async def setting_flood(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^role_add:\d+$"))
 async def role_add(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     group_id = int(callback.data.split(":")[1])
-    group = await owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True); return
     current = int(await session.scalar(select(func.count()).select_from(GroupModerator).where(GroupModerator.group_id == group.id, GroupModerator.active.is_(True))) or 0)
@@ -314,7 +313,7 @@ async def role_add_id(message: Message, bot: Bot, session: AsyncSession, state: 
 @router.callback_query(F.data.regexp(r"^role_edit:\d+:\d+$"))
 async def role_edit(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_id = callback.data.split(":"); group_id, item_id = int(raw_group), int(raw_id)
-    if not await owned_group(session, group_id, callback.from_user.id): await callback.answer("Нет доступа.", show_alert=True); return
+    if not await accessible_group(session, group_id, callback.from_user.id): await callback.answer("Нет доступа.", show_alert=True); return
     item = await moderator_row(session, group_id, item_id)
     if not item: await callback.answer("Роль не найдена.", show_alert=True); return
     text = panel_header("Права модератора", f"Telegram ID: {item.user_telegram_id}\nРоль: {item.role}\nСтатус: {'включена' if item.active else 'выключена'}")
@@ -362,7 +361,7 @@ async def role_toggle(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(F.data.regexp(r"^role_remove_confirm:\d+:\d+$"))
 async def role_remove_ask(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_id = callback.data.split(":"); group_id, item_id = int(raw_group), int(raw_id)
-    if not await owned_group(session, group_id, callback.from_user.id): await callback.answer("Нет доступа.", show_alert=True); return
+    if not await accessible_group(session, group_id, callback.from_user.id): await callback.answer("Нет доступа.", show_alert=True); return
     item = await moderator_row(session, group_id, item_id)
     if not item: await callback.answer("Роль не найдена.", show_alert=True); return
     await callback.message.edit_text(panel_header("Удалить роль?", f"Telegram ID: {item.user_telegram_id}"), reply_markup=role_remove_confirm(group_id, item_id)); await callback.answer()
