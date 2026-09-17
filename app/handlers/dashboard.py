@@ -599,7 +599,7 @@ async def service_sections(callback: CallbackQuery, session: AsyncSession) -> No
         )).all()
         new = sum(1 for ticket in rows if ticket.status == "new")
         text = panel_header("Поддержка", f"Новых обращений: {new}. Выберите обращение.")
-        await callback.message.edit_text(text, reply_markup=service_tickets_menu(rows))
+        await callback.message.edit_text(text, reply_markup=await service_tickets_menu(rows))
         await callback.answer()
         return
     else:

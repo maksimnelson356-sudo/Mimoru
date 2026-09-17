@@ -324,7 +324,7 @@ async def active_punishments(callback: CallbackQuery, session: AsyncSession) -> 
         title = "Активные муты" if kind == "mute" else "Активные блокировки"
     await callback.message.edit_text(
         panel_header(title, f"Найдено: {len(rows)}"),
-        reply_markup=active_punishments_menu(group.id, kind, rows),
+        reply_markup=await active_punishments_menu(group.id, kind, rows),
     )
     await callback.answer()
 
@@ -876,7 +876,7 @@ async def complaints(callback: CallbackQuery, session: AsyncSession) -> None:
     ).all()
     await callback.message.edit_text(
         panel_header("Жалобы участников", f"Ожидают рассмотрения: {len(rows)}"),
-        reply_markup=complaints_menu(group.id, rows),
+        reply_markup=await complaints_menu(group.id, rows),
     )
     await callback.answer()
 
@@ -938,7 +938,7 @@ async def _close_complaint(
     ).all()
     await callback.message.edit_text(
         panel_header("Жалобы участников", f"Ожидают рассмотрения: {len(rows)}"),
-        reply_markup=complaints_menu(group.id, rows),
+        reply_markup=await complaints_menu(group.id, rows),
     )
     await callback.answer("Жалоба закрыта")
 

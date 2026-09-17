@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from app.services.public_identity import stored_visible_name
 
 
 def _status(enabled: bool) -> str:
@@ -383,14 +384,14 @@ PERMISSION_LABELS = {
 }
 
 
-def roles_menu(group_id: int, moderators) -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton(
-            text=f"{'✅' if m.active else '❌'} {ROLE_LABELS.get(m.role, m.role)} · {m.user_telegram_id}",
+async def roles_menu(group_id: int, moderators) -> InlineKeyboardMarkup:
+    rows = []
+    for m in moderators:
+        name = await stored_visible_name(m.user_telegram_id)
+        rows.append([InlineKeyboardButton(
+            text=f"{'✅' if m.active else '❌'} {ROLE_LABELS.get(m.role, m.role)} · {name}",
             callback_data=f"role_edit:{group_id}:{m.id}",
-        )]
-        for m in moderators
-    ]
+        )])
     rows += [
         [InlineKeyboardButton(text="➕ Добавить по Telegram ID", callback_data=f"role_add:{group_id}")],
         [InlineKeyboardButton(text="◀️ К модерации", callback_data=f"group_section:{group_id}:moderation")],
@@ -503,8 +504,14 @@ def antiflood_preset_menu(group_id: int, current_limit: int, current_window: int
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def service_tickets_menu(tickets) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text=f"#{t.id} · {t.status} · {t.user_telegram_id}", callback_data=f"ticket:{t.id}")] for t in tickets[:30]]
+async def service_tickets_menu(tickets) -> InlineKeyboardMarkup:
+    rows = []
+    for t in tickets[:30]:
+        name = await stored_visible_name(t.user_telegram_id)
+        rows.append([InlineKeyboardButton(
+            text=f"#{t.id} · {t.status} · {name}",
+            callback_data=f"ticket:{t.id}",
+        )])
     rows.append([InlineKeyboardButton(text="◀️ Панель Mimoru", callback_data="service:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -534,17 +541,27 @@ def member_card_menu(group_id: int, user_id: int, has_mute: bool, has_ban: bool,
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def active_punishments_menu(group_id: int, kind: str, rows) -> InlineKeyboardMarkup:
+async def active_punishments_menu(group_id: int, kind: str, rows) -> InlineKeyboardMarkup:
     buttons = []
+    icon = {"warn": "⚠️", "mute": "🔇", "ban": "⛔"}.get(kind, "•")
     for row in rows[:30]:
-        icon = {"warn": "⚠️", "mute": "🔇", "ban": "⛔"}.get(kind, "•")
-        buttons.append([InlineKeyboardButton(text=f"{icon} {row.user_telegram_id}", callback_data=f"member_card:{group_id}:{row.user_telegram_id}")])
+        name = await stored_visible_name(row.user_telegram_id)
+        buttons.append([InlineKeyboardButton(
+            text=f"{icon} {name}",
+            callback_data=f"member_card:{group_id}:{row.user_telegram_id}",
+        )])
     buttons.append([InlineKeyboardButton(text="◀️ К участникам", callback_data=f"group_section:{group_id}:members")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def complaints_menu(group_id: int, complaints) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text=f"🚩 #{c.id} · {c.target_telegram_id}", callback_data=f"complaint:{group_id}:{c.id}")] for c in complaints[:30]]
+async def complaints_menu(group_id: int, complaints) -> InlineKeyboardMarkup:
+    rows = []
+    for c in complaints[:30]:
+        name = await stored_visible_name(c.target_telegram_id)
+        rows.append([InlineKeyboardButton(
+            text=f"🚩 #{c.id} · {name}",
+            callback_data=f"complaint:{group_id}:{c.id}",
+        )])
     rows.append([InlineKeyboardButton(text="◀️ К модерации", callback_data=f"group_section:{group_id}:moderation")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

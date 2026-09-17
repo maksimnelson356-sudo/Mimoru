@@ -375,7 +375,7 @@ async def role_remove(callback: CallbackQuery, session: AsyncSession) -> None:
     item = await moderator_row(session, group_id, item_id)
     if item: await session.delete(item); await session.commit()
     rows = (await session.scalars(select(GroupModerator).where(GroupModerator.group_id == group_id).order_by(GroupModerator.active.desc(), GroupModerator.role))).all()
-    await callback.message.edit_text(panel_header("Роли модераторов", "Роль удалена."), reply_markup=roles_menu(group_id, rows)); await callback.answer("Удалено")
+    await callback.message.edit_text(panel_header("Роли модераторов", "Роль удалена."), reply_markup=await roles_menu(group_id, rows)); await callback.answer("Удалено")
 
 
 # ---- support center ----

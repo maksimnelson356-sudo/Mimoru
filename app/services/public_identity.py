@@ -58,6 +58,12 @@ async def _stored_visible_name(user_id: int) -> str | None:
     return f"@{user.username}" if user.username else None
 
 
+async def stored_visible_name(user_id: int) -> str:
+    """Из БД: full_name или @username, fallback 'ID {user_id}'."""
+    name = await _stored_visible_name(user_id)
+    return name or f"ID {user_id}"
+
+
 async def _resolve_visible_name(bot: Bot, chat_id: int | str | None, user_id: int) -> str:
     if isinstance(chat_id, int) and chat_id < 0:
         try:

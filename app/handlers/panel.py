@@ -515,7 +515,7 @@ async def show_roles(callback: CallbackQuery, session: AsyncSession) -> None:
         "Роли модераторов",
         f"Активных: {active_count}. Права каждой роли можно настроить отдельно.",
     )
-    await callback.message.edit_text(text, reply_markup=roles_menu(group.id, items))
+    await callback.message.edit_text(text, reply_markup=await roles_menu(group.id, items))
     await callback.answer()
 
 
