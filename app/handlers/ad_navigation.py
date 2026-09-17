@@ -131,3 +131,18 @@ async def seller_deals_from_ads_home(
 ) -> None:
     await state.clear()
     await _render_home_deals(callback, session, seller=True)
+
+
+@router.callback_query(F.data == "service:ads")
+async def service_ads_redirect(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        panel_header(
+            "Реклама",
+            "Управление рекламой Mimoru. Уведомления о новых рекламных постах приходят в этот чат.",
+        ),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Открыть рекламу", callback_data="ads:home")],
+            [InlineKeyboardButton(text="◀️ Панель Mimoru", callback_data="service:home")],
+        ]),
+    )
+    await callback.answer()
