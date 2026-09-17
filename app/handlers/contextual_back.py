@@ -8,8 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DailyStat, Group, GroupMember, Payment, User
-from app.handlers.member_center import _member_card, owned_group
-from app.services.access import is_service_owner
+from app.handlers.member_center import _member_card
+from app.services.access import accessible_group, is_service_owner
 from app.services.client_access import set_client_blocked, set_group_service_active
 from app.services.group_health import calculate_group_health
 from app.services.group_refs import group_reference_label
@@ -439,7 +439,7 @@ def _member_back(callback: CallbackQuery, group_id: int) -> tuple[str, str]:
 @router.callback_query(F.data.regexp(r"^member_card:\d+:-?\d+$"))
 async def member_card_context(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_user = callback.data.split(":")
-    group = await owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return

@@ -511,7 +511,7 @@ async def member_action(
 @router.callback_query(F.data.regexp(r"^member_history:\d+:-?\d+$"))
 async def member_history(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_user = callback.data.split(":")
-    group = await owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -546,7 +546,7 @@ async def member_history(callback: CallbackQuery, session: AsyncSession) -> None
 async def people_segment(callback: CallbackQuery, session: AsyncSession) -> None:
     prefix, raw_group = callback.data.rsplit(":", 1)
     kind = prefix.split("_", 1)[1]
-    group = await owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -600,7 +600,7 @@ async def people_segment(callback: CallbackQuery, session: AsyncSession) -> None
 @router.callback_query(F.data.regexp(r"^member_notes:\d+:-?\d+$"))
 async def member_notes(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_user = callback.data.split(":")
-    group = await owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
@@ -694,7 +694,7 @@ async def member_note_input(
 @router.callback_query(F.data.regexp(r"^member_tags:\d+:-?\d+$"))
 async def member_tags(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group, raw_user = callback.data.split(":")
-    group = await owned_group(session, int(raw_group), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group), callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return

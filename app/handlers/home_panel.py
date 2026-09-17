@@ -1,16 +1,16 @@
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group
+from app.db.rank_models import RankAssignment
 from app.keyboards.home import HOME_HINT, group_home_menu, home_menu
-from app.services.access import is_service_owner
+from app.services.access import accessible_group, is_service_owner
 from app.services.plans import effective_plan
 from app.services.telegram_admins import sync_telegram_administrators
 from app.services.ui import panel_header
-
 
 router = Router(name=__name__)
 
@@ -41,12 +41,6 @@ async def _clear_pending_input(state: FSMContext) -> None:
         await state.clear()
 
 
-async def _owned_group(session: AsyncSession, group_id: int, user_id: int) -> Group | None:
-    query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
-    if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
-    return await session.scalar(query)
-
 
 @router.message(
     F.chat.type == "private",
@@ -76,7 +70,22 @@ async def choose_group_statistics(callback: CallbackQuery, session: AsyncSession
     await _clear_pending_input(state)
     query = select(Group).where(Group.is_active.is_(True))
     if not is_service_owner(callback.from_user.id):
-        query = query.where(Group.owner_telegram_id == callback.from_user.id)
+        admin_subq = (
+            select(RankAssignment.id)
+            .where(
+                RankAssignment.group_id == Group.id,
+                RankAssignment.user_telegram_id == callback.from_user.id,
+                RankAssignment.active.is_(True),
+                RankAssignment.rank_code.in_({"deputy_owner", "chief_admin", "chat_admin"}),
+            )
+            .exists()
+        )
+        query = query.where(
+            or_(
+                Group.owner_telegram_id == callback.from_user.id,
+                admin_subq,
+            )
+        )
     groups = (await session.scalars(query.order_by(Group.title))).all()
     rows = [
         [InlineKeyboardButton(text=f"📊 {group.title[:44]}", callback_data=f"group_section:{group.id}:analytics")]
@@ -97,7 +106,7 @@ async def choose_group_statistics(callback: CallbackQuery, session: AsyncSession
 async def guided_group_home(callback: CallbackQuery, bot: Bot, session: AsyncSession, state: FSMContext) -> None:
     await _clear_pending_input(state)
     group_id = int(callback.data.split(":")[1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
