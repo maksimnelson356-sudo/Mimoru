@@ -68,13 +68,18 @@ def manual_action_notice(
     reason = clean_ui_text(reason or "").strip()
     if reason.casefold() == "не указана":
         reason = ""
-    return format_action_notice(
+    text = format_action_notice(
         target_name=target,
         action=action,
         moderator_name=moderator,
         reason=reason if reason else None,
         duration_seconds=duration_seconds,
     )
+    if action == "warn" and warning_count is not None and warning_limit is not None:
+        text += f"\n\n⚠️ Активных предупреждений: {warning_count}/{warning_limit}."
+        if warning_count >= warning_limit:
+            text += "\n🚨 Достигнут лимит — применён автоматический мут."
+    return text
 
 
 def automatic_action_notice(
