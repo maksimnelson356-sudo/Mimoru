@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group
+from app.services.access import accessible_group
 from app.services.group_refs import group_reference_label
 from app.services.plans import effective_plan, paid_plan, remaining_days, subscription_state
 from app.services.ui import panel_header
-
 
 router = Router(name=__name__)
 
@@ -93,12 +93,7 @@ def _purchase_keyboard(group_id: int, plan_code: str, source: str) -> InlineKeyb
     ])
 
 
-async def _owned_group(session: AsyncSession, group_id: int, owner_id: int) -> Group | None:
-    return await session.scalar(select(Group).where(
-        Group.id == group_id,
-        Group.owner_telegram_id == owner_id,
-        Group.is_active.is_(True),
-    ))
+@router.callback_query(F.data == "panel:plans")
 
 
 @router.callback_query(F.data == "panel:plans")
@@ -181,7 +176,7 @@ async def choose_group_by_reference(callback: CallbackQuery, bot: Bot, session: 
 @router.callback_query(F.data.regexp(r"^plans_apply:(standard|pro):\d+:(catalog|group)$"))
 async def plan_for_group(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
     _, plan_code, raw_group_id, source = callback.data.split(":")
-    group = await _owned_group(session, int(raw_group_id), callback.from_user.id)
+    group = await accessible_group(session, int(raw_group_id), callback.from_user.id)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
@@ -196,7 +191,7 @@ async def plan_for_group(callback: CallbackQuery, bot: Bot, session: AsyncSessio
 @router.callback_query(F.data.regexp(r"^plan:\d+$"))
 async def group_plan(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
     group_id = int(callback.data.split(":")[-1])
-    group = await _owned_group(session, group_id, callback.from_user.id)
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if group is None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
