@@ -68,8 +68,15 @@ async def test_group_and_settings_round_trip(make_group, db_session_factory) -> 
     assert group.is_active is True
     assert group.plan_code == "trial"
     assert group.settings.group_id == group.id
-    assert group.settings.reports_enabled is True
     assert group.settings.last_report_date is None
+    # Python-side defaults must actually reach PostgreSQL. These are the real
+    # values in app/db/models.py; asserting them keeps a silent change to a
+    # moderation default from going unnoticed.
+    assert group.settings.reports_enabled is False
+    assert group.settings.antiflood_enabled is True
+    assert group.settings.report_hour_utc == 8
+    assert group.settings.warnings_limit == 3
+    assert group.settings.timezone_name == "Europe/Warsaw"
 
 
 @pytest.mark.db
