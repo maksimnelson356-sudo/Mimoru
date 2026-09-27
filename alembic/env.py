@@ -21,6 +21,7 @@ from app.db import models  # noqa: F401
 from app.db import permission_transition_models  # noqa: F401
 from app.db import rank_models  # noqa: F401
 from app.db import rank_provisioning_models  # noqa: F401
+from app.db import required_reconcile_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

@@ -1,4 +1,8 @@
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
 
 from app.handlers.group_action_aliases import (
     ADMIN_INFO_RANKS,
@@ -7,6 +11,31 @@ from app.handlers.group_action_aliases import (
     LOOKUP_ALIASES,
     SELF_PROFILE_ALIASES,
 )
+
+
+@pytest.mark.asyncio
+async def test_admin_info_access_uses_live_rank_access(monkeypatch) -> None:
+    from app.handlers import group_action_aliases
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=42),
+        reply=AsyncMock(),
+    )
+    group = SimpleNamespace(id=1, telegram_chat_id=-100123)
+
+    async def fake_actor(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(group_action_aliases, "get_actor_rank_with_access", fake_actor)
+    allowed = await group_action_aliases._require_admin_info_access(
+        message,
+        object(),
+        object(),
+        group,
+    )
+
+    assert allowed is False
+    message.reply.assert_awaited_once()
 
 
 def test_personal_and_group_stats_aliases_are_separate() -> None:

@@ -10,8 +10,8 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
-  echo "ОШИБКА: на сервере есть локальные изменения в отслеживаемых файлах."
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "ОШИБКА: на сервере есть локальные изменения или untracked-файлы."
   echo "Сначала сохраните или отмените их, затем повторите деплой:"
   git status --short
   exit 1

@@ -14,16 +14,24 @@ _ASSIGNED_BY_ID_RE = re.compile(r"\s*·\s*назначил\s+-?\d+", re.IGNORECA
 _RETIRED_KICK_LINE_RE = re.compile(r"(?im)^\s*кик\s*$\n?")
 
 
-def clean_ui_text(text: str) -> str:
-    """Return plain Telegram text and hide explicit internal Telegram IDs from UI."""
-    value = str(text)
+def _clean_markup(value: str) -> str:
     for _ in range(3):
         decoded = unescape(value)
         if decoded == value:
             break
         value = decoded
     value = _TAG_RE.sub("", value)
-    value = _RETIRED_KICK_LINE_RE.sub("", value)
+    return _RETIRED_KICK_LINE_RE.sub("", value)
+
+
+def clean_private_ui_text(text: str) -> str:
+    """Strip Telegram markup while preserving IDs for private admin screens."""
+    return _clean_markup(str(text))
+
+
+def clean_ui_text(text: str) -> str:
+    """Return plain Telegram text and hide explicit internal Telegram IDs from UI."""
+    value = _clean_markup(str(text))
     value = _ID_LINE_RE.sub("", value)
     value = _INLINE_ID_RE.sub("", value)
     value = _ASSIGNED_BY_ID_RE.sub("", value)
@@ -116,7 +124,7 @@ def panel_header(title: str, subtitle: str | None = None) -> str:
     text = f"🟣 Mimoru · {title}"
     if subtitle:
         text += f"\n\n{subtitle}"
-    return clean_ui_text(text).rstrip()
+    return clean_private_ui_text(text).rstrip()
 
 
 _CHAT_UNAVAILABLE_MARKERS = (

@@ -194,7 +194,7 @@ async def verification_callback(callback, bot: Bot, session: AsyncSession, redis
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("noop:"))
+@router.callback_query(F.data.regexp(r"^noop(?::|$)"))
 async def noop_callback(callback: CallbackQuery) -> None:
     await callback.answer("Ссылка недоступна. Обратитесь к администратору группы.", show_alert=True)
 

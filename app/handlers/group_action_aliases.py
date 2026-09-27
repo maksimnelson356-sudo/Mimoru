@@ -26,7 +26,8 @@ from app.db.models import (
 from app.db.rank_models import RankAssignment
 from app.handlers.group_commands import group_complaint
 from app.services.public_identity import public_user_token
-from app.services.ranks import RANK_CODES, RANK_LABELS, get_actor_rank
+from app.services.rank_access import get_actor_rank_with_access
+from app.services.ranks import RANK_CODES, RANK_LABELS
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
@@ -248,11 +249,11 @@ async def _user_name(session: AsyncSession, user_id: int) -> str:
 
 
 async def _require_admin_info_access(
-    message: Message, session: AsyncSession, group: Group
+    message: Message, bot: Bot, session: AsyncSession, group: Group
 ) -> bool:
     if message.from_user is None:
         return False
-    actor = await get_actor_rank(session, group, message.from_user.id)
+    actor = await get_actor_rank_with_access(bot, session, group, message.from_user.id)
     if actor is not None and actor.code in ADMIN_INFO_RANKS:
         return True
     await message.reply(
@@ -262,9 +263,9 @@ async def _require_admin_info_access(
 
 
 async def _can_view_group_stats(
-    message: Message, session: AsyncSession, group: Group
+    message: Message, bot: Bot, session: AsyncSession, group: Group
 ) -> bool:
-    if await _require_admin_info_access(message, session, group):
+    if await _require_admin_info_access(message, bot, session, group):
         return True
     await message.reply(
         "Свою личную информацию можно посмотреть фразой «кто я» или «моя стата»."
@@ -917,7 +918,7 @@ async def readable_group_actions(
         return
 
     if text in GROUP_STATS_ALIASES:
-        if await _can_view_group_stats(message, session, group):
+        if await _can_view_group_stats(message, bot, session, group):
             await _group_stats(message, session, group, text)
         return
 
@@ -980,7 +981,7 @@ async def readable_group_actions(
         await message.reply("\n".join(lines))
         return
 
-    if not await _require_admin_info_access(message, session, group):
+    if not await _require_admin_info_access(message, bot, session, group):
         return
 
     if text in ALL_BANS_ALIASES:

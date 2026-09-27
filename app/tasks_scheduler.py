@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from app.games.recovery import process_game_timeouts, recover_active_games
 from app.services.audit import deliver_pending_logs
 from app.services.punishment_expiry import expire_punishments
+from app.services.required_reconciles import process_required_subscription_reconciles
 from app.tasks_ad_cleanup import complete_ad_orders
 from app.tasks_captcha import expire_captcha_sessions
 from app.tasks_deleted_cleanup import run_group_automation
@@ -31,6 +32,7 @@ WARNING_TASK_SECONDS = 60.0
 REPORT_TASK_SECONDS = 60.0
 SUBSCRIPTION_TASK_SECONDS = 60.0
 GROUP_AUTOMATION_SECONDS = 300.0
+REQUIRED_RECONCILE_SECONDS = 30.0
 
 
 async def _run_job(name: str, job: Callable[[], Awaitable[None]]) -> bool:
@@ -61,6 +63,7 @@ async def background_loop(bot: Bot, redis: Redis, stop_event: asyncio.Event) -> 
         "reports": 0.0,
         "subscriptions": 0.0,
         "group_automation": 0.0,
+        "required_reconcile": 0.0,
     }
 
     while not stop_event.is_set():
@@ -98,6 +101,13 @@ async def background_loop(bot: Bot, redis: Redis, stop_event: asyncio.Event) -> 
         if now - last_run["group_automation"] >= GROUP_AUTOMATION_SECONDS:
             if await _run_job("run_group_automation", lambda: run_group_automation(bot)):
                 last_run["group_automation"] = now
+
+        if now - last_run["required_reconcile"] >= REQUIRED_RECONCILE_SECONDS:
+            if await _run_job(
+                "process_required_subscription_reconciles",
+                lambda: process_required_subscription_reconciles(bot, redis),
+            ):
+                last_run["required_reconcile"] = now
 
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=FAST_LOOP_SECONDS)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 
 import structlog
@@ -29,7 +28,6 @@ from app.handlers.ad_market_v3 import RequiredDealForm, RequiredListingForm
 from app.handlers.required_direct import (
     ActivationError,
     activate_deal_subscription,
-    restrict_existing_unsubscribed_members,
 )
 from app.services.required_resources import (
     normalize_public_telegram_resource,
@@ -548,18 +546,10 @@ async def atomic_required_deal_decision(
                 channel=deal.target_resource,
                 min_days=listing.min_days,
                 created_by=deal.seller_telegram_id,
+                dedupe_key=f"ad:{deal.id}",
             )
             await session.commit()
             activation_ok = True
-            asyncio.create_task(
-                restrict_existing_unsubscribed_members(
-                    bot,
-                    redis,
-                    group_id=group.id,
-                    telegram_chat_id=group.telegram_chat_id,
-                    channels=[deal.target_resource],
-                )
-            )
         except ActivationError as exc:
             activation_error = str(exc)
 

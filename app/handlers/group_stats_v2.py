@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import func, select
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.fun_models import GameEvent
 from app.db.models import Complaint, DailyStat, Group, GroupMember, Punishment, User, Warning
-from app.services.ranks import get_actor_rank
+from app.services.rank_access import get_actor_rank_with_access
 
 
 router = Router(name=__name__)
@@ -59,8 +59,13 @@ async def _group(session: AsyncSession, chat_id: int) -> Group | None:
     )
 
 
-async def _allowed(session: AsyncSession, group: Group, user_id: int) -> bool:
-    actor = await get_actor_rank(session, group, user_id)
+async def _allowed(
+    bot: Bot,
+    session: AsyncSession,
+    group: Group,
+    user_id: int,
+) -> bool:
+    actor = await get_actor_rank_with_access(bot, session, group, user_id)
     return bool(actor is not None and actor.code in ADMIN_RANKS)
 
 
@@ -229,13 +234,13 @@ def _initial_view(text: str) -> tuple[str, str, int]:
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.text.casefold().in_(ALIASES))
-async def group_stats(message: Message, session: AsyncSession) -> None:
+async def group_stats(message: Message, bot: Bot, session: AsyncSession) -> None:
     if message.from_user is None:
         return
     group = await _group(session, message.chat.id)
     if group is None:
         return
-    if not await _allowed(session, group, message.from_user.id):
+    if not await _allowed(bot, session, group, message.from_user.id):
         await message.reply(
             "📊 Общая статистика группы доступна только администрации Mimoru.\n"
             "Свою карточку можно посмотреть фразой «кто я» или «моя стата»."
@@ -249,7 +254,9 @@ async def group_stats(message: Message, session: AsyncSession) -> None:
 
 
 @router.callback_query(F.data.regexp(r"^group_section:\d+:analytics$"))
-async def private_group_stats(callback: CallbackQuery, session: AsyncSession) -> None:
+async def private_group_stats(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if callback.message is None or callback.message.chat.type != "private":
         return
     group_id = int(callback.data.split(":")[1])
@@ -257,7 +264,7 @@ async def private_group_stats(callback: CallbackQuery, session: AsyncSession) ->
     if group is None:
         await callback.answer("Группа не найдена.", show_alert=True)
         return
-    if not await _allowed(session, group, callback.from_user.id):
+    if not await _allowed(bot, session, group, callback.from_user.id):
         await callback.answer("У вас нет доступа к статистике этой группы.", show_alert=True)
         return
     await callback.message.edit_text(
@@ -275,7 +282,9 @@ async def private_group_stats(callback: CallbackQuery, session: AsyncSession) ->
 
 
 @router.callback_query(F.data.startswith("group_stats_v2:"))
-async def group_stats_callback(callback: CallbackQuery, session: AsyncSession) -> None:
+async def group_stats_callback(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     if callback.data is None or callback.message is None:
         await callback.answer()
         return
@@ -308,7 +317,7 @@ async def group_stats_callback(callback: CallbackQuery, session: AsyncSession) -
     if not is_private and callback.message.chat.id != group.telegram_chat_id:
         await callback.answer("Эта статистика больше недоступна.", show_alert=True)
         return
-    if not await _allowed(session, group, callback.from_user.id):
+    if not await _allowed(bot, session, group, callback.from_user.id):
         await callback.answer("У вас больше нет доступа к статистике группы.", show_alert=True)
         return
     text = await _render(session, group, mode=mode, period=period, limit=limit)

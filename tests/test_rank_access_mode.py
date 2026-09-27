@@ -61,6 +61,41 @@ async def test_unknown_access_mode_fails_closed(monkeypatch):
     assert resolved is None
 
 
+@pytest.mark.asyncio
+async def test_group_stats_uses_access_mode_aware_actor(monkeypatch):
+    from app.handlers import group_stats_v2
+
+    group = SimpleNamespace(id=1, telegram_chat_id=-100123)
+    calls: list[tuple[object, object, object, int]] = []
+
+    async def fake_actor(bot, session, resolved_group, user_id):
+        calls.append((bot, session, resolved_group, user_id))
+        return None
+
+    monkeypatch.setattr(group_stats_v2, "get_actor_rank_with_access", fake_actor)
+    bot = object()
+    session = object()
+    allowed = await group_stats_v2._allowed(bot, session, group, 42)
+
+    assert allowed is False
+    assert calls == [(bot, session, group, 42)]
+
+
+@pytest.mark.asyncio
+async def test_group_stats_allows_live_admin_actor(monkeypatch):
+    from app.handlers import group_stats_v2
+
+    group = SimpleNamespace(id=1, telegram_chat_id=-100123)
+    actor = SimpleNamespace(code="chief_admin", level=80, assignment=SimpleNamespace())
+
+    async def fake_actor(*args, **kwargs):
+        return actor
+
+    monkeypatch.setattr(group_stats_v2, "get_actor_rank_with_access", fake_actor)
+
+    assert await group_stats_v2._allowed(object(), object(), group, 42) is True
+
+
 def test_deferred_bans_use_access_mode_aware_guard():
     source = open("app/handlers/deferred_bans.py", encoding="utf-8").read()
     assert "from app.services.access import can_moderate" in source
