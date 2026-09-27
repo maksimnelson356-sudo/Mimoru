@@ -1,4 +1,11 @@
-from app.services.ui import automatic_action_notice, display_name, manual_action_notice, panel_header
+from app.services.ui import (
+    automatic_action_notice,
+    clean_private_ui_text,
+    clean_ui_text,
+    display_name,
+    manual_action_notice,
+    panel_header,
+)
 
 
 def test_display_name_priority_and_plain_text():
@@ -80,3 +87,16 @@ def test_automatic_notice_identifies_mimoru():
 def test_panel_header_removes_html_like_fragments():
     assert panel_header("Группа <test>") == "🟣 Mimoru · Группа"
     assert "<" not in panel_header("<b>Тест</b>")
+
+
+def test_private_ui_sanitizer_preserves_technical_ids() -> None:
+    text = "ID: 123456789\nTelegram ID: 42"
+
+    assert "ID: 123456789" in clean_private_ui_text(text)
+    assert "Telegram ID: 42" in clean_private_ui_text(text)
+    assert "123456789" not in clean_ui_text(text)
+    assert "42" not in clean_ui_text(text)
+
+
+def test_panel_header_defers_id_filter_to_transport_context() -> None:
+    assert "ID: 123456789" in panel_header("Карточка", "ID: 123456789")
