@@ -35,6 +35,7 @@ from app.keyboards.panel import (
 )
 from app.services.access import is_service_owner
 from app.services.plans import (
+    PLAN_CATALOG,
     effective_plan,
     feature_available,
     plan_limit,
@@ -47,6 +48,31 @@ from app.services.ui import panel_header
 
 router = Router(name=__name__)
 settings = get_settings()
+
+
+def _plan_limit_label(plan_code: str, feature: str) -> str:
+    value = int(PLAN_CATALOG[plan_code]["limits"][feature])
+    if feature == "moderators" and value >= 1_000_000:
+        return "без лимита"
+    return str(value)
+
+
+def _plan_comparison_text() -> str:
+    return (
+        "<b>FREE</b>\n"
+        f"Базовая модерация и защита · {_plan_limit_label('free', 'words')} слов · "
+        f"{_plan_limit_label('free', 'channels')} каналов · модераторы: без лимита.\n"
+        "\n<b>STANDARD · 250 ⭐ / 30 дней</b>\n"
+        "Расширенная защита и аналитика, отчёты, реклама · "
+        f"{_plan_limit_label('standard', 'words')} слов · "
+        f"{_plan_limit_label('standard', 'channels')} каналов · модераторы: без лимита.\n"
+        "\n<b>PRO · 500 ⭐ / 30 дней</b>\n"
+        "Все возможности Mimoru, максимальные лимиты, приоритетная поддержка · "
+        f"{_plan_limit_label('pro', 'words')} слов · "
+        f"{_plan_limit_label('pro', 'channels')} каналов · модераторы: без лимита."
+    )
+
+
 
 COMMANDS_TEXT = (
     panel_header("Команды и помощь") + "\n\n<b>Модерация — ответом на сообщение</b>\n"
@@ -579,11 +605,7 @@ async def plan_compare(callback: CallbackQuery, session: AsyncSession) -> None:
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
-    text = panel_header("Сравнение тарифов", group.title) + (
-        "\n\n<b>FREE</b>\nБазовая модерация и защита · 10 слов · 1 канал.\n"
-        "\n<b>STANDARD · 250 ⭐ / 30 дней</b>\nРасширенная защита и аналитика, отчёты, реклама · 100 слов · 3 канала · 10 модераторов.\n"
-        "\n<b>PRO · 500 ⭐ / 30 дней</b>\nВсе возможности Mimoru, максимальные лимиты, приоритетная поддержка · 1000 слов · 10 каналов · 50 модераторов."
-    )
+    text = panel_header("Сравнение тарифов", group.title) + "\n\n" + _plan_comparison_text()
     await callback.message.edit_text(text, reply_markup=subscription_back(group.id))
     await callback.answer()
 
