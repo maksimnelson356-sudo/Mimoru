@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import TelegramAPIError
 from sqlalchemy import select
 
 from app.db.models import Group
@@ -25,7 +25,12 @@ async def send_to_current_group_owner(
         owner_id = group.owner_telegram_id
         try:
             await bot.send_message(owner_id, text)
-        except (TelegramBadRequest, TelegramForbiddenError) as error:
+        except (TelegramAPIError, TimeoutError) as error:
+            # Every Telegram-side failure must be reported to the caller instead of
+            # escaping. The caller has already committed its pre-send claim, so an
+            # escaping exception would strand that claim and permanently suppress the
+            # daily report / subscription notice for the rest of its window.
+            #
             # End the transaction explicitly so the ownership row lock is released
             # before the caller logs/continues its background iteration.
             await session.commit()
