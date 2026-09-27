@@ -30,6 +30,20 @@ def test_direct_warn_mute_ban_use_single_configurable_entrypoint() -> None:
     assert handler.index("if use_direct:") < handler.index("await _open_buttons(")
 
 
+def test_moderation_mode_callback_renders_configured_mode_screen() -> None:
+    source = _source("app/handlers/moderation_command_modes.py")
+    handler = source.split("async def moderation_mode", 1)[1].split(
+        "@router.callback_query", 1
+    )[0]
+    assert "await _render_mode(callback, session, group)" in handler
+    assert "await callback.answer()" in handler
+
+
+def test_noop_callback_filter_covers_exact_and_namespaced_values() -> None:
+    source = _source("app/handlers/members.py")
+    assert 'F.data.regexp(r"^noop(?::|$)")' in source
+
+
 def test_existing_unmanaged_telegram_admin_is_attached_without_promote_rewrite() -> None:
     source = _source("app/handlers/rank_provisioning_handlers.py")
     helper = source.split("async def _attach_existing_unmanaged_telegram_admin", 1)[1].split(

@@ -222,6 +222,8 @@ async def moderation_mode(callback: CallbackQuery, session: AsyncSession) -> Non
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
+    await _render_mode(callback, session, group)
+    await callback.answer()
 
 
 @router.callback_query(F.data.regexp(r"^modcmd_set:\d+:(buttons|text|both)$"))
