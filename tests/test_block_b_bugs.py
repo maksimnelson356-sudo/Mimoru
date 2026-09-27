@@ -105,18 +105,19 @@ def test_restrict_existing_uses_own_session() -> None:
     assert "SessionFactory()" in source
 
 
-def test_direct_connect_triggers_existing_member_restriction() -> None:
-    """The direct connect handler must call restrict_existing_unsubscribed_members."""
+def test_direct_connect_enqueues_durable_member_restriction() -> None:
+    """The direct connect handler must persist a retryable restriction intent."""
     source = _read("app/handlers/required_direct.py")
-    assert "restrict_existing_unsubscribed_members(" in source
-    assert "asyncio.create_task(" in source
+    assert "enqueue_required_reconcile(" in source
+    assert 'dedupe_key=f"direct:{rule.id}:{message.message_id}"' in source
+    assert "asyncio.create_task(" not in source
 
 
-def test_marketplace_accept_triggers_existing_member_restriction() -> None:
-    """The marketplace deal accept handler must call restrict_existing_unsubscribed_members."""
+def test_marketplace_accept_enqueues_durable_member_restriction() -> None:
+    """The marketplace deal accept handler must persist a retryable intent."""
     source = _read("app/handlers/ad_market_atomic.py")
-    assert "restrict_existing_unsubscribed_members(" in source
-    assert "asyncio.create_task(" in source
+    assert 'dedupe_key=f"ad:{deal.id}"' in source
+    assert "asyncio.create_task(" not in source
 
 
 def test_marketplace_accept_has_redis_parameter() -> None:

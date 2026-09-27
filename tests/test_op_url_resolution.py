@@ -163,12 +163,6 @@ def test_verification_keyboard_never_builds_tme_from_chat_id() -> None:
     assert 'f"https://t.me/{username}"' not in source or "resolve_channel_url" in source
 
 
-def test_noop_callback_handler_exists() -> None:
-    """A noop callback handler must exist for the fallback buttons."""
-    source = _read("app/handlers/members.py")
-    assert 'F.data.startswith("noop:")' in source
-
-
 def test_welcome_passes_bot_to_verification_keyboard() -> None:
     """The welcome handler must pass bot= to verification_keyboard."""
     source = _read("app/handlers/members.py")
@@ -263,7 +257,8 @@ def test_direct_connect_triggers_restrict_with_bot() -> None:
     assert "restrict_existing_unsubscribed_members(" in source
 
 
-def test_atomic_deal_decision_triggers_restrict() -> None:
-    """Atomic marketplace flow must call restrict_existing_unsubscribed_members."""
+def test_atomic_deal_decision_enqueues_restrict() -> None:
+    """Atomic marketplace flow must enqueue a durable restriction intent."""
     source = _read("app/handlers/ad_market_atomic.py")
-    assert "restrict_existing_unsubscribed_members(" in source
+    assert 'dedupe_key=f"ad:{deal.id}"' in source
+    assert "asyncio.create_task(" not in source

@@ -112,6 +112,7 @@ async def activate_deal_subscription(
     channel: str,
     min_days: int,
     created_by: int,
+    dedupe_key: str | None = None,
 ) -> None:
     """Create or update RequiredChannel + DirectRequiredRule for a marketplace deal.
 
@@ -167,6 +168,17 @@ async def activate_deal_subscription(
         rule.expires_at = expires_at
         rule.active = True
         rule.created_by_telegram_id = created_by
+
+    if dedupe_key is not None:
+        from app.services.required_reconciles import enqueue_required_reconcile
+
+        await enqueue_required_reconcile(
+            session,
+            group_id=group_id,
+            telegram_chat_id=group.telegram_chat_id,
+            channel_username=channel,
+            dedupe_key=dedupe_key,
+        )
 
 
 def _parse_limit(raw: str) -> tuple[str, int] | None:
@@ -268,6 +280,17 @@ async def direct_required_connect(message: Message, bot: Bot, session: AsyncSess
         rule.expires_at = expires_at
         rule.active = True
         rule.created_by_telegram_id = message.from_user.id
+    await session.flush()
+    if mode == "days":
+        from app.services.required_reconciles import enqueue_required_reconcile
+
+        await enqueue_required_reconcile(
+            session,
+            group_id=group.id,
+            telegram_chat_id=group.telegram_chat_id,
+            channel_username=channel,
+            dedupe_key=f"direct:{rule.id}:{message.message_id}",
+        )
     await session.commit()
 
     if mode == "days":
@@ -275,12 +298,6 @@ async def direct_required_connect(message: Message, bot: Bot, session: AsyncSess
             f"✅ Обязательная подписка на {channel} включена на {amount} дн. "
             "Подтверждение от другого пользователя не требуется."
         )
-        asyncio.create_task(restrict_existing_unsubscribed_members(
-            bot, redis,
-            group_id=group.id,
-            telegram_chat_id=group.telegram_chat_id,
-            channels=[channel],
-        ))
     else:
         await message.reply(
             f"✅ Обязательная подписка на {channel} включена для следующих {amount} новых обычных участников группы. "
