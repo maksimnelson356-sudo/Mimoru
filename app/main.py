@@ -153,7 +153,7 @@ from app.services.runtime_incident import (
     notify_runtime_incident,
 )
 from app.services.startup_backlog import drain_startup_backlog, send_recovery_notices
-from app.services.ui import clean_ui_text
+from app.services.ui import clean_private_ui_text, clean_ui_text
 from app.tasks_ad_market import ad_market_background_loop
 
 _PLAIN_TEXT_FIELDS = (
@@ -182,15 +182,16 @@ def _is_retired_kick_button(button: Any) -> bool:
     )
 
 
-def _plain_reply_markup(markup: Any) -> Any:
+def _plain_reply_markup(markup: Any, *, hide_ids: bool = True) -> Any:
     if markup is None or not hasattr(markup, "model_copy"):
         return markup
+    cleaner = clean_ui_text if hide_ids else clean_private_ui_text
     if hasattr(markup, "inline_keyboard"):
         rows = []
         for row in markup.inline_keyboard:
             cleaned_row = [
                 (
-                    button.model_copy(update={"text": clean_ui_text(button.text)})
+                    button.model_copy(update={"text": cleaner(button.text)})
                     if isinstance(getattr(button, "text", None), str)
                     else button
                 )
@@ -204,7 +205,7 @@ def _plain_reply_markup(markup: Any) -> Any:
         rows = [
             [
                 (
-                    button.model_copy(update={"text": clean_ui_text(button.text)})
+                    button.model_copy(update={"text": cleaner(button.text)})
                     if isinstance(getattr(button, "text", None), str)
                     else button
                 )
@@ -218,13 +219,19 @@ def _plain_reply_markup(markup: Any) -> Any:
 
 def _plain_method(method: TelegramMethod[Any]) -> TelegramMethod[Any]:
     updates: dict[str, Any] = {}
+    chat_id = getattr(method, "chat_id", None)
+    hide_ids = not (isinstance(chat_id, int) and chat_id > 0)
+    cleaner = clean_ui_text if hide_ids else clean_private_ui_text
     for field in _PLAIN_TEXT_FIELDS:
         value = getattr(method, field, None)
         if isinstance(value, str):
-            updates[field] = clean_ui_text(value)
+            updates[field] = cleaner(value)
     reply_markup = getattr(method, "reply_markup", None)
     if reply_markup is not None:
-        updates["reply_markup"] = _plain_reply_markup(reply_markup)
+        updates["reply_markup"] = _plain_reply_markup(
+            reply_markup,
+            hide_ids=hide_ids,
+        )
     if hasattr(method, "parse_mode"):
         updates["parse_mode"] = None
     if hasattr(method, "caption_parse_mode"):
@@ -259,24 +266,38 @@ class PlainTextBot(Bot):
         return result
 
     async def send_message(self, *args, **kwargs):
+        chat_id = kwargs.get("chat_id")
+        if chat_id is None and args:
+            chat_id = args[0]
+        cleaner = (
+            clean_private_ui_text
+            if isinstance(chat_id, int) and chat_id > 0
+            else clean_ui_text
+        )
         text = kwargs.get("text")
         if text is None and len(args) >= 2 and isinstance(args[1], str):
             mutable = list(args)
-            mutable[1] = clean_ui_text(args[1])
+            mutable[1] = cleaner(args[1])
             args = tuple(mutable)
         elif isinstance(text, str):
-            kwargs["text"] = clean_ui_text(text)
+            kwargs["text"] = cleaner(text)
         kwargs.pop("parse_mode", None)
         return await super().send_message(*args, **kwargs)
 
     async def edit_message_text(self, *args, **kwargs):
+        chat_id = kwargs.get("chat_id")
+        cleaner = (
+            clean_private_ui_text
+            if isinstance(chat_id, int) and chat_id > 0
+            else clean_ui_text
+        )
         text = kwargs.get("text")
         if text is None and args and isinstance(args[0], str):
             mutable = list(args)
-            mutable[0] = clean_ui_text(args[0])
+            mutable[0] = cleaner(args[0])
             args = tuple(mutable)
         elif isinstance(text, str):
-            kwargs["text"] = clean_ui_text(text)
+            kwargs["text"] = cleaner(text)
         kwargs.pop("parse_mode", None)
         return await super().edit_message_text(*args, **kwargs)
 
