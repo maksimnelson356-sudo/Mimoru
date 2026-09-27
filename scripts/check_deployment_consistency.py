@@ -92,6 +92,7 @@ def main() -> int:
     env = read_env(ROOT / ".env.example")
     required_env = {
         "BOT_TOKEN",
+        "MIMORU_ENV",
         "SERVICE_OWNER_IDS",
         "DATABASE_URL",
         "REDIS_URL",
@@ -104,6 +105,8 @@ def main() -> int:
     missing_env = sorted(required_env - env.keys())
     if missing_env:
         errors.append(".env.example misses variables: " + ", ".join(missing_env))
+    if env.get("MIMORU_ENV") != "production":
+        errors.append(".env.example MIMORU_ENV must be production")
 
     database_url = env.get("DATABASE_URL", "")
     parsed = urlparse(database_url.replace("postgresql+asyncpg", "postgresql", 1))
