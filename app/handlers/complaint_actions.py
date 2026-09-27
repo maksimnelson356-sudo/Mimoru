@@ -10,8 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Complaint, ComplaintNotification, Group, UserMessage
+from app.services.access import can_moderate
 from app.services.moderation import execute
 from app.services.public_identity import public_user_token
+from app.services.rank_access import get_actor_rank_with_access
+from app.services.ranks import can_moderate_target
 
 log = structlog.get_logger(__name__)
 
@@ -92,15 +95,106 @@ async def _delete_user_messages(
 async def _get_pending(
     session: AsyncSession,
     complaint_id: int,
+    *,
+    for_update: bool = False,
 ) -> Complaint | None:
-    complaint = await session.get(Complaint, complaint_id)
-    if complaint is None or complaint.status != "pending":
-        return None
-    return complaint
+    query = select(Complaint).where(
+        Complaint.id == complaint_id,
+        Complaint.status == "pending",
+    )
+    if for_update:
+        query = query.with_for_update()
+    return await session.scalar(query)
 
 
 async def _reject_stale(callback: CallbackQuery) -> None:
     await callback.answer("Эта жалоба уже обработана.", show_alert=True)
+
+
+_COMPLAINT_REVIEWER_CODES = frozenset(
+    {"service_owner", "owner", "deputy_owner", "chief_admin", "chat_admin"}
+)
+
+
+async def _is_notification_recipient(
+    session: AsyncSession,
+    callback: CallbackQuery,
+    complaint_id: int,
+) -> bool:
+    if callback.message is None or callback.message.chat.id != callback.from_user.id:
+        return False
+    notification_id = await session.scalar(
+        select(ComplaintNotification.id).where(
+            ComplaintNotification.complaint_id == complaint_id,
+            ComplaintNotification.admin_telegram_id == callback.from_user.id,
+            ComplaintNotification.message_id == callback.message.message_id,
+        )
+    )
+    return notification_id is not None
+
+
+async def _complaint_reviewer_allowed(
+    bot: Bot,
+    session: AsyncSession,
+    group: Group,
+    user_id: int,
+) -> bool:
+    actor = await get_actor_rank_with_access(bot, session, group, user_id)
+    return actor is not None and actor.code in _COMPLAINT_REVIEWER_CODES
+
+
+async def _authorize_complaint_action(
+    bot: Bot,
+    session: AsyncSession,
+    group: Group,
+    complaint: Complaint,
+    user_id: int,
+    action: str,
+) -> bool:
+    if not await _complaint_reviewer_allowed(bot, session, group, user_id):
+        return False
+    if not await can_moderate(bot, session, group, user_id, action):
+        return False
+    allowed, _ = await can_moderate_target(
+        session,
+        group,
+        user_id,
+        complaint.target_telegram_id,
+    )
+    return allowed
+
+
+async def _load_complaint_context(
+    bot: Bot,
+    session: AsyncSession,
+    callback: CallbackQuery,
+    complaint_id: int,
+    *,
+    action: str | None,
+    for_update: bool = False,
+) -> tuple[Complaint, Group] | None:
+    complaint = await _get_pending(session, complaint_id, for_update=for_update)
+    if complaint is None:
+        await _reject_stale(callback)
+        return None
+    group = await session.get(Group, complaint.group_id)
+    if group is None or not group.is_active:
+        await callback.answer("Группа больше не активна.", show_alert=True)
+        return None
+    if not await _is_notification_recipient(session, callback, complaint_id):
+        await callback.answer("Эта жалоба больше недоступна.", show_alert=True)
+        return None
+    if not await _complaint_reviewer_allowed(
+        bot, session, group, callback.from_user.id
+    ):
+        await callback.answer("Нет доступа.", show_alert=True)
+        return None
+    if action is not None and not await _authorize_complaint_action(
+        bot, session, group, complaint, callback.from_user.id, action
+    ):
+        await callback.answer("Нет доступа к этому действию.", show_alert=True)
+        return None
+    return complaint, group
 
 
 @router.callback_query(F.data.regexp(r"^complaint:ack:\d+$"))
@@ -108,14 +202,17 @@ async def complaint_ack(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
+    context = await _load_complaint_context(
+        bot,
+        session,
+        callback,
+        cid,
+        action=None,
+        for_update=True,
+    )
+    if context is None:
         return
-    group = await session.get(Group, complaint.group_id)
-    if group is None:
-        await callback.answer("Группа больше не активна.", show_alert=True)
-        return
+    complaint, group = context
     complaint.status = "processed"
     complaint.reviewed_by_telegram_id = callback.from_user.id
     complaint.resolution = "ack"
@@ -148,14 +245,17 @@ async def complaint_warn(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
+    context = await _load_complaint_context(
+        bot,
+        session,
+        callback,
+        cid,
+        action="warn",
+        for_update=True,
+    )
+    if context is None:
         return
-    group = await session.get(Group, complaint.group_id)
-    if group is None:
-        await callback.answer("Группа больше не активна.", show_alert=True)
-        return
+    complaint, group = context
 
     result = await execute(
         bot=bot,
@@ -204,12 +304,20 @@ async def complaint_warn(
 
 
 @router.callback_query(F.data.regexp(r"^complaint:ban:\d+$"))
-async def complaint_ban_prompt(callback: CallbackQuery, session: AsyncSession) -> None:
+async def complaint_ban_prompt(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
+    context = await _load_complaint_context(
+        bot,
+        session,
+        callback,
+        cid,
+        action="ban",
+    )
+    if context is None:
         return
+    complaint, _ = context
     if callback.message is None:
         await callback.answer("Сообщение недоступно.", show_alert=True)
         return
@@ -221,7 +329,6 @@ async def complaint_ban_prompt(callback: CallbackQuery, session: AsyncSession) -
         "Выберите обычный бан или бан с очисткой сохранённых "
         "сообщений пользователя.\n\n"
         "⚠ Очистка необратима. Telegram удалит не все сообщения:\n"
-        "• сообщения старше 48 часов остаются\n"
         "• сообщения пользователя, который уже был забанен ранее, "
         "могут остаться"
     )
@@ -261,28 +368,17 @@ async def complaint_ban_confirm(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
-        return
-    group = await session.get(Group, complaint.group_id)
-    if group is None:
-        await callback.answer("Группа больше не активна.", show_alert=True)
-        return
-
-    deleted = await _delete_user_messages(
+    context = await _load_complaint_context(
         bot,
         session,
-        group.id,
-        complaint.target_telegram_id,
-        group.telegram_chat_id,
+        callback,
+        cid,
+        action="ban",
+        for_update=True,
     )
-    log.info(
-        "user_messages_deleted",
-        complaint_id=cid,
-        user_telegram_id=complaint.target_telegram_id,
-        deleted=deleted,
-    )
+    if context is None:
+        return
+    complaint, group = context
 
     result = await execute(
         bot=bot,
@@ -304,6 +400,20 @@ async def complaint_ban_confirm(
     if not result.success:
         await callback.answer(result or "Не удалось забанить.", show_alert=True)
         return
+
+    deleted = await _delete_user_messages(
+        bot,
+        session,
+        group.id,
+        complaint.target_telegram_id,
+        group.telegram_chat_id,
+    )
+    log.info(
+        "user_messages_deleted",
+        complaint_id=cid,
+        user_telegram_id=complaint.target_telegram_id,
+        deleted=deleted,
+    )
 
     complaint.status = "processed"
     complaint.reviewed_by_telegram_id = callback.from_user.id
@@ -334,28 +444,17 @@ async def complaint_ban_clean(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
-        return
-    group = await session.get(Group, complaint.group_id)
-    if group is None:
-        await callback.answer("Группа больше не активна.", show_alert=True)
-        return
-
-    deleted = await _delete_user_messages(
+    context = await _load_complaint_context(
         bot,
         session,
-        group.id,
-        complaint.target_telegram_id,
-        group.telegram_chat_id,
+        callback,
+        cid,
+        action="ban",
+        for_update=True,
     )
-    log.info(
-        "user_messages_deleted",
-        complaint_id=cid,
-        user_telegram_id=complaint.target_telegram_id,
-        deleted=deleted,
-    )
+    if context is None:
+        return
+    complaint, group = context
 
     result = await execute(
         bot=bot,
@@ -374,16 +473,27 @@ async def complaint_ban_clean(
     )
     if result.commit:
         await session.commit()
+    if not result.success:
+        await callback.answer(result or "Не удалось забанить.", show_alert=True)
+        return
 
-    # Всегда пробуем очистку.
-    # ВАЖНО: Telegram не удаляет сообщения при повторном
-    # ban_chat_member(revoke_messages=True), если пользователь УЖЕ забанен.
-    # Поэтому сначала снимаем бан (только если он есть), потом баним
-    # с revoke_messages=True — тогда очистка сработает.
+    deleted = await _delete_user_messages(
+        bot,
+        session,
+        group.id,
+        complaint.target_telegram_id,
+        group.telegram_chat_id,
+    )
+    log.info(
+        "user_messages_deleted",
+        complaint_id=cid,
+        user_telegram_id=complaint.target_telegram_id,
+        deleted=deleted,
+    )
+
+    # После успешного execute() очистка безопасна: авторизация уже проверена,
+    # а повторный ban выполняется только для уже разрешённого действия.
     cleanup_ok = False
-    cleanup_error = ""
-
-    # Шаг 1: разбанить, если пользователь уже забанен
     try:
         await bot.unban_chat_member(
             chat_id=group.telegram_chat_id,
@@ -397,7 +507,6 @@ async def complaint_ban_clean(
             error=str(exc),
         )
 
-    # Шаг 2: забанить с очисткой
     try:
         await bot.ban_chat_member(
             chat_id=group.telegram_chat_id,
@@ -405,25 +514,12 @@ async def complaint_ban_clean(
             revoke_messages=True,
         )
         cleanup_ok = True
-    except TelegramBadRequest as exc:
-        cleanup_error = str(exc)
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning(
             "complaint_ban_clean_failed",
             complaint_id=cid,
-            error=cleanup_error,
+            error=str(exc),
         )
-    except TelegramForbiddenError as exc:
-        cleanup_error = str(exc)
-        log.warning(
-            "complaint_ban_clean_forbidden",
-            complaint_id=cid,
-            error=cleanup_error,
-        )
-
-    # Реальная ошибка — только если и бан, и очистка провалились
-    if not result.success and not cleanup_ok:
-        await callback.answer(result or "Не удалось забанить.", show_alert=True)
-        return
 
     complaint.status = "processed"
     complaint.reviewed_by_telegram_id = callback.from_user.id
@@ -441,8 +537,8 @@ async def complaint_ban_clean(
     else:
         msg = (
             f"🚫 {target} забанен.\n"
-            f"⚠ Очистка не удалась (сообщения старше 48 часов или "
-            f"повторный бан).\nМодератор: {actor}."
+            f"⚠ Очистка не удалась (повторный бан).\n"
+            f"Модератор: {actor}."
         )
     try:
         await bot.send_message(group.telegram_chat_id, msg)
@@ -474,13 +570,19 @@ async def complaint_ban_cancel(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.regexp(r"^complaint:mute_reporter:\d+$"))
 async def complaint_mute_reporter_prompt(
-    callback: CallbackQuery, session: AsyncSession
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
+    context = await _load_complaint_context(
+        bot,
+        session,
+        callback,
+        cid,
+        action="mute",
+    )
+    if context is None:
         return
+    complaint, _ = context
     if callback.message is None:
         await callback.answer("Сообщение недоступно.", show_alert=True)
         return
@@ -523,14 +625,17 @@ async def complaint_mute_reporter_confirm(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    complaint = await _get_pending(session, cid)
-    if complaint is None:
-        await _reject_stale(callback)
+    context = await _load_complaint_context(
+        bot,
+        session,
+        callback,
+        cid,
+        action="mute",
+        for_update=True,
+    )
+    if context is None:
         return
-    group = await session.get(Group, complaint.group_id)
-    if group is None:
-        await callback.answer("Группа больше не активна.", show_alert=True)
-        return
+    complaint, group = context
 
     result = await execute(
         bot=bot,
