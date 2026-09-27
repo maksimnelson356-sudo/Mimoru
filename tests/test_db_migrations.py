@@ -38,7 +38,6 @@ import app.db.rank_models  # noqa: F401
 import app.db.rank_provisioning_models  # noqa: F401
 import app.db.required_reconcile_models  # noqa: F401
 from app.db.base import Base
-from app.db.session import engine
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_NUM_WIDTH = 255
@@ -76,9 +75,9 @@ def test_every_revision_id_fits_the_version_num_column() -> None:
 
 
 @pytest.mark.db
-async def test_live_database_is_at_the_current_migration_head() -> None:
+async def test_live_database_is_at_the_current_migration_head(db_engine) -> None:
     expected = _expected_head()
-    async with engine.connect() as connection:
+    async with db_engine.connect() as connection:
         rows = (
             (
                 await connection.execute(text("SELECT version_num FROM alembic_version"))
@@ -90,9 +89,9 @@ async def test_live_database_is_at_the_current_migration_head() -> None:
 
 
 @pytest.mark.db
-async def test_alembic_version_column_is_wide_enough() -> None:
+async def test_alembic_version_column_is_wide_enough(db_engine) -> None:
     """Guards the scripts/ensure_version_column fix for long revision ids."""
-    async with engine.connect() as connection:
+    async with db_engine.connect() as connection:
         width = await connection.scalar(
             text(
                 "SELECT character_maximum_length FROM information_schema.columns "
@@ -104,9 +103,9 @@ async def test_alembic_version_column_is_wide_enough() -> None:
 
 
 @pytest.mark.db
-async def test_live_schema_matches_orm_metadata() -> None:
+async def test_live_schema_matches_orm_metadata(db_engine) -> None:
     """Complements the fake-op recorder check with what PostgreSQL actually has."""
-    async with engine.connect() as connection:
+    async with db_engine.connect() as connection:
         result = await connection.execute(
             text(
                 "SELECT table_name, column_name FROM information_schema.columns "

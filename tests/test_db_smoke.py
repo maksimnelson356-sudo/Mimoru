@@ -23,12 +23,11 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.db.models import DailyStat, Group, GroupSettings, Payment
-from app.db.session import SessionFactory
 from scripts import ensure_version_column
 
 
 @pytest.fixture
-async def make_group():
+async def make_group(db_session_factory):
     """Create groups with unique ids and remove them after the test."""
     created: list[int] = []
 
@@ -36,7 +35,7 @@ async def make_group():
         suffix = secrets.randbelow(1_000_000_000)
         chat_id = -1_000_000_000 - suffix
         owner_id = 1_000_000_000 + suffix
-        async with SessionFactory() as session:
+        async with db_session_factory() as session:
             group = Group(
                 telegram_chat_id=chat_id,
                 title=f"db-smoke-{suffix}",
@@ -50,18 +49,18 @@ async def make_group():
 
     yield _create
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         for group_id in created:
             await session.execute(delete(Group).where(Group.id == group_id))
         await session.commit()
 
 
 @pytest.mark.db
-async def test_group_and_settings_round_trip(make_group) -> None:
+async def test_group_and_settings_round_trip(make_group, db_session_factory) -> None:
     """Proves the ORM can insert and read the core one-to-one shape."""
     chat_id, owner_id = await make_group()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(select(Group).where(Group.telegram_chat_id == chat_id))
 
     assert group is not None
@@ -74,20 +73,20 @@ async def test_group_and_settings_round_trip(make_group) -> None:
 
 
 @pytest.mark.db
-async def test_group_telegram_chat_id_is_unique(make_group) -> None:
+async def test_group_telegram_chat_id_is_unique(make_group, db_session_factory) -> None:
     chat_id, _ = await make_group()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         session.add(Group(telegram_chat_id=chat_id, title="duplicate"))
         with pytest.raises(IntegrityError):
             await session.commit()
 
 
 @pytest.mark.db
-async def test_group_allows_only_one_settings_row(make_group) -> None:
+async def test_group_allows_only_one_settings_row(make_group, db_session_factory) -> None:
     _, owner_id = await make_group()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(
             select(Group).where(Group.owner_telegram_id == owner_id)
         )
@@ -98,12 +97,12 @@ async def test_group_allows_only_one_settings_row(make_group) -> None:
 
 
 @pytest.mark.db
-async def test_payment_charge_id_cannot_be_credited_twice(make_group) -> None:
+async def test_payment_charge_id_cannot_be_credited_twice(make_group, db_session_factory) -> None:
     """The guard behind duplicate-charge suppression in _commit_payment_once."""
     _, owner_id = await make_group()
     charge_id = f"charge-{secrets.token_hex(8)}"
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(select(Group).where(Group.owner_telegram_id == owner_id))
         assert group is not None
         session.add(
@@ -119,7 +118,7 @@ async def test_payment_charge_id_cannot_be_credited_twice(make_group) -> None:
         )
         await session.commit()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         session.add(
             Payment(
                 user_telegram_id=owner_id,
@@ -136,12 +135,12 @@ async def test_payment_charge_id_cannot_be_credited_twice(make_group) -> None:
 
 
 @pytest.mark.db
-async def test_daily_stat_upsert_target_is_unique(make_group) -> None:
+async def test_daily_stat_upsert_target_is_unique(make_group, db_session_factory) -> None:
     """mark_message does select-then-insert; this constraint is the real guard."""
     _, owner_id = await make_group()
     date = "2026-09-27"
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(select(Group).where(Group.owner_telegram_id == owner_id))
         assert group is not None
         session.add(
@@ -154,7 +153,7 @@ async def test_daily_stat_upsert_target_is_unique(make_group) -> None:
         )
         await session.commit()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(select(Group).where(Group.owner_telegram_id == owner_id))
         assert group is not None
         session.add(
@@ -170,12 +169,12 @@ async def test_daily_stat_upsert_target_is_unique(make_group) -> None:
 
 
 @pytest.mark.db
-async def test_daily_report_claim_is_atomic_via_update_returning(make_group) -> None:
+async def test_daily_report_claim_is_atomic_via_update_returning(make_group, db_session_factory) -> None:
     """Mirrors _claim_daily_report: the second claim must find nothing."""
     _, owner_id = await make_group()
     today = "2026-09-27"
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         group = await session.scalar(select(Group).where(Group.owner_telegram_id == owner_id))
         assert group is not None
         settings_id = group.settings.id
@@ -194,7 +193,7 @@ async def test_daily_report_claim_is_atomic_via_update_returning(make_group) -> 
         )
         await session.commit()
 
-    async with SessionFactory() as session:
+    async with db_session_factory() as session:
         claimed_again = await session.scalar(
             update(GroupSettings)
             .where(
@@ -214,14 +213,14 @@ async def test_daily_report_claim_is_atomic_via_update_returning(make_group) -> 
 
 
 @pytest.mark.db
-async def test_row_lock_is_held_against_a_second_transaction(make_group) -> None:
+async def test_row_lock_is_held_against_a_second_transaction(make_group, db_session_factory) -> None:
     """Proves FOR UPDATE really serializes, using NOWAIT so the test cannot hang."""
     chat_id, _ = await make_group()
 
-    async with SessionFactory() as holder:
+    async with db_session_factory() as holder:
         await holder.scalar(select(Group).where(Group.telegram_chat_id == chat_id).with_for_update())
 
-        async with SessionFactory() as contender:
+        async with db_session_factory() as contender:
             with pytest.raises(DBAPIError):
                 await contender.scalar(
                     select(Group)
@@ -231,14 +230,14 @@ async def test_row_lock_is_held_against_a_second_transaction(make_group) -> None
 
 
 @pytest.mark.db
-async def test_skip_locked_skips_rows_held_by_another_transaction(make_group) -> None:
+async def test_skip_locked_skips_rows_held_by_another_transaction(make_group, db_session_factory) -> None:
     """Proves FOR UPDATE SKIP LOCKED, used by the scheduled-message and reconcile claims."""
     chat_id, _ = await make_group()
 
-    async with SessionFactory() as holder:
+    async with db_session_factory() as holder:
         await holder.scalar(select(Group).where(Group.telegram_chat_id == chat_id).with_for_update())
 
-        async with SessionFactory() as worker:
+        async with db_session_factory() as worker:
             rows = (
                 await worker.scalars(
                     select(Group).where(Group.telegram_chat_id == chat_id).with_for_update(skip_locked=True)
