@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 set -eu
+export PYTHONIOENCODING=utf-8
+export PYTHONUTF8=1
 python -m compileall -q app alembic tests
 ruff check app tests scripts alembic --select E9,F63,F7,F82
 pytest -q
