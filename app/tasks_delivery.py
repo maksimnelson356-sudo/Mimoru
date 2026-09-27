@@ -5,7 +5,7 @@ import structlog
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from redis.asyncio import Redis
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 
 from app.db.models import (
     DailyStat,
@@ -85,6 +85,37 @@ async def _claim_daily_report(
         title = locked_group.title
         await session.commit()
         return title if claimed is not None else None
+
+
+async def _release_daily_report_claim(group_id: int, local_today: str) -> None:
+    """Release a pre-send claim so a transient Telegram failure can retry."""
+    async with SessionFactory() as session:
+        await session.execute(
+            update(GroupSettings)
+            .where(
+                GroupSettings.group_id == group_id,
+                GroupSettings.last_report_date == local_today,
+            )
+            .values(last_report_date=None)
+        )
+        await session.commit()
+
+
+async def _release_subscription_notice_claim(
+    group_id: int,
+    event_type: str,
+    expires_at: datetime,
+) -> None:
+    """Release a pre-send subscription notice claim after failed delivery."""
+    async with SessionFactory() as session:
+        await session.execute(
+            delete(GroupSubscriptionEvent).where(
+                GroupSubscriptionEvent.group_id == group_id,
+                GroupSubscriptionEvent.event_type == event_type,
+                GroupSubscriptionEvent.expires_at == expires_at,
+            )
+        )
+        await session.commit()
 
 
 async def send_daily_reports(bot: Bot) -> None:
@@ -199,13 +230,15 @@ async def send_daily_reports(bot: Bot) -> None:
                 group_id=group.id,
                 text=report_text,
             )
-            if not sent and error not in {None, "group_unavailable"}:
-                structlog.get_logger().warning(
-                    "daily_report_delivery_failed",
-                    group_id=group.id,
-                    owner_id=owner_id,
-                    error=error,
-                )
+            if not sent:
+                await _release_daily_report_claim(group.id, local_today)
+                if error not in {None, "group_unavailable"}:
+                    structlog.get_logger().warning(
+                        "daily_report_delivery_failed",
+                        group_id=group.id,
+                        owner_id=owner_id,
+                        error=error,
+                    )
 
 
 async def _claim_subscription_notice(
@@ -289,14 +322,20 @@ async def send_subscription_notices(bot: Bot) -> None:
                 group_id=group.id,
                 text=notice_text,
             )
-            if not sent and error not in {None, "group_unavailable"}:
-                structlog.get_logger().warning(
-                    "subscription_notice_delivery_failed_after_claim",
-                    group_id=group.id,
-                    owner_id=owner_id,
-                    event_type=event_type,
-                    error=error,
+            if not sent:
+                await _release_subscription_notice_claim(
+                    group.id,
+                    event_type,
+                    claimed_expires_at,
                 )
+                if error not in {None, "group_unavailable"}:
+                    structlog.get_logger().warning(
+                        "subscription_notice_delivery_failed_after_claim",
+                        group_id=group.id,
+                        owner_id=owner_id,
+                        event_type=event_type,
+                        error=error,
+                    )
 
 
 async def recover_interrupted_scheduled_messages() -> None:
