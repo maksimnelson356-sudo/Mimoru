@@ -27,6 +27,7 @@ import app.db.pending_bans  # noqa: F401  # registers deferred moderation ORM mo
 import app.db.permission_transition_models  # noqa: F401  # registers chat permission transition ORM models
 import app.db.rank_models  # noqa: F401  # registers rank ORM models
 import app.db.rank_provisioning_models  # noqa: F401  # registers rank provisioning ORM models
+import app.db.required_reconcile_models  # noqa: F401  # registers durable required-reconcile ORM model
 
 
 class SchemaRecorder:
