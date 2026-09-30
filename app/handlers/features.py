@@ -96,6 +96,19 @@ async def caps_limit(message: Message, bot: Bot, session: AsyncSession) -> None:
     await message.reply(f"✅ Лимит капса: {value}%.")
 
 
+# Подсказку из справки («изменить правила текст») можно скопировать буквально и
+# сохранить слово «текст» вместо настоящих правил — такой ввод в настройки не идёт.
+_PLACEHOLDER_WORDS = {"текст", "text", "…", "..."}
+
+
+def _is_placeholder_text(value: str) -> bool:
+    cleaned = value.strip().strip("«»<>\"'").casefold()
+    if cleaned in _PLACEHOLDER_WORDS:
+        return True
+    bare = cleaned.strip(".,;: ")
+    return bool(bare) and bare in _PLACEHOLDER_WORDS
+
+
 @router.message(F.text.regexp(r"(?is)^изменить приветствие\s+.+"))
 async def welcome_text(message: Message, bot: Bot, session: AsyncSession) -> None:
     group = await managed(message, bot, session, for_update=True)
@@ -105,19 +118,45 @@ async def welcome_text(message: Message, bot: Bot, session: AsyncSession) -> Non
     if not text:
         await message.reply("Текст приветствия не может быть пустым.")
         return
+    if _is_placeholder_text(text):
+        await message.reply(
+            "Это слово из подсказки, а не текст приветствия. Напишите сам текст после команды."
+        )
+        return
     group.settings.welcome_text = clean_ui_text(text[:2000])
     await session.commit()
     await message.reply("✅ Приветствие сохранено. Доступные переменные: {имя} и {группа}.")
 
 
-@router.message(F.text.regexp(r"(?is)^изменить правила\s+.+"))
+def rules_input_text(message: Message) -> str:
+    """Текст правил из самой команды либо из сообщения, на которое она отвечает."""
+    parts = (message.text or "").split(maxsplit=2)
+    inline_text = parts[2].strip() if len(parts) > 2 else ""
+    quoted_text = ""
+    if message.reply_to_message is not None:
+        quoted_text = (
+            message.reply_to_message.text or message.reply_to_message.caption or ""
+        ).strip()
+    return inline_text or quoted_text
+
+
+@router.message(F.text.regexp(r"(?is)^изменить правила(\s+.*)?$"))
 async def rules_text(message: Message, bot: Bot, session: AsyncSession) -> None:
     group = await managed(message, bot, session, for_update=True)
     if not group:
         return
-    text = message.text.split(maxsplit=2)[2].strip()
+    text = rules_input_text(message)
     if not text:
-        await message.reply("Текст правил не может быть пустым.")
+        await message.reply(
+            "Ответьте сообщением «изменить правила» на сообщение с текстом правил "
+            "или напишите: изменить правила «текст»."
+        )
+        return
+    if _is_placeholder_text(text):
+        await message.reply(
+            "Это слово из подсказки, а не текст правил. "
+            "Пришлите настоящие правила ответом на это сообщение."
+        )
         return
     group.settings.rules_text = clean_ui_text(text[:4000])
     await session.commit()
@@ -201,8 +240,10 @@ async def complaint(message: Message, session: AsyncSession) -> None:
     await session.commit()
     await message.reply(f"✅ Жалоба #{item.id} принята и передана владельцу группы.")
     if group.owner_telegram_id:
+        target_label = clean_ui_text(target.full_name) + (f" (@{target.username})" if target.username else "")
+        reporter_label = clean_ui_text(message.from_user.full_name) + (f" (@{message.from_user.username})" if message.from_user.username else "")
         try:
-            await message.bot.send_message(group.owner_telegram_id, f"⚠️ Новая жалоба #{item.id} в «{clean_ui_text(group.title)}»\nНа пользователя: {clean_ui_text(target.full_name)} ({target.id})\nОт: {clean_ui_text(message.from_user.full_name)} ({message.from_user.id})\n\nКоманда в группе: жалобы")
+            await message.bot.send_message(group.owner_telegram_id, f"⚠️ Новая жалоба #{item.id} в «{clean_ui_text(group.title)}»\nНа пользователя: {target_label}\nОт: {reporter_label}\n\nКоманда в группе: жалобы")
         except Exception as error:
             structlog.get_logger().warning("complaint_owner_notification_failed", complaint_id=item.id, error=str(error))
 
