@@ -7,7 +7,9 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {".git", ".pytest_cache", "__pycache__", ".ruff_cache", ".mypy_cache", ".venv", "venv"}
+# Свободные каталоги редакторов/агентов (.omo, .commandcode) не часть проекта —
+# их временные дампы могут быть в любой кодировке и не должны ломать репозиторий.
+SKIP_DIRS = {".git", ".pytest_cache", "__pycache__", ".ruff_cache", ".mypy_cache", ".venv", "venv", ".omo", ".commandcode"}
 TEXT_SUFFIXES = {
     ".py", ".md", ".txt", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".json",
     ".sh", ".env", ".example", ".dockerignore", ".gitignore",
