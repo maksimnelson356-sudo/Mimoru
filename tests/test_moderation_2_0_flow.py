@@ -56,7 +56,10 @@ def test_owner_notice_is_distinguished_from_admin_notice():
 def test_panel_moderation_is_routed_to_real_group_and_public_notice():
     source = read("app/handlers/reason_admin.py")
     assert 'origin == "panel"' in source
-    assert 'await bot.send_message(int(data["chat_id"]), result)' in source
+    # Уведомление о наказании уходит в группу и через самоудаляющийся хелпер,
+    # чтобы сервисные сообщения не оставались в чате навсегда.
+    assert 'await send_group_notice(bot, int(data["chat_id"]), result' in source
+    assert "from app.services.message_ttl import send_group_notice" in source
     assert 'chat_id=int(data["chat_id"])' in source
     assert "moderation_public_notice_failed" in source
 
@@ -72,5 +75,5 @@ def test_panel_actions_target_the_selected_group_not_private_chat():
 def test_success_is_committed_before_panel_public_notice():
     source = read("app/handlers/reason_admin.py")
     commit_pos = source.index("await session.commit()", source.index("async def moderation_reason_selected"))
-    notify_pos = source.index('await bot.send_message(int(data["chat_id"]), result)', commit_pos)
+    notify_pos = source.index('await send_group_notice(bot, int(data["chat_id"]), result', commit_pos)
     assert commit_pos < notify_pos

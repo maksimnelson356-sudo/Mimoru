@@ -21,6 +21,7 @@ from app.db.rank_models import RankAssignment
 from app.handlers import group_commands, member_center, reason_admin
 from app.handlers.complaint_actions import _delete_user_messages
 from app.services.access import can_moderate, is_service_owner
+from app.services.message_ttl import send_group_notice
 from app.services.moderation import execute
 from app.services.moderation_operations import (
     create_moderation_intent,
@@ -661,7 +662,7 @@ async def _durable_ban_execute(
 
         if result.public_notice:
             try:
-                await bot.send_message(group.telegram_chat_id, str(result))
+                await send_group_notice(bot, group.telegram_chat_id, str(result))
             except (TelegramBadRequest, TelegramForbiddenError) as exc:
                 log.warning("modban_notify_failed", error=str(exc))
 

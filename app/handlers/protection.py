@@ -14,6 +14,7 @@ from app.services.campaign_spam import build_campaign_signature
 from app.services.content import contains_blocked_link
 from app.services.edit_protection import should_recheck_edit
 from app.services.mentions import count_mentions_and_hashtags
+from app.services.message_ttl import answer_group_notice
 from app.services.permissions import is_admin
 from app.services.quarantine import is_quarantine_active
 from app.services.slow_mode import slow_mode_key
@@ -114,7 +115,8 @@ async def apply_campaign_mute(
         },
     ))
     if not edited:
-        await message.answer(
+        await answer_group_notice(
+            message,
             automatic_action_notice(
                 action="mute",
                 target=message.from_user.full_name,
@@ -189,7 +191,8 @@ async def delete_violation(
         )
     )
     if notify and not edited:
-        await message.answer(
+        await answer_group_notice(
+            message,
             automatic_action_notice(
                 action="delete",
                 target=message.from_user.full_name,
@@ -259,7 +262,8 @@ async def apply_mention_mute(
         },
     ))
     if not edited:
-        await message.answer(
+        await answer_group_notice(
+            message,
             automatic_action_notice(
                 action="mute",
                 target=message.from_user.full_name,
@@ -333,7 +337,8 @@ async def apply_antiflood_mute(
             metadata_json={"duration_seconds": seconds, "message_id": message.message_id},
         )
     )
-    await message.answer(
+    await answer_group_notice(
+        message,
         automatic_action_notice(
             action="mute",
             target=message.from_user.full_name,
@@ -537,7 +542,8 @@ async def protect_message(
                             reason="Лимит предупреждений",
                             ends_at=ends_at,
                         ))
-                        await message.answer(
+                        await answer_group_notice(
+                            message,
                             automatic_action_notice(
                                 action="mute",
                                 target=message.from_user.full_name,
