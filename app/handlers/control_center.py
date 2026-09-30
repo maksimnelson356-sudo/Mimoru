@@ -29,6 +29,7 @@ from app.keyboards.panel import (
 )
 from app.services.access import DEFAULT_ROLE_PERMISSIONS, accessible_group, is_service_owner
 from app.services.plans import plan_limit
+from app.services.public_identity import public_user_token
 from app.services.ui import panel_header
 
 router = Router(name=__name__)
@@ -307,7 +308,7 @@ async def role_add_id(message: Message, bot: Bot, session: AsyncSession, state: 
         item = GroupModerator(group_id=group.id, user_telegram_id=user_id, role="moderator", permissions={}, active=True, assigned_by_telegram_id=message.from_user.id)
         session.add(item)
     await session.commit(); await state.clear()
-    await message.answer(panel_header("Модератор добавлен", f"Telegram ID: {user_id}"), reply_markup=role_edit_menu(group.id, item, effective_permissions(item)))
+    await message.answer(panel_header("Модератор добавлен", public_user_token(user_id)), reply_markup=role_edit_menu(group.id, item, effective_permissions(item)))
 
 
 @router.callback_query(F.data.regexp(r"^role_edit:\d+:\d+$"))

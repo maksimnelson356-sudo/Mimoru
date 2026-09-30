@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import DailyStat, ModerationLog, User
 from app.keyboards.home import automation_menu, moderation_menu, protection_menu
 from app.services.access import accessible_group, owned_group
-from app.services.public_identity import public_user_token
+from app.services.public_identity import public_user_token, stored_visible_name
 from app.services.ui import clean_ui_text, panel_header
 
 router = Router(name=__name__)
@@ -490,7 +490,7 @@ async def member_history_with_contextual_back(
         for row in rows
     ]
     await callback.message.edit_text(
-        panel_header("История участника", f"ID {user_id}")
+        panel_header("История участника", await stored_visible_name(user_id))
         + "\n\n"
         + ("\n".join(lines) if lines else "История пуста."),
         reply_markup=_back(f"member_card:{group.id}:{user_id}", "◀️ Назад к карточке"),

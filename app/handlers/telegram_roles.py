@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, User
 from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEvent
+from app.services.public_identity import public_user_token, stored_visible_name
 from app.services.ranks import (
     ADMIN_RANKS,
     CHAT_ADMIN,
@@ -149,11 +150,19 @@ async def _render_roles(target: Message, bot: Bot, session: AsyncSession, group:
     for entry in sync.entries:
         telegram_role = "Владелец" if entry.role_code == TELEGRAM_OWNER else "Администратор"
         handle = f" @{entry.username}" if entry.username else ""
-        telegram_lines.append(f"• {telegram_role}: {entry.name}{handle} · ID {entry.user_id}")
-    rank_lines = [
-        f"• {_rank_label(item.rank_code)} · ID {item.user_telegram_id} · назначил {item.assigned_by_telegram_id}"
-        for item in rows
-    ]
+        telegram_lines.append(f"• {telegram_role}: {entry.name}{handle}")
+    rank_lines = []
+    for item in rows:
+        assigner = (
+            public_user_token(item.assigned_by_telegram_id)
+            if item.assigned_by_telegram_id
+            else "Mimoru"
+        )
+        rank_lines.append(
+            f"• {_rank_label(item.rank_code)}"
+            f" · {await stored_visible_name(item.user_telegram_id)}"
+            f" · назначил {assigner}"
+        )
     text = panel_header(
         "Ранги и администрация",
         "Ранги Mimoru настраиваются отдельно для этой группы. Один и тот же человек может иметь разные ранги в разных группах.",
@@ -493,7 +502,7 @@ async def rank_remove_confirm(callback: CallbackQuery, session: AsyncSession) ->
     await callback.message.edit_text(
         panel_header(
             "Снять ранг?",
-            f"ID {assignment.user_telegram_id}\nРанг: {_rank_label(assignment.rank_code)}\n\nЕсли Telegram-права были выданы самой Mimoru, бот также попробует снять их.",
+            f"{await stored_visible_name(assignment.user_telegram_id)}\nРанг: {_rank_label(assignment.rank_code)}\n\nЕсли Telegram-права были выданы самой Mimoru, бот также попробует снять их.",
         ),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, снять", callback_data=f"rank_remove:{group.id}:{assignment.id}")],
@@ -773,14 +782,24 @@ async def helper_report(message: Message, bot: Bot, session: AsyncSession) -> No
     if assignment is None or assignment.rank_code != HELPER or not assignment.helper_for_telegram_id:
         return
     target = message.reply_to_message.from_user
-    reporter_name = message.from_user.full_name or str(message.from_user.id)
-    target_name = target.full_name or str(target.id)
+
+    def _plain_label(full_name: str | None, username: str | None, fallback: str) -> str:
+        handle = f"@{username}" if username else ""
+        name = (full_name or "").strip() or handle or fallback
+        return f"{name} ({handle})" if handle and name != handle else name
+
+    reporter_name = _plain_label(
+        message.from_user.full_name, message.from_user.username, "Помощник"
+    )
+    target_name = _plain_label(
+        target.full_name, target.username, "Участник без имени"
+    )
     try:
         await bot.send_message(
             assignment.helper_for_telegram_id,
             panel_header(
                 "Сообщение от помощника",
-                f"Группа: {group.title}\nПомощник: {reporter_name} · ID {message.from_user.id}\nНарушитель: {target_name} · ID {target.id}\n\nПроверьте ситуацию и примите решение самостоятельно.",
+                f"Группа: {group.title}\nПомощник: {reporter_name}\nНарушитель: {target_name}\n\nПроверьте ситуацию и примите решение самостоятельно.",
             ),
         )
     except (TelegramBadRequest, TelegramForbiddenError):
