@@ -60,10 +60,20 @@ async def schedule_message_deletion(
     message_id: int,
     *,
     delay_seconds: int = AUTO_DELETE_SECONDS,
-) -> None:
-    """Queue one Mimoru message for removal after `delay_seconds`."""
+) -> bool:
+    """Queue one Mimoru group message for removal after `delay_seconds`.
+
+    Private dialogs are never cleaned up. A service message in a personal chat with
+    Mimoru is the user's own record rather than chat noise, and removing it later only
+    looks like the bot hiding what it said. A positive chat id is a user id, so the
+    rule lives here instead of in every caller: nothing can schedule a private removal.
+    Returns True when the removal was actually queued.
+    """
+    if int(chat_id) > 0:
+        return False
     try:
         await redis.zadd(TTL_QUEUE_KEY, {_member(chat_id, message_id): time.time() + delay_seconds})
+        return True
     except Exception as error:  # Redis outage must not break the moderation action itself.
         log.warning(
             "message_ttl_schedule_failed",
@@ -71,6 +81,7 @@ async def schedule_message_deletion(
             message_id=message_id,
             error=str(error),
         )
+        return False
 
 
 async def send_group_notice(
@@ -151,6 +162,11 @@ async def process_message_deletions(bot: Bot, redis: Redis) -> int:
             await redis.zrem(TTL_QUEUE_KEY, member)
             continue
         chat_id, message_id = parsed
+        if chat_id > 0:
+            # Written by an older build or a stale worker: drop the entry without
+            # ever reaching into someone's personal dialogue.
+            await redis.zrem(TTL_QUEUE_KEY, member)
+            continue
         # Claim before deleting: a second worker or a retry must not duplicate work.
         if not await redis.zrem(TTL_QUEUE_KEY, member):
             continue

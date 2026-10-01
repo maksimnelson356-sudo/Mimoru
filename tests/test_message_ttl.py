@@ -112,6 +112,58 @@ async def test_answer_group_notice_is_quiet_without_chat_rights() -> None:
 
 
 @pytest.mark.asyncio
+async def test_private_dialog_messages_are_never_scheduled_for_removal() -> None:
+    """Mimoru keeps her word in personal chats: nothing there is auto-deleted."""
+    redis = SimpleNamespace(zadd=AsyncMock())
+
+    assert await schedule_message_deletion(redis, 123456, 5) is False
+
+    redis.zadd.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_notice_sent_to_a_private_chat_is_kept() -> None:
+    redis = SimpleNamespace(zadd=AsyncMock())
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=11)))
+
+    sent = await send_group_notice(bot, 123456, "🛠️ Бан", redis=redis)
+
+    assert sent.message_id == 11
+    redis.zadd.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reply_in_a_private_chat_is_kept() -> None:
+    redis = SimpleNamespace(zadd=AsyncMock())
+    message = SimpleNamespace(
+        chat=SimpleNamespace(id=123456),
+        answer=AsyncMock(return_value=SimpleNamespace(message_id=12)),
+    )
+
+    sent = await answer_group_notice(message, "🛠️", redis=redis)
+
+    assert sent.message_id == 12
+    redis.zadd.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_queued_private_entries_are_dropped_without_deleting_anything() -> None:
+    """A leftover queue entry pointing at a user must never reach Telegram."""
+    redis = SimpleNamespace(
+        zrange=AsyncMock(return_value=["123456:456"]),
+        zrem=AsyncMock(return_value=1),
+        zadd=AsyncMock(),
+    )
+    bot = SimpleNamespace(delete_message=AsyncMock())
+
+    assert await process_message_deletions(bot, redis) == 0
+
+    bot.delete_message.assert_not_awaited()
+    redis.zrem.assert_awaited_once_with(TTL_QUEUE_KEY, "123456:456")
+    redis.zadd.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_expired_messages_are_claimed_before_being_deleted() -> None:
     redis = SimpleNamespace(
         zrange=AsyncMock(return_value=["-100123:456", "-100123:457"]),

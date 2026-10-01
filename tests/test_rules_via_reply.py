@@ -31,7 +31,10 @@ def test_inline_text_wins_over_quoted_message() -> None:
 
 def test_command_without_any_text_stays_empty() -> None:
     assert rules_input_text(_command("изменить правила")) == ""
-    assert rules_input_text(_command("изменить правила", SimpleNamespace(text="   ", caption=None))) == ""
+    assert (
+        rules_input_text(_command("изменить правила", SimpleNamespace(text="   ", caption=None)))
+        == ""
+    )
 
 
 def test_help_placeholder_is_not_accepted_as_rules() -> None:
