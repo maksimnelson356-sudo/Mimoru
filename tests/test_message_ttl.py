@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -11,6 +11,8 @@ from aiogram.methods import DeleteMessage
 
 from app.services.message_ttl import (
     AUTO_DELETE_SECONDS,
+    PRIVATE_TTL_QUEUE_KEY,
+    PROMPT_TTL_SECONDS,
     TTL_QUEUE_KEY,
     answer_group_notice,
     bind_redis,
@@ -151,7 +153,8 @@ async def test_reply_in_a_private_chat_is_kept() -> None:
 async def test_queued_private_entries_are_dropped_without_deleting_anything() -> None:
     """A leftover queue entry pointing at a user must never reach Telegram."""
     redis = SimpleNamespace(
-        zrange=AsyncMock(return_value=["123456:456"]),
+        # The second call drains the private queue, which stays empty here.
+        zrange=AsyncMock(side_effect=[["123456:456"], []]),
         zrem=AsyncMock(return_value=1),
         zadd=AsyncMock(),
     )
@@ -261,11 +264,45 @@ def test_picker_flow_deletes_the_command_and_the_buttons() -> None:
     assert "callback.message.chat.id, callback.message.message_id" in reason_src
 
 
+@pytest.mark.asyncio
+async def test_private_deletions_need_an_explicit_opt_in() -> None:
+    assert await schedule_message_deletion(None, 555, 5, allow_private=True) is False
+
+    redis = MagicMock()
+    redis.zadd = AsyncMock(return_value=True)
+
+    # No opt-in: a private chat id is refused, even with a client.
+    assert await schedule_message_deletion(redis, 555, 5) is False
+    redis.zadd.assert_not_awaited()
+
+    # Opted in (panel confirmation prompts): queued in the private queue.
+    assert await schedule_message_deletion(redis, 555, 5, allow_private=True) is True
+    redis.zadd.assert_awaited_once()
+    assert redis.zadd.await_args.args[0] == PRIVATE_TTL_QUEUE_KEY
+
+
+def test_panel_ban_prompts_are_removed_and_disclaimer_is_gone() -> None:
+    """Regression guard: the ban-confirmation prompt used to linger forever."""
+    for path in (
+        "app/handlers/complaint_actions.py",
+        "app/handlers/moderation_durable_guard.py",
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert "allow_private=True" in source, path
+        assert "Очистка необратима" not in source, path
+        assert "удалит не все сообщения" not in source, path
+
+    ttl_src = Path("app/services/message_ttl.py").read_text(encoding="utf-8")
+    assert "PRIVATE_TTL_QUEUE_KEY" in ttl_src
+    assert "PROMPT_TTL_SECONDS = 600" in ttl_src
+
+
 
 @pytest.mark.asyncio
 async def test_expired_messages_are_claimed_before_being_deleted() -> None:
     redis = SimpleNamespace(
-        zrange=AsyncMock(return_value=["-100123:456", "-100123:457"]),
+        # The second call drains the private queue, which stays empty here.
+        zrange=AsyncMock(side_effect=[["-100123:456", "-100123:457"], []]),
         # Second member was already claimed by another worker.
         zrem=AsyncMock(side_effect=[1, 0]),
         zadd=AsyncMock(),
@@ -281,7 +318,8 @@ async def test_expired_messages_are_claimed_before_being_deleted() -> None:
 @pytest.mark.asyncio
 async def test_garbage_and_bytes_members_are_handled() -> None:
     redis = SimpleNamespace(
-        zrange=AsyncMock(return_value=[b"-100123:456", "not-a-member", "1:2:3"]),
+        # The second call drains the private queue, which stays empty here.
+        zrange=AsyncMock(side_effect=[[b"-100123:456", "not-a-member", "1:2:3"], []]),
         zrem=AsyncMock(return_value=1),
         zadd=AsyncMock(),
     )
@@ -297,7 +335,8 @@ async def test_garbage_and_bytes_members_are_handled() -> None:
 @pytest.mark.asyncio
 async def test_gone_messages_are_dropped_instead_of_retried() -> None:
     redis = SimpleNamespace(
-        zrange=AsyncMock(return_value=["-100123:456"]),
+        # The second call drains the private queue, which stays empty here.
+        zrange=AsyncMock(side_effect=[["-100123:456"], []]),
         zrem=AsyncMock(return_value=1),
         zadd=AsyncMock(),
     )

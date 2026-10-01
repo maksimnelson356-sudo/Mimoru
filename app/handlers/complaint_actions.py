@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Complaint, ComplaintNotification, Group, UserMessage
 from app.services.access import can_moderate
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import (
+    PROMPT_TTL_SECONDS,
+    bound_redis,
+    schedule_message_deletion,
+    send_group_notice,
+)
 from app.services.moderation import execute
 from app.services.public_identity import public_user_token
 from app.services.rank_access import get_actor_rank_with_access
@@ -328,10 +333,7 @@ async def complaint_ban_prompt(
         "🛑 Подтверждение бана\n\n"
         f"👤 Нарушитель: {target}\n\n"
         "Выберите обычный бан или бан с очисткой сохранённых "
-        "сообщений пользователя.\n\n"
-        "⚠ Очистка необратима. Telegram удалит не все сообщения:\n"
-        "• сообщения пользователя, который уже был забанен ранее, "
-        "могут остаться"
+        "сообщений пользователя."
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -360,6 +362,14 @@ async def complaint_ban_prompt(
     except TelegramBadRequest as exc:
         log.warning(
             "complaint_ban_prompt_edit_failed", complaint_id=cid, error=str(exc)
+        )
+    else:
+        await schedule_message_deletion(
+            bound_redis(),
+            callback.message.chat.id,
+            callback.message.message_id,
+            delay_seconds=PROMPT_TTL_SECONDS,
+            allow_private=True,
         )
     await callback.answer()
 

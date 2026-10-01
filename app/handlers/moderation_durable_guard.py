@@ -21,7 +21,11 @@ from app.db.rank_models import RankAssignment
 from app.handlers import group_commands, member_center, reason_admin
 from app.handlers.complaint_actions import _delete_user_messages
 from app.services.access import can_moderate, is_service_owner
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import (
+    PROMPT_TTL_SECONDS,
+    schedule_message_deletion,
+    send_group_notice,
+)
 from app.services.moderation import execute
 from app.services.moderation_operations import (
     create_moderation_intent,
@@ -295,10 +299,7 @@ async def durable_reason_action(
             "🛑 Подтверждение бана\n\n"
             f"👤 Нарушитель: {target_name}\n\n"
             "Выберите обычный бан или бан с очисткой сохранённых "
-            "сообщений пользователя.\n\n"
-            "⚠ Очистка необратима. Telegram удалит не все сообщения:\n"
-            "• сообщения пользователя, который уже был забанен ранее, "
-            "могут остаться"
+            "сообщений пользователя."
         )
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -328,6 +329,14 @@ async def durable_reason_action(
             import structlog
 
             structlog.get_logger().warning("modban_prompt_edit_failed", error=str(exc))
+        else:
+            await schedule_message_deletion(
+                redis,
+                callback.message.chat.id,
+                callback.message.message_id,
+                delay_seconds=PROMPT_TTL_SECONDS,
+                allow_private=True,
+            )
         await callback.answer()
         return
 

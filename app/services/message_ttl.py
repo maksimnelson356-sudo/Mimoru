@@ -20,6 +20,12 @@ AUTO_DELETE_SECONDS = 25
 # A Redis sorted set is used instead of asyncio.create_task(...): a restart or a
 # redeploy must not leave moderation notices standing in group chats forever.
 TTL_QUEUE_KEY = "mimoru:msg:ttl"
+# Private-dialog deletions live in a separate queue so the group queue can keep
+# dropping stale private entries without ever touching someone's dialogue.
+PRIVATE_TTL_QUEUE_KEY = "mimoru:msg:ttl:private"
+# Panel confirmation prompts (ban mode, reason, duration) wait for a click; they
+# are removed after this delay, which matches the pending payload expiry.
+PROMPT_TTL_SECONDS = 600
 BATCH_LIMIT = 100
 
 # Bound once at startup (app.main) so deep call chains — protection, moderation
@@ -60,20 +66,23 @@ async def schedule_message_deletion(
     message_id: int,
     *,
     delay_seconds: int = AUTO_DELETE_SECONDS,
+    allow_private: bool = False,
 ) -> bool:
     """Queue one Mimoru group message for removal after `delay_seconds`.
 
-    Private dialogs are never cleaned up. A service message in a personal chat with
-    Mimoru is the user's own record rather than chat noise, and removing it later only
-    looks like the bot hiding what it said. A positive chat id is a user id, so the
-    rule lives here instead of in every caller: nothing can schedule a private removal.
-    Callers without a Redis client (helpers deep in a chain) pass None and nothing is
-    queued. Returns True when the removal was actually queued.
+    Private dialogs are never cleaned up unless the caller opts in explicitly
+    (panel confirmation prompts are removed even there, on the owner's request).
+    A service message in a personal chat with Mimoru is the user's own record rather
+    than chat noise, and removing it later only looks like the bot hiding what it
+    said. A positive chat id is a user id, so the rule lives here instead of in
+    every caller. Callers without a Redis client (helpers deep in a chain) pass None
+    and nothing is queued. Returns True when the removal was actually queued.
     """
-    if redis is None or int(chat_id) > 0:
+    if redis is None or (int(chat_id) > 0 and not allow_private):
         return False
+    queue_key = PRIVATE_TTL_QUEUE_KEY if int(chat_id) > 0 else TTL_QUEUE_KEY
     try:
-        await redis.zadd(TTL_QUEUE_KEY, {_member(chat_id, message_id): time.time() + delay_seconds})
+        await redis.zadd(queue_key, {_member(chat_id, message_id): time.time() + delay_seconds})
         return True
     except Exception as error:  # Redis outage must not break the moderation action itself.
         log.warning(
@@ -143,9 +152,16 @@ async def answer_group_notice(
 
 async def process_message_deletions(bot: Bot, redis: Redis) -> int:
     """Delete due messages; returns how many were removed or dropped."""
+    handled = 0
+    for queue_key in (TTL_QUEUE_KEY, PRIVATE_TTL_QUEUE_KEY):
+        handled += await _drain_queue(bot, redis, queue_key)
+    return handled
+
+
+async def _drain_queue(bot: Bot, redis: Redis, queue_key: str) -> int:
     try:
         due = await redis.zrange(
-            TTL_QUEUE_KEY,
+            queue_key,
             0,
             time.time(),
             byscore=True,
@@ -153,30 +169,36 @@ async def process_message_deletions(bot: Bot, redis: Redis) -> int:
             num=BATCH_LIMIT,
         )
     except Exception as error:
-        log.warning("message_ttl_scan_failed", error=str(error))
+        log.warning("message_ttl_scan_failed", queue=queue_key, error=str(error))
         return 0
 
     handled = 0
     for member in due:
         parsed = _parse(member)
         if parsed is None:
-            await redis.zrem(TTL_QUEUE_KEY, member)
+            await redis.zrem(queue_key, member)
             continue
         chat_id, message_id = parsed
-        if chat_id > 0:
+        if chat_id > 0 and queue_key != PRIVATE_TTL_QUEUE_KEY:
             # Written by an older build or a stale worker: drop the entry without
             # ever reaching into someone's personal dialogue.
-            await redis.zrem(TTL_QUEUE_KEY, member)
+            await redis.zrem(queue_key, member)
             continue
         # Claim before deleting: a second worker or a retry must not duplicate work.
-        if not await redis.zrem(TTL_QUEUE_KEY, member):
+        if not await redis.zrem(queue_key, member):
             continue
         try:
             await bot.delete_message(chat_id, message_id)
             handled += 1
         except TelegramRetryAfter:
             # Rate limited: put it back for the next loop instead of losing the message.
-            await schedule_message_deletion(redis, chat_id, message_id, delay_seconds=5)
+            await schedule_message_deletion(
+                redis,
+                chat_id,
+                message_id,
+                delay_seconds=5,
+                allow_private=queue_key == PRIVATE_TTL_QUEUE_KEY,
+            )
         except (TelegramBadRequest, TelegramForbiddenError, KeyError):
             # Already deleted, no rights, or the chat disappeared — nothing to retry.
             handled += 1
