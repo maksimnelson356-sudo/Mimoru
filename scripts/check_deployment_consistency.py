@@ -88,6 +88,10 @@ def main() -> int:
         errors.append("CI must install requirements-dev.txt")
     if "./scripts/check.sh" not in ci:
         errors.append("CI must run scripts/check.sh")
+    if "./scripts/check_db.sh" not in ci:
+        errors.append("CI must run scripts/check_db.sh")
+    if "postgres:17-alpine" not in ci:
+        errors.append("CI must provide a postgres:17-alpine service for scripts/check_db.sh")
 
     env = read_env(ROOT / ".env.example")
     required_env = {

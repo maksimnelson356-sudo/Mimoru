@@ -28,6 +28,9 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["."]
+markers = [
+  "db: requires a live PostgreSQL; runs only through scripts/check_db.sh, never in scripts/check.sh",
+]
 
 [tool.ruff]
 line-length = 100
