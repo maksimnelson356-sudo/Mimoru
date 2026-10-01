@@ -208,6 +208,61 @@ def test_deferred_ban_results_no_longer_use_plain_replies() -> None:
 
 
 @pytest.mark.asyncio
+async def test_none_redis_schedules_nothing() -> None:
+    assert await schedule_message_deletion(None, -100123, 5) is False
+
+
+# --- wiring contracts: the moderator's own command is cleaned up too ---------
+
+
+COMMAND_DELETE_SOURCES = {
+    "app/handlers/group.py": (
+        "await schedule_message_deletion(redis, message.chat.id, message.message_id)"
+    ),
+    "app/handlers/moderation_command_modes.py": (
+        "await schedule_message_deletion(redis, message.chat.id, message.message_id)"
+    ),
+    "app/handlers/group_commands.py": (
+        "await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)"
+    ),
+    "app/handlers/deferred_bans.py": (
+        "await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)"
+    ),
+}
+
+
+def test_the_moderators_command_is_scheduled_for_removal() -> None:
+    """Regression guard: the command that issued a punishment used to stay behind."""
+    for path, expected in COMMAND_DELETE_SOURCES.items():
+        source = Path(path).read_text(encoding="utf-8")
+        assert expected in source, path
+
+    commands_src = Path("app/handlers/group_commands.py").read_text(encoding="utf-8")
+    assert (
+        commands_src.count(
+            "schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)"
+        )
+        == 3
+    )
+
+
+def test_picker_flow_deletes_the_command_and_the_buttons() -> None:
+    group_src = Path("app/handlers/group.py").read_text(encoding="utf-8")
+    modes_src = Path("app/handlers/moderation_command_modes.py").read_text(
+        encoding="utf-8"
+    )
+    reason_src = Path("app/handlers/reason_admin.py").read_text(encoding="utf-8")
+    # The pending payload carries the command message id.
+    assert '"command_message_id": message.message_id' in group_src
+    assert '"command_message_id": message.message_id' in modes_src
+    # After a successful picker execution the command message and the edited
+    # picker message (the one that held the buttons) are both queued for removal.
+    assert 'command_message_id = data.get("command_message_id")' in reason_src
+    assert "callback.message.chat.id, callback.message.message_id" in reason_src
+
+
+
+@pytest.mark.asyncio
 async def test_expired_messages_are_claimed_before_being_deleted() -> None:
     redis = SimpleNamespace(
         zrange=AsyncMock(return_value=["-100123:456", "-100123:457"]),

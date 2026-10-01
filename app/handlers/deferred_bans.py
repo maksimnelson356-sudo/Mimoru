@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, Punishment
 from app.db.pending_bans import PendingBan
 from app.services.access import can_moderate
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import (
+    bound_redis,
+    schedule_message_deletion,
+    send_group_notice,
+)
 from app.services.permissions import target_is_protected
 from app.services.ranks import can_moderate_target, get_assignment
 from app.services.user_refs import resolve_known_user_reference, user_label
@@ -185,6 +189,7 @@ async def ban_reference(message: Message, bot: Bot, session: AsyncSession) -> No
             f"🚫 @{username} добавлен в предварительный бан.\n"
             "Mimoru пока не знает Telegram ID этого аккаунта. Если он войдёт в группу с этим username, бот сразу забанит его.",
         )
+        await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
         return
     label = await user_label(session, target_id)
     if telegram_applied:
@@ -197,6 +202,7 @@ async def ban_reference(message: Message, bot: Bot, session: AsyncSession) -> No
             message.chat.id,
             f"🚫 Запрет для {label} сохранён. Если пользователь появится в группе, Mimoru применит бан автоматически.",
         )
+    await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
 
 
 @router.message(F.chat.type.in_(GROUP_TYPES), F.text.regexp(r"(?i)^разбан\s+(?:@\w{3,64}|\d{5,20})\s*$"))
@@ -239,6 +245,7 @@ async def unban_reference(message: Message, bot: Bot, session: AsyncSession) -> 
     await session.commit()
     label = await user_label(session, target_id) if target_id is not None else f"@{username}"
     await send_group_notice(bot, message.chat.id, f"✅ Запрет для {label} снят.")
+    await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
 
 
 async def enforce_pending_ban_on_join(

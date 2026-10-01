@@ -104,6 +104,22 @@ async def can_manage_group(
     return bool(actor is not None and actor.code in ADMIN_RANKS_FOR_PANEL)
 
 
+async def can_manage_roles(session: AsyncSession, group: Group, user_id: int) -> bool:
+    """Role commands: the group owner or an active deputy_owner rank.
+
+    GroupModerator roles are Mimoru-internal, so the Telegram admin requirement of
+    can_manage_group does not apply here: the owner always manages the team, and
+    the deputy_owner rank is trusted with it as well. chief_admin and below stay
+    out — the rank ladder itself remains owner-only in the panel.
+    """
+    if group.owner_telegram_id == user_id:
+        return True
+    from app.services.ranks import get_assignment
+
+    assignment = await get_assignment(session, group.id, user_id)
+    return assignment is not None and assignment.rank_code == "deputy_owner"
+
+
 def owner_or_admin_clause(user_id: int):
     """SQL clause: this user manages the group as its owner or as a panel admin.
 

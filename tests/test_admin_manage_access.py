@@ -75,6 +75,48 @@ async def test_without_session_no_rank_lookup_happens(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_deputy_owner_rank_may_manage_roles(monkeypatch) -> None:
+    from app.services import ranks as ranks_module
+    from app.services.access import can_manage_roles
+
+    async def deputy(session, group_id, user_id):
+        return SimpleNamespace(rank_code="deputy_owner")
+
+    monkeypatch.setattr(ranks_module, "get_assignment", deputy)
+    assert await can_manage_roles(object(), group(), OTHER_ID) is True
+
+
+@pytest.mark.asyncio
+async def test_lower_ranks_may_not_manage_roles(monkeypatch) -> None:
+    from app.services import ranks as ranks_module
+    from app.services.access import can_manage_roles
+
+    async def chat_admin(session, group_id, user_id):
+        return SimpleNamespace(rank_code="chat_admin")
+
+    monkeypatch.setattr(ranks_module, "get_assignment", chat_admin)
+    assert await can_manage_roles(object(), group(), OTHER_ID) is False
+
+    async def no_assignment(session, group_id, user_id):
+        return None
+
+    monkeypatch.setattr(ranks_module, "get_assignment", no_assignment)
+    assert await can_manage_roles(object(), group(), OTHER_ID) is False
+
+
+@pytest.mark.asyncio
+async def test_owner_manages_roles_without_any_lookup(monkeypatch) -> None:
+    from app.services import ranks as ranks_module
+    from app.services.access import can_manage_roles
+
+    async def explode(session, group_id, user_id):
+        raise AssertionError("the owner must not need a rank lookup")
+
+    monkeypatch.setattr(ranks_module, "get_assignment", explode)
+    assert await can_manage_roles(object(), group(), OWNER_ID) is True
+
+
+@pytest.mark.asyncio
 async def test_owner_keeps_the_telegram_admin_requirement() -> None:
     admin_member = SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR)
     bot = SimpleNamespace(get_chat_member=AsyncMock(return_value=admin_member))
@@ -100,13 +142,17 @@ def test_group_commands_authorize_with_the_session() -> None:
     group_src = _read("app/handlers/group.py")
     broadened = group_src.count("can_manage_group(bot, group, message.from_user.id, session)")
     assert broadened == 10
-    # Role assignment/removal/listing stays owner-only: session is omitted on
-    # purpose so no rank lookup ever happens there.
-    strict = group_src.count("can_manage_group(bot, group, message.from_user.id):")
-    assert strict == 3
+    # Role assignment/removal/listing: the owner plus an active deputy_owner rank.
+    # can_manage_group is still called without the session for the owner branch,
+    # and can_manage_roles adds the deputy_owner lookup on top of it.
+    role_gates = group_src.count(
+        "or await can_manage_roles(session, group, message.from_user.id)"
+    )
+    assert role_gates == 3
     assert "Изменять настройки может владелец или администратор группы." in group_src
-    assert "Назначать роли может только владелец группы." in group_src
-    assert "Снимать роли может только владелец группы." in group_src
+    assert "Назначать роли может владелец или заместитель владельца группы." in group_src
+    assert "Снимать роли может владелец или заместитель владельца группы." in group_src
+    assert "Список ролей доступен владельцу или заместителю владельца группы." in group_src
 
 
 MANAGE_SCREENS = (

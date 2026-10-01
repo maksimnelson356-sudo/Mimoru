@@ -24,7 +24,11 @@ from app.db.models import (
 from app.db.rank_models import RankAssignment
 from app.services.access import can_moderate
 from app.services.action_panel import format_action_panel
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import (
+    bound_redis,
+    schedule_message_deletion,
+    send_group_notice,
+)
 from app.services.moderation import UNMUTED, execute, log_action
 from app.services.public_identity import public_user_token
 from app.services.ranks import (
@@ -297,6 +301,7 @@ async def _do_unmute(
     )
     await session.commit()
     await send_group_notice(bot, message.chat.id, notice)
+    await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
 
 
 async def _do_unban(
@@ -325,6 +330,7 @@ async def _do_unban(
     )
     await session.commit()
     await send_group_notice(bot, message.chat.id, notice)
+    await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
 
 
 @router.message(
@@ -482,6 +488,7 @@ async def unban_combined(message: Message, bot: Bot, session: AsyncSession) -> N
     )
     await session.commit()
     await send_group_notice(bot, message.chat.id, notice)
+    await schedule_message_deletion(bound_redis(), message.chat.id, message.message_id)
 
 
 BULK_UNBAN_TRIGGERS = {

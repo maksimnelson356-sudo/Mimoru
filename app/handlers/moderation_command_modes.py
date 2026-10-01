@@ -25,7 +25,7 @@ from app.services.access import (
     is_service_owner,
     owned_group,
 )
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import schedule_message_deletion, send_group_notice
 from app.services.moderation import execute
 from app.services.moderation_reasons import active_reasons
 from app.services.permissions import target_is_protected
@@ -402,6 +402,7 @@ async def _open_buttons(
         "duration": duration,
         "warnings_limit": group.settings.warnings_limit,
         "default_mute": group.settings.default_mute_seconds,
+        "command_message_id": message.message_id,
         "origin": "group",
         "actor_role": (
             "owner" if message.from_user.id == group.owner_telegram_id else "admin"
@@ -506,6 +507,7 @@ async def moderation_command_mode(
             )
             await session.commit()
             await send_group_notice(bot, message.chat.id, result, redis=redis)
+            await schedule_message_deletion(redis, message.chat.id, message.message_id)
         except (TelegramBadRequest, TelegramForbiddenError) as exc:
             await session.rollback()
             await message.reply(f"Не удалось выполнить действие: {exc.message}")

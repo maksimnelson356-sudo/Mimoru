@@ -21,8 +21,8 @@ from app.db.models import (
     Warning,
 )
 from app.keyboards.panel import moderation_duration_picker, moderation_reason_picker
-from app.services.access import can_manage_group, can_moderate
-from app.services.message_ttl import send_group_notice
+from app.services.access import can_manage_group, can_manage_roles, can_moderate
+from app.services.message_ttl import schedule_message_deletion, send_group_notice
 from app.services.moderation import execute
 from app.services.moderation_reasons import active_reasons
 from app.services.permissions import target_is_protected
@@ -295,8 +295,11 @@ async def assign_moderator(message: Message, bot: Bot, session: AsyncSession) ->
         await message.reply("Ответьте этой командой на сообщение пользователя.")
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Назначать роли может только владелец группы.")
+    if not (
+        await can_manage_group(bot, group, message.from_user.id)
+        or await can_manage_roles(session, group, message.from_user.id)
+    ):
+        await message.reply("Назначать роли может владелец или заместитель владельца группы.")
         return
     target = message.reply_to_message.from_user
     if target.id == group.owner_telegram_id:
@@ -343,8 +346,11 @@ async def remove_moderator(message: Message, bot: Bot, session: AsyncSession) ->
         await message.reply("Ответьте этой командой на сообщение пользователя.")
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Снимать роли может только владелец группы.")
+    if not (
+        await can_manage_group(bot, group, message.from_user.id)
+        or await can_manage_roles(session, group, message.from_user.id)
+    ):
+        await message.reply("Снимать роли может владелец или заместитель владельца группы.")
         return
     target = message.reply_to_message.from_user
     item = await session.scalar(
@@ -367,8 +373,11 @@ async def list_moderators(message: Message, bot: Bot, session: AsyncSession) -> 
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Список ролей доступен владельцу группы.")
+    if not (
+        await can_manage_group(bot, group, message.from_user.id)
+        or await can_manage_roles(session, group, message.from_user.id)
+    ):
+        await message.reply("Список ролей доступен владельцу или заместителю владельца группы.")
         return
     items = (
         await session.scalars(
@@ -517,6 +526,7 @@ async def moderation_command(
             "duration": command.duration,
             "warnings_limit": group.settings.warnings_limit,
             "default_mute": group.settings.default_mute_seconds,
+            "command_message_id": message.message_id,
             "origin": "group",
             "actor_role": (
                 "owner" if message.from_user.id == group.owner_telegram_id else "admin"
@@ -571,6 +581,7 @@ async def moderation_command(
         )
         await session.commit()
         await send_group_notice(bot, message.chat.id, result, redis=redis)
+        await schedule_message_deletion(redis, message.chat.id, message.message_id)
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         await session.rollback()
         await message.reply(f"Не удалось выполнить действие: {exc.message}")

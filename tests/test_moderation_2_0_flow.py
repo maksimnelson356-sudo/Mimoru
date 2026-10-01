@@ -59,7 +59,7 @@ def test_panel_moderation_is_routed_to_real_group_and_public_notice():
     # Уведомление о наказании уходит в группу и через самоудаляющийся хелпер,
     # чтобы сервисные сообщения не оставались в чате навсегда.
     assert 'await send_group_notice(bot, int(data["chat_id"]), result' in source
-    assert "from app.services.message_ttl import send_group_notice" in source
+    assert "from app.services.message_ttl import schedule_message_deletion, send_group_notice" in source
     assert 'chat_id=int(data["chat_id"])' in source
     assert "moderation_public_notice_failed" in source
 

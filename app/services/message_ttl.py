@@ -55,7 +55,7 @@ def _parse(member: str | bytes) -> tuple[int, int] | None:
 
 
 async def schedule_message_deletion(
-    redis: Redis,
+    redis: Redis | None,
     chat_id: int,
     message_id: int,
     *,
@@ -67,9 +67,10 @@ async def schedule_message_deletion(
     Mimoru is the user's own record rather than chat noise, and removing it later only
     looks like the bot hiding what it said. A positive chat id is a user id, so the
     rule lives here instead of in every caller: nothing can schedule a private removal.
-    Returns True when the removal was actually queued.
+    Callers without a Redis client (helpers deep in a chain) pass None and nothing is
+    queued. Returns True when the removal was actually queued.
     """
-    if int(chat_id) > 0:
+    if redis is None or int(chat_id) > 0:
         return False
     try:
         await redis.zadd(TTL_QUEUE_KEY, {_member(chat_id, message_id): time.time() + delay_seconds})

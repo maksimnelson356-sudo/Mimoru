@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, ModerationReason
 from app.keyboards.panel import moderation_reason_picker, reason_delete_confirm, reason_edit_menu, reasons_menu
 from app.services.access import accessible_group, is_service_owner, owner_or_admin_clause
-from app.services.message_ttl import send_group_notice
+from app.services.message_ttl import schedule_message_deletion, send_group_notice
 from app.services.moderation_reasons import ensure_default_reasons, normalize_actions
 from app.services.ui import panel_header
 from app.services.plans import plan_limit
@@ -404,6 +404,15 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
             )
         else:
             await _deliver_outcome_message(callback, bot, int(data["chat_id"]), result)
+            command_message_id = data.get("command_message_id")
+            if command_message_id:
+                await schedule_message_deletion(
+                    redis, int(data["chat_id"]), int(command_message_id)
+                )
+            if callback.message is not None:
+                await schedule_message_deletion(
+                    redis, callback.message.chat.id, callback.message.message_id
+                )
         await callback.answer("Готово")
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         await session.rollback()
