@@ -22,7 +22,7 @@ async def managed(
         message,
         bot,
         session,
-        denial_text="Изменять карантин может только владелец группы.",
+        denial_text="Изменять карантин может владелец или администратор группы.",
         for_update=for_update,
     )
 

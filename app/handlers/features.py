@@ -37,8 +37,8 @@ async def managed(
             await message.reply("Группа больше не обслуживается.")
             return None
         group = locked
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return None
     return group
 

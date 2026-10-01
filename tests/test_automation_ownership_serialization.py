@@ -14,7 +14,7 @@ def test_owned_group_supports_locked_ownership_lookup() -> None:
         "@router.callback_query", 1
     )[0]
     assert "for_update: bool = False" in helper
-    assert "Group.owner_telegram_id == user_id" in helper
+    assert "owner_or_admin_clause(user_id)" in helper
     assert "if for_update:" in helper
     assert "query = query.with_for_update()" in helper
 

@@ -56,8 +56,8 @@ async def _owner_group(
     for_update: bool = False,
 ) -> Group | None:
     group = await _group(message, session, for_update=for_update)
-    if not group or not message.from_user or not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Эта команда доступна только владельцу группы.")
+    if not group or not message.from_user or not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Эта команда доступна владельцу или администратору группы.")
         return None
     return group
 

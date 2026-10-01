@@ -49,8 +49,8 @@ async def toggle_antiflood(message: Message, bot: Bot, session: AsyncSession) ->
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     group.settings.antiflood_enabled = message.text.lower().endswith("вкл")
     await session.commit()
@@ -66,8 +66,8 @@ async def toggle_links(message: Message, bot: Bot, session: AsyncSession) -> Non
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     group.settings.links_enabled = message.text.lower().endswith("вкл")
     await session.commit()
@@ -83,8 +83,8 @@ async def add_word(message: Message, bot: Bot, session: AsyncSession) -> None:
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     current_words = int(
         await session.scalar(
@@ -119,8 +119,8 @@ async def add_required_channel(
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     current_channels = int(
         await session.scalar(
@@ -156,8 +156,8 @@ async def toggle_captcha(message: Message, bot: Bot, session: AsyncSession) -> N
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     group.settings.captcha_enabled = message.text.lower().endswith("вкл")
     await session.commit()
@@ -173,8 +173,8 @@ async def toggle_welcome(message: Message, bot: Bot, session: AsyncSession) -> N
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     group.settings.welcome_enabled = message.text.lower().endswith("вкл")
     await session.commit()
@@ -190,8 +190,8 @@ async def remove_word(message: Message, bot: Bot, session: AsyncSession) -> None
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     word = message.text.split(maxsplit=2)[2].lower().strip()
     item = await session.scalar(
@@ -212,8 +212,8 @@ async def list_words(message: Message, bot: Bot, session: AsyncSession) -> None:
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     words = (
         await session.scalars(
@@ -235,8 +235,8 @@ async def remove_required_channel(
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     username = message.text.split()[-1].lower()
     item = await session.scalar(
@@ -260,8 +260,8 @@ async def list_required_channels(
     if not message.from_user:
         return
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять настройки может владелец или администратор группы.")
         return
     channels = (
         await session.scalars(

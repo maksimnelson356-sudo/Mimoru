@@ -22,8 +22,8 @@ async def _managed_group(message: Message, bot: Bot, session: AsyncSession) -> G
     if message.chat.type not in {ChatType.GROUP, ChatType.SUPERGROUP} or message.from_user is None:
         return None
     group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Изменять эти настройки может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Изменять эти настройки может владелец или администратор группы.")
         return None
     return group
 

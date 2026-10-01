@@ -27,7 +27,7 @@ async def managed_group(
         message,
         bot,
         session,
-        denial_text="Изменять эти настройки может только владелец группы.",
+        denial_text="Изменять эти настройки может владелец или администратор группы.",
         for_update=for_update,
     )
 

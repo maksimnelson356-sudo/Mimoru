@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, GroupMember, User
 from app.keyboards.panel import deleted_accounts_confirm_menu, deleted_accounts_menu
-from app.services.access import accessible_group, is_service_owner
+from app.services.access import accessible_group, is_service_owner, owner_or_admin_clause
 from app.services.deleted_accounts import (
     deleted_accounts_count,
     remove_deleted_accounts,
@@ -30,7 +30,7 @@ async def owned_group(
 ) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
+        query = query.where(owner_or_admin_clause(user_id))
     if for_update:
         query = query.with_for_update()
     return await session.scalar(query)

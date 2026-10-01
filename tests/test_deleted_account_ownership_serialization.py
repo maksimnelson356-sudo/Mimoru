@@ -15,7 +15,7 @@ def test_owned_group_supports_locked_ownership_lookup() -> None:
     body = source[start:end]
 
     assert "for_update: bool = False" in body
-    assert "Group.owner_telegram_id == user_id" in body
+    assert "owner_or_admin_clause(user_id)" in body
     assert "if for_update:" in body
     assert "query = query.with_for_update()" in body
 

@@ -27,7 +27,7 @@ from app.keyboards.panel import (
     warnings_limit_menu,
     words_admin_menu,
 )
-from app.services.access import DEFAULT_ROLE_PERMISSIONS, accessible_group, is_service_owner
+from app.services.access import DEFAULT_ROLE_PERMISSIONS, accessible_group, is_service_owner, owner_or_admin_clause
 from app.services.plans import plan_limit
 from app.services.public_identity import public_user_token
 from app.services.ui import panel_header
@@ -54,7 +54,7 @@ async def owned_group(
 ) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
+        query = query.where(owner_or_admin_clause(user_id))
     if for_update:
         query = query.with_for_update()
     return await session.scalar(query)

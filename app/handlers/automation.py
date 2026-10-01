@@ -14,7 +14,7 @@ from app.keyboards.panel import (
     automation_newcomer_menu,
     automation_warning_menu,
 )
-from app.services.access import accessible_group, is_service_owner
+from app.services.access import accessible_group, is_service_owner, owner_or_admin_clause
 from app.services.ui import clean_ui_text, panel_header
 
 router = Router(name=__name__)
@@ -29,7 +29,7 @@ async def owned_group(
 ) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
+        query = query.where(owner_or_admin_clause(user_id))
     if for_update:
         query = query.with_for_update()
     return await session.scalar(query)

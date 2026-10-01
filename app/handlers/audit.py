@@ -37,8 +37,8 @@ async def owner_group(
             return None
     else:
         group = await get_or_create_group(session, message.chat, message.from_user.id)
-    if not await can_manage_group(bot, group, message.from_user.id):
-        await message.reply("Настраивать журнал может только владелец группы.")
+    if not await can_manage_group(bot, group, message.from_user.id, session):
+        await message.reply("Настраивать журнал может владелец или администратор группы.")
         return None
     return group
 

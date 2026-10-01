@@ -32,7 +32,7 @@ from app.keyboards.panel import (
     support_menu,
     service_plan_group_menu,
 )
-from app.services.access import is_service_owner as access_service_owner
+from app.services.access import is_service_owner as access_service_owner, owner_or_admin_clause
 from app.services.analytics import compact_period_label, trend_text
 from app.services.ui import panel_header
 from app.services.plans import effective_plan, feature_available
@@ -48,7 +48,7 @@ def is_service_owner(user_id: int) -> bool:
 async def owned_group(session: AsyncSession, group_id: int, user_id: int) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not access_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
+        query = query.where(owner_or_admin_clause(user_id))
     return await session.scalar(query)
 
 

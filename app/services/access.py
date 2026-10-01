@@ -3,7 +3,7 @@ from __future__ import annotations
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -92,11 +92,38 @@ async def can_manage_group(
     if group.owner_telegram_id == user_id:
         return await is_telegram_admin(bot, group.telegram_chat_id, user_id)
     if session is None:
+        # No session means no rank lookup: callers that omit it (role assignment,
+        # legacy owner-only guards) stay owner/service-owner only on purpose.
         return False
     from app.services.rank_access import get_actor_rank_with_access
 
     actor = await get_actor_rank_with_access(bot, session, group, user_id)
-    return bool(actor is not None and actor.code == "deputy_owner")
+    # Panel admins manage group settings alongside the owner. The access mode of
+    # the assignment (bot_only / telegram) is still enforced inside
+    # get_actor_rank_with_access.
+    return bool(actor is not None and actor.code in ADMIN_RANKS_FOR_PANEL)
+
+
+def owner_or_admin_clause(user_id: int):
+    """SQL clause: this user manages the group as its owner or as a panel admin.
+
+    Mirrors `accessible_group` on purpose. Entry gates open screens for
+    owner/service owner/panel admins, so the write gate that runs when the user
+    actually sends their input must accept exactly the same people — otherwise
+    a form opens for an admin and then rejects their text with
+    «Доступ к группе потерян».
+    """
+    panel_admin_exists = (
+        select(RankAssignment.id)
+        .where(
+            RankAssignment.group_id == Group.id,
+            RankAssignment.user_telegram_id == user_id,
+            RankAssignment.active.is_(True),
+            RankAssignment.rank_code.in_(ADMIN_RANKS_FOR_PANEL),
+        )
+        .exists()
+    )
+    return or_(Group.owner_telegram_id == user_id, panel_admin_exists)
 
 
 ADMIN_RANKS_FOR_PANEL: frozenset[str] = frozenset(
@@ -159,9 +186,11 @@ async def owned_group(
     *,
     for_update: bool = False,
 ) -> Group | None:
-    """Group доступная пользователю для управления (owner / service_owner).
+    """Group доступная для строгих операций (owner / service_owner).
 
-    Владелец и service_owner — полный доступ.
+    Деньги и покупка тарифа (plan_catalog, billing) опираются именно на эту
+    узкую проверку: администраторы панели не должны оплачивать подписки.
+    Экраны управления используют `accessible_group` / `owner_or_admin_clause`.
     Остальные — None.
     """
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))

@@ -27,7 +27,7 @@ async def managed(
         message,
         bot,
         session,
-        denial_text="Изменять защиту от массового спама может только владелец группы.",
+        denial_text="Изменять защиту от массового спама может владелец или администратор группы.",
         for_update=for_update,
     )
 

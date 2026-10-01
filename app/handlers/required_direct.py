@@ -205,7 +205,7 @@ async def _managed_group(
         message,
         bot,
         session,
-        denial_text="Изменять обязательную подписку может только владелец группы.",
+        denial_text="Изменять обязательную подписку может владелец или администратор группы.",
         for_update=for_update,
     )
 

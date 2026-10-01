@@ -35,7 +35,7 @@ async def managed_group_for_message(
         if group is None:
             await message.reply("Группа больше не обслуживается.")
             return None
-    if not await can_manage_group(bot, group, message.from_user.id):
+    if not await can_manage_group(bot, group, message.from_user.id, session):
         await message.reply(denial_text)
         return None
     return group

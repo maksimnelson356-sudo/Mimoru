@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, ModerationReason
 from app.keyboards.panel import moderation_reason_picker, reason_delete_confirm, reason_edit_menu, reasons_menu
-from app.services.access import accessible_group, is_service_owner
+from app.services.access import accessible_group, is_service_owner, owner_or_admin_clause
 from app.services.message_ttl import send_group_notice
 from app.services.moderation_reasons import ensure_default_reasons, normalize_actions
 from app.services.ui import panel_header
@@ -33,7 +33,7 @@ async def owned_group(
 ) -> Group | None:
     q = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
-        q = q.where(Group.owner_telegram_id == user_id)
+        q = q.where(owner_or_admin_clause(user_id))
     if for_update:
         q = q.with_for_update()
     return await session.scalar(q)

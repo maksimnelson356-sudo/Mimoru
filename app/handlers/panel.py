@@ -33,7 +33,7 @@ from app.keyboards.panel import (
     subscription_menu,
     words_admin_menu,
 )
-from app.services.access import is_service_owner
+from app.services.access import is_service_owner, owner_or_admin_clause
 from app.services.plans import (
     PLAN_CATALOG,
     effective_plan,
@@ -104,7 +104,7 @@ async def owned_group(
 ) -> Group | None:
     query = select(Group).where(Group.id == group_id, Group.is_active.is_(True))
     if not is_service_owner(user_id):
-        query = query.where(Group.owner_telegram_id == user_id)
+        query = query.where(owner_or_admin_clause(user_id))
     if for_update:
         query = query.with_for_update()
     return await session.scalar(query)

@@ -22,7 +22,7 @@ async def managed(
         message,
         bot,
         session,
-        denial_text="Изменять защиту сообщений от каналов может только владелец группы.",
+        denial_text="Изменять защиту сообщений от каналов может владелец или администратор группы.",
         for_update=for_update,
     )
 
