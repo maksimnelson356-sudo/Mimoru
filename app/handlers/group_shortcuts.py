@@ -18,6 +18,7 @@ from app.db.rank_models import RankAssignment
 from app.handlers.ad_market_v3 import _group_title_or_placeholder
 from app.handlers.group_commands import group_complaint
 from app.services.access import accessible_group, can_manage_group
+from app.services.public_identity import public_user_token
 from app.services.ranks import RANK_CODES, RANK_LABELS
 from app.services.ui import panel_header
 
@@ -152,20 +153,20 @@ async def oftop_command(message: Message, bot: Bot) -> None:
         return
 
     sender = message.from_user
-    sender_label = (
-        sender.full_name if sender is not None else "Неизвестный пользователь"
-    )
     sender_id = sender.id if sender is not None else 0
-    username = (
-        f"@{sender.username}"
-        if sender is not None and sender.username
-        else "без username"
+    # Имя подставляет транспорт Mimoru (со ссылкой на профиль), username остаётся
+    # отдельным — так владелец видит и подпись, и @handle отправителя.
+    username = f" · @{sender.username}" if sender is not None and sender.username else ""
+    sender_line = (
+        f"От: {public_user_token(sender_id)}{username}"
+        if sender is not None
+        else "От: Неизвестный пользователь"
     )
     text = parts[1].strip()
     owner_text = (
         "Сообщение владельцу Mimoru\n\n"
-        f"От: {sender_label} · {username} · ID {sender_id}\n"
-        f"Группа: {message.chat.title or 'Без названия'} · ID {message.chat.id}\n\n"
+        f"{sender_line}\n"
+        f"Группа: {message.chat.title or 'Без названия'}\n\n"
         f"Сообщение:\n{text}"
     )
 

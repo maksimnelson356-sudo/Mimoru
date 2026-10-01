@@ -10,6 +10,7 @@ from redis.asyncio import Redis
 
 from app.games.recovery import process_game_timeouts, recover_active_games
 from app.services.audit import deliver_pending_logs
+from app.services.message_ttl import process_message_deletions
 from app.services.punishment_expiry import expire_punishments
 from app.services.required_reconciles import process_required_subscription_reconciles
 from app.tasks_ad_cleanup import complete_ad_orders
@@ -74,6 +75,7 @@ async def background_loop(bot: Bot, redis: Redis, stop_event: asyncio.Event) -> 
         await _run_job("expire_captcha_sessions", lambda: expire_captcha_sessions(bot, redis))
         await _run_job("send_scheduled_messages", lambda: send_scheduled_messages(bot))
         await _run_job("deliver_pending_logs", lambda: deliver_pending_logs(bot))
+        await _run_job("process_message_deletions", lambda: process_message_deletions(bot, redis))
         await _run_job("process_game_timeouts", lambda: process_game_timeouts(bot))
 
         if now - last_run["permissions"] >= PERMISSION_TASK_SECONDS:

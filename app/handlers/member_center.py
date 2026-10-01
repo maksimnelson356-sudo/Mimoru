@@ -42,6 +42,7 @@ from app.services.access import (
     accessible_group,
     is_service_owner,
 )
+from app.services.message_ttl import send_group_notice
 from app.services.moderation import UNMUTED, deactivate_punishments, log_action
 from app.services.moderation_reasons import active_reasons
 from app.services.people import calculate_reputation, days_since, trust_label
@@ -485,7 +486,8 @@ async def member_action(
         )
         return
     try:
-        await bot.send_message(
+        await send_group_notice(
+            bot,
             group.telegram_chat_id,
             manual_action_notice(
                 action=action,

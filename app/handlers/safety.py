@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, TrustedUser
 from app.services.owner_management import managed_group_for_message
+from app.services.public_identity import public_user_token
 
 router = Router(name=__name__)
 router.message.filter(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
@@ -49,7 +50,7 @@ async def trust_user(message: Message, bot: Bot, session: AsyncSession) -> None:
         await session.rollback()
         await message.reply("Пользователь уже находится в белом списке.")
         return
-    await message.reply(f"✅ Пользователь {target_id} добавлен в белый список.")
+    await message.reply(f"✅ Пользователь {public_user_token(target_id)} добавлен в белый список.")
 
 
 @router.message(F.text.casefold().in_({"не доверять", "из белого списка", "убрать из белого списка"}))
@@ -66,7 +67,7 @@ async def untrust_user(message: Message, bot: Bot, session: AsyncSession) -> Non
         return
     await session.delete(row)
     await session.commit()
-    await message.reply(f"✅ Пользователь {target_id} удалён из белого списка.")
+    await message.reply(f"✅ Пользователь {public_user_token(target_id)} удалён из белого списка.")
 
 
 @router.message(F.text.casefold().in_({"белый список", "доверенные пользователи"}))
@@ -75,7 +76,7 @@ async def trusted_users(message: Message, bot: Bot, session: AsyncSession) -> No
     if not group:
         return
     rows = (await session.scalars(select(TrustedUser.user_telegram_id).where(TrustedUser.group_id == group.id).order_by(TrustedUser.created_at))).all()
-    text = "\n".join(f"• {user_id}" for user_id in rows) if rows else "Список пуст."
+    text = "\n".join(f"• {public_user_token(user_id)}" for user_id in rows) if rows else "Список пуст."
     await message.reply("Доверенные пользователи\n" + text)
 
 

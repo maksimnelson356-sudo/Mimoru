@@ -476,7 +476,7 @@ async def moderation_command(
         punishments = ", ".join(x.kind for x in active) or "нет"
         await message.reply(
             f"<b>{target.full_name}</b>\n"
-            f"Telegram ID: <code>{target.id}</code>\n"
+            f"Пользователь: {public_user_token(target.id)}\n"
             f"Предупреждений: {warnings}\n"
             f"Активные наказания: {punishments}"
         )

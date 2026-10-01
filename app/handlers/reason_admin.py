@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, ModerationReason
 from app.keyboards.panel import moderation_reason_picker, reason_delete_confirm, reason_edit_menu, reasons_menu
 from app.services.access import accessible_group, is_service_owner
+from app.services.message_ttl import send_group_notice
 from app.services.moderation_reasons import ensure_default_reasons, normalize_actions
 from app.services.ui import panel_header
 from app.services.plans import plan_limit
@@ -347,7 +348,7 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
                 public_delivered = False
                 if result.public_notice:
                     try:
-                        await bot.send_message(int(data["chat_id"]), result)
+                        await send_group_notice(bot, int(data["chat_id"]), result, redis=redis)
                         public_delivered = True
                     except (TelegramBadRequest, TelegramForbiddenError) as notify_exc:
                         import structlog
@@ -382,7 +383,7 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
             public_delivered = True
             if result.public_notice:
                 try:
-                    await bot.send_message(int(data["chat_id"]), result)
+                    await send_group_notice(bot, int(data["chat_id"]), result, redis=redis)
                 except (TelegramBadRequest, TelegramForbiddenError) as notify_exc:
                     public_delivered = False
                     import structlog

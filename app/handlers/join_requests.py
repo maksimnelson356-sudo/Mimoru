@@ -283,8 +283,8 @@ async def pending_requests(message: Message, bot: Bot, session: AsyncSession) ->
         return
     text = ["<b>Ожидающие заявки</b>"]
     for row in rows:
-        username = f"@{row.username}" if row.username else f"ID {row.user_telegram_id}"
-        text.append(f"#{row.id} — {escape(row.first_name)} ({escape(username)})")
+        handle = f" (@{row.username})" if row.username else ""
+        text.append(f"#{row.id} — {escape(row.first_name)}{handle}")
     if uncertain:
         text.append("\n⚠️ Есть заявки с неопределённым результатом после прерванной обработки; они не повторяются автоматически.")
     text.append("\nКоманды: <code>одобрить заявку ID</code> или <code>отклонить заявку ID</code>.")

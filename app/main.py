@@ -142,6 +142,7 @@ from app.services.join_request_transitions import (
     recover_invite_operations,
     recover_join_request_reviews,
 )
+from app.services.message_ttl import bind_redis
 from app.services.moderation_operation_schema import ensure_moderation_operation_schema
 from app.services.moderation_operations import recover_moderation_operation_intents
 from app.services.public_identity import replace_public_group_id_labels
@@ -340,6 +341,7 @@ async def main() -> None:
 
     bot = PlainTextBot(settings.bot_token)
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    bind_redis(redis)
     runtime_tracker = RuntimeTracker(redis)
     health = HealthServer(redis, settings.health_host, settings.health_port)
     dp = Dispatcher(redis=redis)

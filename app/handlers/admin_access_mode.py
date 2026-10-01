@@ -26,6 +26,7 @@ from app.services.ranks import (
     is_service_owner,
     telegram_rights_for_rank,
 )
+from app.services.public_identity import stored_visible_name
 from app.services.telegram_admins import TELEGRAM_ADMIN, sync_telegram_administrators
 from app.services.ui import panel_header
 
@@ -231,7 +232,12 @@ async def admin_access_home(callback: CallbackQuery, bot: Bot, session: AsyncSes
             callback_data=f"admin_access_user:{group.id}:{entry.user_id}",
         )])
     bot_only = [row for row in assignments if getattr(row, "access_mode", BOT_ONLY_MODE) == BOT_ONLY_MODE]
-    bot_only_lines = [f"• ID {row.user_telegram_id} · {_rank_label(row.rank_code)}" for row in bot_only]
+    bot_only_lines = []
+    for row in bot_only:
+        bot_only_lines.append(
+            f"• {await stored_visible_name(row.user_telegram_id)}"
+            f" · {_rank_label(row.rank_code)}"
+        )
     text = panel_header(
         "Администрация и доступ",
         "Telegram-администраторы и управление через Mimoru теперь разделены. Для каждого человека владелец сам выбирает ранг и способ доступа.",
