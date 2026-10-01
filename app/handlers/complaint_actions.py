@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Complaint, ComplaintNotification, Group, UserMessage
 from app.services.access import can_moderate
+from app.services.message_ttl import send_group_notice
 from app.services.moderation import execute
 from app.services.public_identity import public_user_token
 from app.services.rank_access import get_actor_rank_with_access
@@ -541,7 +542,7 @@ async def complaint_ban_clean(
             f"Модератор: {actor}."
         )
     try:
-        await bot.send_message(group.telegram_chat_id, msg)
+        await send_group_notice(bot, group.telegram_chat_id, msg)
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
 

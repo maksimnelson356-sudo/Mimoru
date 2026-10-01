@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, Punishment
 from app.db.pending_bans import PendingBan
 from app.services.access import can_moderate
+from app.services.message_ttl import send_group_notice
 from app.services.permissions import target_is_protected
 from app.services.ranks import can_moderate_target, get_assignment
 from app.services.user_refs import resolve_known_user_reference, user_label
@@ -178,17 +179,23 @@ async def ban_reference(message: Message, bot: Bot, session: AsyncSession) -> No
     await session.commit()
 
     if target_id is None:
-        await message.reply(
+        await send_group_notice(
+            bot,
+            message.chat.id,
             f"🚫 @{username} добавлен в предварительный бан.\n"
-            "Mimoru пока не знает Telegram ID этого аккаунта. Если он войдёт в группу с этим username, бот сразу забанит его."
+            "Mimoru пока не знает Telegram ID этого аккаунта. Если он войдёт в группу с этим username, бот сразу забанит его.",
         )
         return
     label = await user_label(session, target_id)
     if telegram_applied:
-        await message.reply(f"🚫 {label} забанен и сохранён в списке запретов группы.")
+        await send_group_notice(
+            bot, message.chat.id, f"🚫 {label} забанен и сохранён в списке запретов группы."
+        )
     else:
-        await message.reply(
-            f"🚫 Запрет для {label} сохранён. Если пользователь появится в группе, Mimoru применит бан автоматически."
+        await send_group_notice(
+            bot,
+            message.chat.id,
+            f"🚫 Запрет для {label} сохранён. Если пользователь появится в группе, Mimoru применит бан автоматически.",
         )
 
 
@@ -231,7 +238,7 @@ async def unban_reference(message: Message, bot: Bot, session: AsyncSession) -> 
             pass
     await session.commit()
     label = await user_label(session, target_id) if target_id is not None else f"@{username}"
-    await message.reply(f"✅ Запрет для {label} снят.")
+    await send_group_notice(bot, message.chat.id, f"✅ Запрет для {label} снят.")
 
 
 async def enforce_pending_ban_on_join(

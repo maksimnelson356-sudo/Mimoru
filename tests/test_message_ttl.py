@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -161,6 +162,49 @@ async def test_queued_private_entries_are_dropped_without_deleting_anything() ->
     bot.delete_message.assert_not_awaited()
     redis.zrem.assert_awaited_once_with(TTL_QUEUE_KEY, "123456:456")
     redis.zadd.assert_not_awaited()
+
+
+# --- wiring contracts: moderation results must go through the queue ----------
+
+MODERATION_RESULT_SOURCES = {
+    "app/handlers/group.py": (
+        "await send_group_notice(bot, message.chat.id, result, redis=redis)"
+    ),
+    "app/handlers/moderation_command_modes.py": (
+        "await send_group_notice(bot, message.chat.id, result, redis=redis)"
+    ),
+    "app/handlers/group_commands.py": (
+        "await send_group_notice(bot, message.chat.id, notice)"
+    ),
+    "app/handlers/complaint_actions.py": (
+        "await send_group_notice(bot, group.telegram_chat_id, msg)"
+    ),
+}
+
+
+def test_moderation_result_notices_are_scheduled_for_removal() -> None:
+    """Regression guard: text-command results used to reply plainly and stayed forever."""
+    for path, expected in MODERATION_RESULT_SOURCES.items():
+        source = Path(path).read_text(encoding="utf-8")
+        assert expected in source, path
+
+    group_src = Path("app/handlers/group.py").read_text(encoding="utf-8")
+    assert "await message.reply(result)" not in group_src
+
+    modes_src = Path("app/handlers/moderation_command_modes.py").read_text(
+        encoding="utf-8"
+    )
+    assert "await message.reply(result)" not in modes_src
+
+    commands_src = Path("app/handlers/group_commands.py").read_text(encoding="utf-8")
+    assert "await message.reply(notice)" not in commands_src
+
+
+def test_deferred_ban_results_no_longer_use_plain_replies() -> None:
+    source = Path("app/handlers/deferred_bans.py").read_text(encoding="utf-8")
+    assert source.count("await send_group_notice(") >= 4
+    assert 'await message.reply(f"🚫 {label} забанен' not in source
+    assert 'await message.reply(f"✅ Запрет для {label} снят.")' not in source
 
 
 @pytest.mark.asyncio

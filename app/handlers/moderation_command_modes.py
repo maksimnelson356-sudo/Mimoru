@@ -25,6 +25,7 @@ from app.services.access import (
     is_service_owner,
     owned_group,
 )
+from app.services.message_ttl import send_group_notice
 from app.services.moderation import execute
 from app.services.moderation_reasons import active_reasons
 from app.services.permissions import target_is_protected
@@ -504,7 +505,7 @@ async def moderation_command_mode(
                 ),
             )
             await session.commit()
-            await message.reply(result)
+            await send_group_notice(bot, message.chat.id, result, redis=redis)
         except (TelegramBadRequest, TelegramForbiddenError) as exc:
             await session.rollback()
             await message.reply(f"Не удалось выполнить действие: {exc.message}")
