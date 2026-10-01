@@ -11,6 +11,7 @@ from app.db.group_disconnect_models import GroupDisconnectIntent
 from app.db.models import Group
 from app.db.session import SessionFactory
 from app.services.access import is_service_owner
+from app.services.rank_departure import deactivate_all_ranks
 
 
 ABSENT_STATUSES = {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}
@@ -76,6 +77,9 @@ async def _finalize_disconnect(
 ) -> bool:
     """Finalize while retaining the caller's Group row ownership lock."""
     group.is_active = False
+    # Staff access must leave with the group: a later reconnect must not restore
+    # the old team automatically — owners re-appoint people on purpose.
+    await deactivate_all_ranks(session, group)
     await session.delete(intent)
     await session.commit()
     return True

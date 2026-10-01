@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.services.safety import should_force_verification
 from app.db.models import Group, NewMemberRecord, RequiredChannel, TrustedUser
+from app.db.rank_models import RankAssignment
 from app.handlers.deferred_bans import enforce_pending_ban_on_join
 from app.services.captcha_state import claim_verified_captcha
 from app.services.captcha_verification import (
@@ -21,6 +22,11 @@ from app.services.captcha_verification import (
 )
 from app.services.deleted_accounts import track_group_member
 from app.services.public_identity import public_user_token
+from app.services.rank_departure import (
+    deactivate_rank_on_leave,
+    note_member_return,
+    rank_label,
+)
 from app.services.required_resources import resolve_channel_url
 
 router = Router(name=__name__)
@@ -199,14 +205,64 @@ async def noop_callback(callback: CallbackQuery) -> None:
     await callback.answer("Ссылка недоступна. Обратитесь к администратору группы.", show_alert=True)
 
 
+ABSENT_MEMBER_STATUSES = {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}
+PRESENT_MEMBER_STATUSES = {
+    ChatMemberStatus.MEMBER,
+    ChatMemberStatus.ADMINISTRATOR,
+    ChatMemberStatus.CREATOR,
+    ChatMemberStatus.RESTRICTED,
+}
+
+
 @router.chat_member()
-async def track_chat_member_update(event: ChatMemberUpdated, session: AsyncSession) -> None:
-    group = await session.scalar(select(Group).where(
-        Group.telegram_chat_id == event.chat.id,
-        Group.is_active.is_(True),
-    ))
+async def track_chat_member_update(event: ChatMemberUpdated, bot: Bot, session: AsyncSession) -> None:
+    group = await session.scalar(
+        select(Group).where(Group.telegram_chat_id == event.chat.id)
+    )
     if group is None:
         return
     target = event.new_chat_member.user
-    present = event.new_chat_member.status not in {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}
+    present = event.new_chat_member.status not in ABSENT_MEMBER_STATUSES
+    was_present = event.old_chat_member.status not in ABSENT_MEMBER_STATUSES
     await track_group_member(session, group.id, target, present=present, checked=True)
+    if not group.is_active:
+        # A disconnected group has no live staff state to maintain, but the member
+        # history above keeps the directory accurate for the next reconnect.
+        await session.commit()
+        return
+
+    owner_notice: str | None = None
+    if not present and was_present:
+        removed_rank = await deactivate_rank_on_leave(session, group, target.id)
+        if removed_rank is not None:
+            owner_notice = (
+                f"👋 {public_user_token(target.id)} вышел из группы «{group.title}».\n\n"
+                f"Ранг «{rank_label(removed_rank)}» снят, доступ к панели Mimoru больше не действует.\n"
+                "Если человек вернётся, ранг нужно назначить заново."
+            )
+    elif present and not was_present:
+        previous = await session.scalar(
+            select(RankAssignment.rank_code)
+            .where(
+                RankAssignment.group_id == group.id,
+                RankAssignment.user_telegram_id == target.id,
+                RankAssignment.active.is_(False),
+            )
+            .order_by(RankAssignment.updated_at.desc())
+            .limit(1)
+        )
+        if previous is not None:
+            await note_member_return(session, group, target.id, previous_rank=previous)
+            owner_notice = (
+                f"🔄 {public_user_token(target.id)} снова в группе «{group.title}».\n\n"
+                f"Прежний ранг «{rank_label(previous)}» после выхода не возвращается автоматически. "
+                "Назначьте его заново, если человек снова в команде."
+            )
+
+    await session.commit()
+    if owner_notice and group.owner_telegram_id:
+        try:
+            await bot.send_message(group.owner_telegram_id, owner_notice)
+        except (TelegramBadRequest, TelegramForbiddenError):
+            pass
+

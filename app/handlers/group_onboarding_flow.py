@@ -13,10 +13,11 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Group
+from app.db.group_disconnect_models import GroupDisconnectIntent
+from app.db.models import Group, User
 from app.services.access import is_service_owner
 from app.services.group_disconnects import (
     attempt_group_disconnect,
@@ -105,6 +106,29 @@ async def _bot_admin_status(bot: Bot, chat_id: int) -> bool | None:
     return member.status == ChatMemberStatus.ADMINISTRATOR
 
 
+async def _reactivate_group(session: AsyncSession, group: Group) -> bool:
+    """Bring a previously disconnected group back into service.
+
+    A group leaves service either by the owner's «отключиться» or automatically
+    after the bot loses administrator rights (app.services.group_disconnects).
+    Only the word «подключить» from the owner used to flip is_active back, so in
+    the meantime every panel action answered «Доступ к группе потерян» even after
+    the bot was added again. Re-adding Mimoru as administrator restores service
+    here; it never changes the owner and never lifts a service block.
+    """
+    if group.is_active:
+        return False
+    if group.owner_telegram_id:
+        owner = await session.get(User, group.owner_telegram_id)
+        if owner is not None and owner.service_blocked:
+            return False
+    group.is_active = True
+    await session.execute(
+        delete(GroupDisconnectIntent).where(GroupDisconnectIntent.group_id == group.id)
+    )
+    return True
+
+
 @router.my_chat_member()
 async def bot_group_membership_changed(event: ChatMemberUpdated, bot: Bot, session: AsyncSession) -> None:
     if event.chat.type not in GROUP_TYPES or event.new_chat_member.user.id != bot.id:
@@ -112,18 +136,43 @@ async def bot_group_membership_changed(event: ChatMemberUpdated, bot: Bot, sessi
     old_status = event.old_chat_member.status
     new_status = event.new_chat_member.status
     if new_status == ChatMemberStatus.ADMINISTRATOR and old_status != ChatMemberStatus.ADMINISTRATOR:
+        group = await session.scalar(
+            select(Group).where(Group.telegram_chat_id == event.chat.id)
+        )
+        reconnected = group is not None and await _reactivate_group(session, group)
+        if reconnected:
+            await session.commit()
         try:
-            await bot.send_message(
-                event.chat.id,
-                "👋 Mimoru получила права администратора и готова к подключению группы.\n\n"
-                "1️⃣ Убедитесь, что Mimoru назначена администратором.\n"
-                "2️⃣ Владелец группы должен отправить команду «подключить».\n"
-                "3️⃣ После подключения дальнейшая настройка продолжится в личном диалоге с Mimoru.\n\n"
-                "Нажмите кнопку ниже — слово «подключить» скопируется в буфер обмена. Затем вставьте его в чат и отправьте.",
-                reply_markup=_connect_command_markup(),
-            )
+            if reconnected:
+                await bot.send_message(
+                    event.chat.id,
+                    "🔌 Mimoru снова администратор — группа возвращена в обслуживание.\n\n"
+                    "Настройки, ранги и защита остались там, где были. "
+                    "Управлять группой можно в личном диалоге с Mimoru.",
+                )
+            else:
+                await bot.send_message(
+                    event.chat.id,
+                    "👋 Mimoru получила права администратора и готова к подключению группы.\n\n"
+                    "1️⃣ Убедитесь, что Mimoru назначена администратором.\n"
+                    "2️⃣ Владелец группы должен отправить команду «подключить».\n"
+                    "3️⃣ После подключения дальнейшая настройка продолжится в личном диалоге с Mimoru.\n\n"
+                    "Нажмите кнопку ниже — слово «подключить» скопируется в буфер обмена. Затем вставьте его в чат и отправьте.",
+                    reply_markup=_connect_command_markup(),
+                )
         except (TelegramBadRequest, TelegramForbiddenError):
             pass
+        if reconnected and group is not None and group.owner_telegram_id:
+            try:
+                await bot.send_message(
+                    group.owner_telegram_id,
+                    f"🔌 Группа «{group.title}» снова подключена к Mimoru: "
+                    "боту вернули права администратора.\n"
+                    "Отключенные ранее ранги администраторов не возвращаются — "
+                    "назначьте нужных людей заново.",
+                )
+            except (TelegramBadRequest, TelegramForbiddenError):
+                pass
         return
     if old_status in INACTIVE_BOT_STATUSES and new_status == ChatMemberStatus.MEMBER:
         try:
