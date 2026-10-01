@@ -388,7 +388,7 @@ async def list_moderators(message: Message, bot: Bot, session: AsyncSession) -> 
     ).all()
     labels = {"senior": "старший", "moderator": "модератор", "helper": "помощник"}
     lines = [
-        f"• <code>{item.user_telegram_id}</code> — {labels.get(item.role, item.role)}"
+        f"• {public_user_token(item.user_telegram_id)} — {labels.get(item.role, item.role)}"
         for item in items
     ]
     await message.reply(

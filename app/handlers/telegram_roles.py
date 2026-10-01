@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, User
 from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEvent
-from app.services.public_identity import public_user_token, stored_visible_name
+from app.services.public_identity import _utf16_len, public_user_token, stored_visible_name
 from app.services.ranks import (
     ADMIN_RANKS,
     CHAT_ADMIN,
@@ -118,6 +118,16 @@ async def _assignment_rows(session: AsyncSession, group_id: int) -> list[RankAss
     )
 
 
+def _rank_button_text(rank_code: str, name: str) -> str:
+    """Rank plus a display name, kept inside Telegram's 64-character button limit."""
+    text = f"{_rank_label(rank_code)} · {name}"
+    if _utf16_len(text) <= 64:
+        return text
+    while name and _utf16_len(f"{_rank_label(rank_code)} · {name}…") > 64:
+        name = name[:-1]
+    return f"{_rank_label(rank_code)} · {name}…"
+
+
 async def _roles_markup(
     session: AsyncSession,
     group: Group,
@@ -127,9 +137,11 @@ async def _roles_markup(
     actor = await get_actor_rank(session, group, actor_id)
     buttons: list[list[InlineKeyboardButton]] = []
     for item in sorted(rows, key=lambda row: (-__import__("app.services.ranks", fromlist=["rank_level"]).rank_level(row.rank_code), row.user_telegram_id)):
+        # The button shows the stored display name, never a raw numeric id.
+        name = await stored_visible_name(item.user_telegram_id)
         buttons.append([
             InlineKeyboardButton(
-                text=f"{_rank_label(item.rank_code)} · {item.user_telegram_id}",
+                text=_rank_button_text(item.rank_code, name),
                 callback_data=f"rank_edit:{group.id}:{item.id}",
             )
         ])

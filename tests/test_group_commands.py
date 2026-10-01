@@ -15,6 +15,24 @@ def test_duration_parser_supports_command_units() -> None:
     assert parse_duration("без времени") is None
 
 
+# --- wiring contracts: user menus show names, never raw numeric ids ----------
+
+
+def test_rank_screen_buttons_show_names_instead_of_ids() -> None:
+    """Regression guard: panel rank buttons used to print the raw user id."""
+    source = (ROOT / "app/handlers/telegram_roles.py").read_text(encoding="utf-8")
+    assert "stored_visible_name(item.user_telegram_id)" in source
+    assert "text=f\"{_rank_label(item.rank_code)} · {item.user_telegram_id}\"" not in source
+    assert "def _rank_button_text" in source
+
+
+def test_group_roles_list_shows_names_instead_of_ids() -> None:
+    """Regression guard: the «роли» list used to print the raw user id."""
+    source = (ROOT / "app/handlers/group.py").read_text(encoding="utf-8")
+    assert "public_user_token(item.user_telegram_id)" in source
+    assert "<code>{item.user_telegram_id}" not in source
+
+
 def test_group_commands_only_keep_release_and_complaint_shortcuts() -> None:
     source = (ROOT / "app/handlers/group_commands.py").read_text(encoding="utf-8")
     assert '"говори"' in source
