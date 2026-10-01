@@ -239,7 +239,10 @@ async def _execute_live_intent(
     elif intent.telegram_action == "demote":
         if not await demote_telegram_admin(bot, group, intent.user_telegram_id):
             await _drop_intent(session, intent)
-            return False, "Не удалось снять Telegram-права администратора.", None
+            return False, (
+                "Не удалось снять Telegram-права администратора. "
+                "Проверьте, что у Mimoru есть право назначать администраторов в группе."
+            ), None
     elif intent.telegram_action != "none":
         await _drop_intent(session, intent)
         return False, "Неизвестное действие Telegram для изменения ранга.", None

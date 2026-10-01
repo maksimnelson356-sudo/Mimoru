@@ -450,6 +450,24 @@ def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
 
 
 async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
+    """Demote a bot-managed admin, or accept when there is nothing left to demote.
+
+    Telegram strips administrator rights the moment a member leaves, and the group
+    owner can demote people manually at any time — in both cases the bot-side flag
+    ``telegram_admin_managed`` lags behind reality. Demoting a member who is no
+    longer a live administrator is a no-op, so treating it as success keeps rank
+    removal working instead of failing on the stale state. Only a live
+    administrator that Telegram refuses to demote (e.g. the bot lost its own admin
+    rights) is an actual failure.
+    """
+    try:
+        member = await bot.get_chat_member(group.telegram_chat_id, user_id)
+    except (TelegramBadRequest, TelegramForbiddenError):
+        # The bot cannot see the chat anymore: there is nothing it can demote.
+        return True
+    if member.status != ChatMemberStatus.ADMINISTRATOR:
+        # Left, kicked, plain member: Telegram already stripped the rights.
+        return True
     try:
         await bot.promote_chat_member(
             group.telegram_chat_id,

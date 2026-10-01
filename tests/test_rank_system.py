@@ -1,3 +1,11 @@
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from aiogram.enums import ChatMemberStatus
+from aiogram.exceptions import TelegramForbiddenError
+from aiogram.methods import GetChatMember, PromoteChatMember
+
 from app.services.ranks import (
     ADMIN_RANKS,
     CHAT_ADMIN,
@@ -11,6 +19,7 @@ from app.services.ranks import (
     VOICE_ADMIN,
     ActorRank,
     assignable_ranks,
+    demote_telegram_admin,
     telegram_rights_for_rank,
 )
 
@@ -92,6 +101,53 @@ def test_untouchable_is_enforced_before_group_handlers() -> None:
     handler = source.index("result = await handler(event, data)", early_return)
     assert assignment < active < gate < early_return < handler
     assert assignment < rank < gate
+
+
+# --- demote_telegram_admin: a stale bot-side flag must not block removal -----
+
+
+def _group() -> SimpleNamespace:
+    return SimpleNamespace(id=7, telegram_chat_id=-100123)
+
+
+@pytest.mark.asyncio
+async def test_demote_accepts_when_there_is_nothing_to_demote() -> None:
+    """Regression guard: removal used to fail with «Не удалось снять
+    Telegram-права администратора» when the person had already lost their admin
+    rights outside the bot — Telegram strips them on leave, and the group owner
+    can demote manually at any time.
+    """
+    gone = TelegramForbiddenError(
+        method=GetChatMember(chat_id=-100123, user_id=123),
+        message="bot is not a member of the group chat",
+    )
+    bot = SimpleNamespace(get_chat_member=AsyncMock(side_effect=gone))
+    assert await demote_telegram_admin(bot, _group(), 123) is True
+
+    # A plain member (or a kicked one) has nothing left to demote either, and no
+    # promote call is ever made for them.
+    for status in (ChatMemberStatus.MEMBER, ChatMemberStatus.KICKED):
+        bot = SimpleNamespace(
+            get_chat_member=AsyncMock(return_value=SimpleNamespace(status=status))
+        )
+        assert await demote_telegram_admin(bot, _group(), 123) is True
+        bot.get_chat_member.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_demote_still_fails_when_telegram_refuses_a_live_admin() -> None:
+    admin = SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR)
+    bot = SimpleNamespace(
+        get_chat_member=AsyncMock(return_value=admin),
+        promote_chat_member=AsyncMock(
+            side_effect=TelegramForbiddenError(
+                method=PromoteChatMember(chat_id=-100123, user_id=123),
+                message="not enough rights",
+            )
+        ),
+    )
+    assert await demote_telegram_admin(bot, _group(), 123) is False
+    bot.promote_chat_member.assert_awaited_once()
 
 
 def test_manual_moderation_checks_target_rank() -> None:
