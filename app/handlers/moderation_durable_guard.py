@@ -21,6 +21,7 @@ from app.db.rank_models import RankAssignment
 from app.handlers import group_commands, member_center, reason_admin
 from app.handlers.complaint_actions import _delete_user_messages
 from app.services.access import can_moderate, is_service_owner
+from app.services.public_identity import public_user_token
 from app.services.message_ttl import (
     PROMPT_TTL_SECONDS,
     schedule_message_deletion,
@@ -294,7 +295,9 @@ async def durable_reason_action(
         if callback.message is None:
             await callback.answer("Сообщение недоступно.", show_alert=True)
             return
-        target_name = str(data.get("target_name", target_id))
+        # Old callbacks from history may carry no stored name: fall back to the
+        # public token, never to a raw numeric id.
+        target_name = str(data.get("target_name") or public_user_token(target_id))
         text = (
             "🛑 Подтверждение бана\n\n"
             f"👤 Нарушитель: {target_name}\n\n"
@@ -642,7 +645,7 @@ async def _durable_ban_execute(
             default_mute=int(
                 data.get("default_mute") or group.settings.default_mute_seconds
             ),
-            target_name=str(data.get("target_name", target_id)),
+            target_name=str(data.get("target_name") or public_user_token(target_id)),
             moderator_name=str(data.get("moderator_name", callback.from_user.id)),
             actor_role=data.get("actor_role", "admin"),
         )

@@ -351,3 +351,12 @@ async def test_gone_messages_are_dropped_instead_of_retried() -> None:
 
     assert await process_message_deletions(bot, redis) == 1
     assert redis.zadd.await_count == 0
+def test_ban_confirmation_prompts_never_fall_back_to_a_raw_id() -> None:
+    """Regression guard: the moderation-command confirmation used to render the
+    bare numeric target id when the pending payload carried no stored name."""
+    guard = Path("app/handlers/moderation_durable_guard.py").read_text(encoding="utf-8")
+    assert 'data.get("target_name") or public_user_token(target_id)' in guard
+    assert 'data.get("target_name", target_id)' not in guard
+
+    complaint = Path("app/handlers/complaint_actions.py").read_text(encoding="utf-8")
+    assert "public_user_token(complaint.target_telegram_id)" in complaint
