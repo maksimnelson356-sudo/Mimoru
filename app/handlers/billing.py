@@ -284,6 +284,10 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
             group_id = int(parts[2])
         except ValueError:
             return
+        # Lock order: Group first, then Payment (prevents deadlocks)
+        group = await _locked_group(session, group_id)
+        if group is None:
+            return
         payment = await _locked_payment(session, payment_id)
         if payment is None:
             return
@@ -359,10 +363,7 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
             or successful.total_amount != payment.amount
         ):
             return
-        group = await _locked_group(session, group_id)
-        if group is None:
-            return
-        now = datetime.now(timezone.utc)
+        # Group already locked at the start (lock order: Group -> Payment)
         if group.owner_telegram_id != message.from_user.id or not group.is_active:
             await _refund_stale_subscription_payment(
                 message,

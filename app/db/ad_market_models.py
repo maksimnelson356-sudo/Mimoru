@@ -50,7 +50,7 @@ class GlobalPostRequest(Base):
     button_text: Mapped[str | None] = mapped_column(String(64))
     button_url: Mapped[str | None] = mapped_column(String(2048))
     price_stars: Mapped[int] = mapped_column(Integer)
-    payment_charge_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    payment_charge_id: Mapped[str | None] = mapped_column(String(255))
     reviewed_by_telegram_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

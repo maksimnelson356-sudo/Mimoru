@@ -20,7 +20,7 @@ class RankAssignment(Base):
     helper_for_telegram_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     # telegram = the role is mirrored to Telegram administrator rights;
     # bot_only = the person manages the group only through Mimoru.
-    access_mode: Mapped[str] = mapped_column(String(16), default="bot_only", server_default="bot_only", index=True)
+    access_mode: Mapped[str] = mapped_column(String(16), server_default="bot_only", index=True)
     telegram_admin_managed: Mapped[bool] = mapped_column(Boolean, default=False)
     restore_after_mute: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

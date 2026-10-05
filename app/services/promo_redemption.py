@@ -27,8 +27,8 @@ async def _redeem_locked_promo(
     session: AsyncSession,
     *,
     promo: PromoCode,
+    group: Group,
     user_telegram_id: int,
-    group_id: int,
     now: datetime,
 ) -> PromoRedemptionResult:
     if not promo_is_available(
@@ -49,16 +49,7 @@ async def _redeem_locked_promo(
     if existing_use is not None:
         raise PromoRedemptionError("Вы уже использовали этот промокод.")
 
-    group = await session.scalar(
-        select(Group).where(
-            Group.id == group_id,
-            Group.owner_telegram_id == user_telegram_id,
-            Group.is_active.is_(True),
-        ).with_for_update()
-    )
-    if group is None:
-        raise PromoRedemptionError("Группа не найдена или не принадлежит вам.")
-
+    # Group is already locked by caller (lock order: Group -> PromoCode)
     promo.current_uses += 1
     group.plan_code = promo.plan_code
     group.plan_expires_at = extend_plan(group.plan_expires_at, promo.bonus_days, now=now)
@@ -97,6 +88,16 @@ async def redeem_promo_code(
     code = normalize_promo_code(raw_code)
     if not code:
         raise PromoRedemptionError("Промокод пуст.")
+    # Lock order: Group first, then PromoCode (prevents deadlocks)
+    group = await session.scalar(
+        select(Group).where(
+            Group.id == group_id,
+            Group.owner_telegram_id == user_telegram_id,
+            Group.is_active.is_(True),
+        ).with_for_update()
+    )
+    if group is None:
+        raise PromoRedemptionError("Группа не найдена или не принадлежит вам.")
     promo = await session.scalar(
         select(PromoCode).where(PromoCode.code == code).with_for_update()
     )
@@ -105,8 +106,8 @@ async def redeem_promo_code(
     return await _redeem_locked_promo(
         session,
         promo=promo,
+        group=group,
         user_telegram_id=user_telegram_id,
-        group_id=group_id,
         now=now,
     )
 
@@ -121,6 +122,16 @@ async def redeem_promo_id(
 ) -> PromoRedemptionResult:
     """Redeem a promo selected by a short callback-safe database id."""
     now = now or datetime.now(timezone.utc)
+    # Lock order: Group first, then PromoCode (prevents deadlocks)
+    group = await session.scalar(
+        select(Group).where(
+            Group.id == group_id,
+            Group.owner_telegram_id == user_telegram_id,
+            Group.is_active.is_(True),
+        ).with_for_update()
+    )
+    if group is None:
+        raise PromoRedemptionError("Группа не найдена или не принадлежит вам.")
     promo = await session.scalar(
         select(PromoCode).where(PromoCode.id == promo_id).with_for_update()
     )
@@ -129,7 +140,7 @@ async def redeem_promo_id(
     return await _redeem_locked_promo(
         session,
         promo=promo,
+        group=group,
         user_telegram_id=user_telegram_id,
-        group_id=group_id,
         now=now,
     )

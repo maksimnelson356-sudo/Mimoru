@@ -14,20 +14,24 @@ def test_redemption_locks_promo_and_group_before_mutation() -> None:
     )[0]
     id_path = source.split("async def redeem_promo_id", 1)[1]
 
-    group_lock = helper.index("select(Group).where(")
+    # In helper: mutations happen after locks (Group already locked by caller)
     use_increment = helper.index("promo.current_uses += 1")
     expiry_write = helper.index("group.plan_expires_at = extend_plan")
     flush = helper.index("await session.flush()")
-    assert group_lock < use_increment < flush
-    assert group_lock < expiry_write < flush
+    assert use_increment < flush
+    assert expiry_write < flush
 
-    code_lock = code_path.index("select(PromoCode).where(PromoCode.code == code).with_for_update()")
+    # In redeem_promo_code: Group lock before PromoCode lock
+    code_group_lock = code_path.index("select(Group).where(")
+    code_promo_lock = code_path.index("select(PromoCode).where(PromoCode.code == code).with_for_update()")
     code_redeem = code_path.index("return await _redeem_locked_promo(")
-    assert code_lock < code_redeem
+    assert code_group_lock < code_promo_lock < code_redeem
 
-    id_lock = id_path.index("select(PromoCode).where(PromoCode.id == promo_id).with_for_update()")
+    # In redeem_promo_id: Group lock before PromoCode lock
+    id_group_lock = id_path.index("select(Group).where(")
+    id_promo_lock = id_path.index("select(PromoCode).where(PromoCode.id == promo_id).with_for_update()")
     id_redeem = id_path.index("return await _redeem_locked_promo(")
-    assert id_lock < id_redeem
+    assert id_group_lock < id_promo_lock < id_redeem
 
 
 def test_redemption_enforces_owner_and_one_use_per_user() -> None:

@@ -465,7 +465,7 @@ class Payment(Base):
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
     )
     provider: Mapped[str] = mapped_column(String(32), default="telegram_stars")
-    provider_payment_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    provider_payment_id: Mapped[str | None] = mapped_column(String(255))
     amount: Mapped[int] = mapped_column(Integer)
     currency: Mapped[str] = mapped_column(String(8), default="XTR")
     plan_code: Mapped[str] = mapped_column(String(32))
