@@ -38,7 +38,12 @@ docker compose up -d backup
 
 echo "==> Проверка кода внутри запущенного контейнера..."
 if ! docker compose exec -T bot python -c 'from app.handlers.moderation_command_modes import _split_command; assert _split_command("Пред\nВ") == ("пред", [], "В")'; then
-  echo "ОШИБКА: контейнер bot запущен не с ожидаемым обработчиком многострочной причины."
+  # exec fails for any reason: dead container, failed migration, failed preflight,
+  # broken import. Show the real cause instead of blaming the reason parser.
+  echo "ОШИБКА: проверка кода в контейнере bot не пройдена. Состояние контейнера:"
+  docker compose ps -a bot
+  echo "--- логи бота ---"
+  docker compose logs --tail=120 bot
   exit 1
 fi
 
