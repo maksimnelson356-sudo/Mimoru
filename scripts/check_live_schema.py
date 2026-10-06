@@ -100,9 +100,10 @@ def compare(connection) -> tuple[list[str], list[str]]:
         orm_table = Base.metadata.tables[name]
 
         live_columns = {column["name"] for column in inspector.get_columns(name)}
-        for column in sorted(orm_table.columns.keys() - live_columns):
+        orm_columns = set(orm_table.columns.keys())
+        for column in sorted(orm_columns - live_columns):
             errors.append(f"column missing in the database: {name}.{column}")
-        for column in sorted(live_columns - set(orm_table.columns.keys())):
+        for column in sorted(live_columns - orm_columns):
             warnings.append(f"column exists in the database but not in the ORM: {name}.{column}")
 
         live_indexes = live_index_signatures(inspector.get_indexes(name))
