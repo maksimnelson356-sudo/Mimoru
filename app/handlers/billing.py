@@ -364,6 +364,7 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
         ):
             return
         # Group already locked at the start (lock order: Group -> Payment)
+        now = datetime.now(timezone.utc)
         if group.owner_telegram_id != message.from_user.id or not group.is_active:
             await _refund_stale_subscription_payment(
                 message,
