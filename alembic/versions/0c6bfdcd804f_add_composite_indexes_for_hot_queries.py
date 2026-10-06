@@ -65,13 +65,10 @@ def upgrade() -> None:
         unique=False,
     )
 
-    # daily_stats: common aggregation queries
-    op.create_index(
-        "ix_daily_stats_group_date",
-        "daily_stats",
-        ["group_id", "date"],
-        unique=False,
-    )
+    # daily_stats: ix_daily_stats_group_date on (group_id, date) is intentionally
+    # absent here - 0004_full_features already created it on every database, so
+    # creating it again aborts alembic with DuplicateTableError. It is declared in
+    # the DailyStat ORM model so ORM and schema stay in sync.
 
     # complaints: common lookup by group + reporter/target
     op.create_index(
@@ -91,7 +88,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_complaints_group_target_created", table_name="complaints")
     op.drop_index("ix_complaints_group_reporter_created", table_name="complaints")
-    op.drop_index("ix_daily_stats_group_date", table_name="daily_stats")
     op.drop_index("ix_payments_status_user_created", table_name="payments")
     op.drop_index("ix_moderation_logs_group_target_created", table_name="moderation_logs")
     op.drop_index("ix_global_post_requests_buyer_status", table_name="global_post_requests")
