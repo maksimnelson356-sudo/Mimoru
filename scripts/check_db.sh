@@ -69,7 +69,9 @@ echo "==> Preflight против живого PostgreSQL и Redis..."
 python -m app.preflight
 
 echo "==> Сверка живой схемы с ORM..."
-python scripts/check_live_schema.py
+# Run as a module: a bare script path puts scripts/ on sys.path, not the
+# repository root, so `import app` would fail.
+python -m scripts.check_live_schema
 
 echo "==> Тесты против живой базы..."
 pytest -q -m db
