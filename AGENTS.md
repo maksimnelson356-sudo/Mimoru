@@ -4,7 +4,7 @@
 
 Источник истины проекта — ветка `main` публичного GitHub-репозитория:
 
-`tarassirak902-creator/Mimoru`
+`maksimnelson356-sudo/Mimoru`
 
 Серверная копия:
 
