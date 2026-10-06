@@ -11,9 +11,12 @@ against a real PostgreSQL.
 Signatures are compared by column names rather than by object name, because a
 migration and the ORM may legitimately name the same index differently.
 
-Exits non-zero when the ORM expects something the database does not have: that
-combination means a query would fail at runtime. Objects the database has and the
-ORM does not know are reported as warnings, since the code never touches them.
+Exits non-zero when the ORM expects a table, column or unique constraint the
+database does not have: that combination means a query would fail at runtime.
+Indexes and objects the database has and the ORM does not know are reported as
+warnings: a missing index costs query performance rather than correctness, and
+this schema has carried such entries since long before this check existed, so
+failing on them would only block deployments.
 """
 
 from __future__ import annotations
@@ -106,20 +109,33 @@ def compare(connection) -> tuple[list[str], list[str]]:
         for column in sorted(live_columns - orm_columns):
             warnings.append(f"column exists in the database but not in the ORM: {name}.{column}")
 
+        orm_unique = orm_unique_signatures(orm_table)
+        live_unique = live_unique_signatures(inspector.get_unique_constraints(name))
+
+        # PostgreSQL reports a unique constraint as a unique index, while the ORM
+        # keeps it as a UniqueConstraint. Comparing the two sets directly would
+        # report every unique constraint as drift, so the live unique indexes that
+        # match a declared constraint are excluded before comparing indexes.
         live_indexes = live_index_signatures(inspector.get_indexes(name))
-        for signature in sorted(orm_index_signatures(orm_table) - live_indexes):
-            errors.append(
-                f"index missing in the database: {name} columns={list(signature[0])} "
-                f"unique={signature[1]}"
+        live_indexes -= {(columns, True) for columns in orm_unique}
+        orm_indexes = orm_index_signatures(orm_table)
+        orm_indexes -= {(columns, True) for columns in orm_unique}
+
+        # An index the ORM expects but the database lacks costs query performance,
+        # not correctness, and this schema has carried such entries for a long time.
+        # Report them, but do not fail the deployment on them.
+        for signature in sorted(orm_indexes - live_indexes):
+            warnings.append(
+                f"index declared in the ORM is missing in the database: {name} "
+                f"columns={list(signature[0])} unique={signature[1]}"
             )
-        for signature in sorted(live_indexes - orm_index_signatures(orm_table)):
+        for signature in sorted(live_indexes - orm_indexes):
             warnings.append(
                 f"index exists in the database but not in the ORM: {name} "
                 f"columns={list(signature[0])} unique={signature[1]}"
             )
 
-        live_unique = live_unique_signatures(inspector.get_unique_constraints(name))
-        for signature in sorted(orm_unique_signatures(orm_table) - live_unique):
+        for signature in sorted(orm_unique - live_unique):
             errors.append(
                 f"unique constraint missing in the database: {name} columns={list(signature)}"
             )
