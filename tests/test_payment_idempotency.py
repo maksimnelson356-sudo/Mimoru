@@ -45,6 +45,35 @@ def test_duplicate_charge_integrity_error_is_verified_before_suppression() -> No
     assert "raise" in commit_helper
 
 
+def test_subscription_locks_group_before_payment() -> None:
+    """Group must be locked before Payment, never the reverse.
+
+    The refund recovery services lock Payment on its own, so a handler that took
+    Payment first would form a Payment -> Group order against Group -> Payment
+    and deadlock under concurrent payment and refund.
+    """
+    source = _billing_source()
+    handler = source.split("async def successful_payment", 1)[1]
+    subscription = handler.split('if len(parts) == 4 and parts[0] == "payment":', 1)[1]
+    assert subscription.index("await _locked_group") < subscription.index("await _locked_payment")
+
+
+def test_payment_timestamp_is_bound_before_first_use() -> None:
+    """Regression guard: hoisting the Group lock above the validation block dropped
+    the `now` assignment while its uses stayed, so every successful Stars payment
+    raised NameError. Static gates caught it as F821 only after it shipped."""
+    source = _billing_source()
+    handler = source.split("async def successful_payment", 1)[1]
+    subscription = handler.split('if len(parts) == 4 and parts[0] == "payment":', 1)[1]
+    binding = "now = datetime.now(timezone.utc)"
+    assert subscription.count(binding) == 1
+    first_use = min(
+        subscription.index(needle)
+        for needle in ("now=now", "else now", "paid_at = now")
+    )
+    assert subscription.index(binding) < first_use
+
+
 def test_terminal_global_post_distinguishes_same_charge_from_distinct_charge() -> None:
     source = _billing_source()
     handler = source.split("async def successful_payment", 1)[1]
