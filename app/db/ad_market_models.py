@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -42,6 +42,21 @@ class GlobalPostRequest(Base):
     """Network-wide ad post reviewed by a Mimoru service owner before payment."""
 
     __tablename__ = "global_post_requests"
+    __table_args__ = (
+        Index(
+            "ix_global_post_requests_buyer_status",
+            "buyer_telegram_id",
+            "status",
+        ),
+        # One Telegram Stars charge must be recorded once. Partial, so requests
+        # that have no charge yet stay unlimited.
+        Index(
+            "uq_global_post_requests_payment_charge_id_not_null",
+            "payment_charge_id",
+            unique=True,
+            postgresql_where=text("payment_charge_id IS NOT NULL"),
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     buyer_telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
     status: Mapped[str] = mapped_column(String(24), default="draft", index=True)

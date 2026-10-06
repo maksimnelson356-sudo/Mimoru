@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, JSON, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -8,7 +8,15 @@ from app.db.base import Base
 
 class RankAssignment(Base):
     __tablename__ = "rank_assignments"
-    __table_args__ = (UniqueConstraint("group_id", "user_telegram_id", name="uq_rank_assignment_group_user"),)
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_telegram_id", name="uq_rank_assignment_group_user"),
+        Index(
+            "ix_rank_assignments_group_user_active",
+            "group_id",
+            "user_telegram_id",
+            "active",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), index=True)

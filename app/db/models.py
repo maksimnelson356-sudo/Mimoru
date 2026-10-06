@@ -4,13 +4,16 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -142,6 +145,12 @@ class GroupMember(Base):
         UniqueConstraint(
             "group_id", "user_telegram_id", name="uq_group_members_group_user"
         ),
+        Index(
+            "ix_group_members_group_present_not_deleted",
+            "group_id",
+            "is_present",
+            "is_deleted_account",
+        ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
@@ -212,6 +221,15 @@ class UserProfileHistory(Base):
 
 class Warning(Base):
     __tablename__ = "warnings"
+    __table_args__ = (
+        Index(
+            "ix_warnings_group_user_active_created",
+            "group_id",
+            "user_telegram_id",
+            "active",
+            "created_at",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
@@ -227,6 +245,15 @@ class Warning(Base):
 
 class Punishment(Base):
     __tablename__ = "punishments"
+    __table_args__ = (
+        Index(
+            "ix_punishments_group_user_kind_active",
+            "group_id",
+            "user_telegram_id",
+            "kind",
+            "active",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
@@ -244,6 +271,14 @@ class Punishment(Base):
 
 class ModerationLog(Base):
     __tablename__ = "moderation_logs"
+    __table_args__ = (
+        Index(
+            "ix_moderation_logs_group_target_created",
+            "group_id",
+            "target_telegram_id",
+            "created_at",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
@@ -382,6 +417,20 @@ class AutoResponse(Base):
 
 class Complaint(Base):
     __tablename__ = "complaints"
+    __table_args__ = (
+        Index(
+            "ix_complaints_group_reporter_created",
+            "group_id",
+            "reporter_telegram_id",
+            "created_at",
+        ),
+        Index(
+            "ix_complaints_group_target_created",
+            "group_id",
+            "target_telegram_id",
+            "created_at",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
@@ -432,7 +481,12 @@ class UserMessage(Base):
 
 class DailyStat(Base):
     __tablename__ = "daily_stats"
-    __table_args__ = (UniqueConstraint("group_id", "user_telegram_id", "date"),)
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_telegram_id", "date"),
+        # Created by migration 0004_full_features, not by the 2026 composite-index
+        # migration: re-creating it there aborts alembic with DuplicateTableError.
+        Index("ix_daily_stats_group_date", "group_id", "date"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), index=True
@@ -459,6 +513,26 @@ class SupportTicket(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
+    __table_args__ = (
+        Index(
+            "ix_payments_status_user_created",
+            "status",
+            "user_telegram_id",
+            "created_at",
+        ),
+        # One Telegram Stars charge must be recorded once. Partial, so pending
+        # invoices that have no charge yet stay unlimited.
+        Index(
+            "uq_payments_provider_payment_id_not_null",
+            "provider_payment_id",
+            unique=True,
+            postgresql_where=text("provider_payment_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'paid', 'refunded', 'refund_pending')",
+            name="ck_payments_status",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     user_telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
     group_id: Mapped[int] = mapped_column(
