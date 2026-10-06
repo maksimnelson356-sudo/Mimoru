@@ -58,8 +58,18 @@ python -m scripts.ensure_version_column
 echo "==> Применение всей цепочки миграций на пустой базе..."
 alembic upgrade head
 
+echo "==> Проверка обратимости последней миграции (downgrade + upgrade)..."
+# Downgrade paths used to run nowhere in CI. Round-trip the head step so an
+# object created but never dropped, or dropped by a broken downgrade, fails here
+# instead of the first time somebody needs to roll back.
+alembic downgrade head-1
+alembic upgrade head
+
 echo "==> Preflight против живого PostgreSQL и Redis..."
 python -m app.preflight
+
+echo "==> Сверка живой схемы с ORM..."
+python scripts/check_live_schema.py
 
 echo "==> Тесты против живой базы..."
 pytest -q -m db
