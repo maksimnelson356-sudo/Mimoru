@@ -78,7 +78,13 @@ def live_unique_signatures(constraints) -> set[tuple[str, ...]]:
     }
 
 
-def compare(inspector) -> tuple[list[str], list[str]]:
+def compare(connection) -> tuple[list[str], list[str]]:
+    """Compare ORM metadata with the live schema.
+
+    Runs inside `run_sync`, so every inspector call below happens in the
+    greenlet context the IO requires.
+    """
+    inspector = inspect(connection)
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -121,9 +127,11 @@ def compare(inspector) -> tuple[list[str], list[str]]:
 
 
 async def run() -> int:
-    async with engine.connect() as connection:
-        inspector = await connection.run_sync(lambda sync: inspect(sync))
-        errors, warnings = compare(inspector)
+    try:
+        async with engine.connect() as connection:
+            errors, warnings = await connection.run_sync(compare)
+    finally:
+        await engine.dispose()
 
     for warning in warnings:
         print(f"WARN {warning}", file=sys.stderr)
@@ -146,10 +154,9 @@ async def run() -> int:
 
 
 def main() -> int:
-    try:
-        return asyncio.run(run())
-    finally:
-        asyncio.run(engine.dispose())
+    # One event loop for the whole run: disposing the engine from a second
+    # asyncio.run() raises "attached to a different loop".
+    return asyncio.run(run())
 
 
 if __name__ == "__main__":
