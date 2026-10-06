@@ -23,6 +23,41 @@ git pull --ff-only origin main
 DEPLOY_SHA="$(git rev-parse --short HEAD)"
 echo "==> Версия для деплоя: $DEPLOY_SHA"
 
+echo "==> Проверка статуса CI для $DEPLOY_SHA..."
+REMOTE_URL="$(git remote get-url origin 2>/dev/null || true)"
+REPO_SLUG="$(printf '%s' "$REMOTE_URL" | sed -e 's#^.*github.com[:/]##' -e 's#\.git$##')"
+if [[ -z "$REPO_SLUG" || "$REPO_SLUG" == "$REMOTE_URL" ]]; then
+  echo "ВНИМАНИЕ: не удалось определить репозиторий из remote ($REMOTE_URL). Проверка CI пропущена."
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "ВНИМАНИЕ: curl не установлен. Проверка CI пропущена."
+else
+  CI_JSON="$(curl -fsS --max-time 25 \
+    -H 'Accept: application/vnd.github+json' \
+    "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null || true)"
+  if [[ -z "$CI_JSON" ]]; then
+    echo "ВНИМАНИЕ: не удалось получить статус CI (сеть или лимит API). Проверка пропущена."
+  else
+    CI_CONCLUSIONS="$(printf '%s' "$CI_JSON" | grep -o '"conclusion": *"[^"]*"' | sed 's/.*: *"//; s/"$//' | sort -u)"
+    FAILED_CONCLUSIONS="failure cancelled timed_out action_required startup_failure stale"
+    BLOCKING=""
+    for candidate in $FAILED_CONCLUSIONS; do
+      if printf '%s\n' "$CI_CONCLUSIONS" | grep -qx "$candidate"; then
+        BLOCKING="$BLOCKING $candidate"
+      fi
+    done
+    if [[ -n "$BLOCKING" ]]; then
+      echo "ОШИБКА: CI для $DEPLOY_SHA неуспешен:$BLOCKING. Деплой остановлен."
+      echo "Сначала исправьте CI и дождитесь зелёного, затем повторите."
+      exit 1
+    fi
+    if [[ "$CI_CONCLUSIONS" == *"success"* ]]; then
+      echo "CI зелёный."
+    else
+      echo "ВНИМАНИЕ: CI ещё не завершён успешно (результаты: ${CI_CONCLUSIONS:-нет}). Деплой продолжаю."
+    fi
+  fi
+fi
+
 echo "==> Проверка docker-compose.yml..."
 docker compose config -q
 
