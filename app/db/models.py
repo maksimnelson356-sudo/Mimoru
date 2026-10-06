@@ -528,9 +528,12 @@ class Payment(Base):
             unique=True,
             postgresql_where=text("provider_payment_id IS NOT NULL"),
         ),
+        # The ck naming convention is ck_%(table_name)s_%(constraint_name)s, so
+        # pass the bare suffix: naming it ck_payments_status would resolve to
+        # ck_payments_ck_payments_status and stop matching the live constraint.
         CheckConstraint(
             "status IN ('pending', 'paid', 'refunded', 'refund_pending')",
-            name="ck_payments_status",
+            name="status",
         ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
