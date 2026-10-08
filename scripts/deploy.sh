@@ -24,45 +24,64 @@ DEPLOY_SHA="$(git rev-parse --short HEAD)"
 echo "==> Версия для деплоя: $DEPLOY_SHA"
 
 echo "==> Проверка статуса CI для $DEPLOY_SHA..."
-REMOTE_URL="$(git remote get-url origin 2>/dev/null || true)"
-REPO_SLUG="$(printf '%s' "$REMOTE_URL" | sed -e 's#^.*github.com[:/]##' -e 's#\.git$##')"
-if [[ -z "$REPO_SLUG" || "$REPO_SLUG" == "$REMOTE_URL" ]]; then
-  echo "ВНИМАНИЕ: не удалось определить репозиторий из remote ($REMOTE_URL). Проверка CI пропущена."
-elif ! command -v curl >/dev/null 2>&1; then
-  echo "ВНИМАНИЕ: curl не установлен. Проверка CI пропущена."
-else
+# Проверка CI не должна обрывать деплой сама. Раньше здесь стояли
+# `set -e` + `pipefail` вместе с голыми grep/sed/curl, и любой их отказ -
+# недоступный sed, пустой ответ API - завершал скрипт молча, сразу после
+# этого echo: контейнер не пересобирался, но деплой выглядел успешным.
+# Поэтому блок выполняется в подshell с отключёнными -e/-o pipefail,
+# а единственный случай, когда деплой всё же останавливается, - это
+# явный код возврата 3: в CI есть провалившийся прогон.
+(
+  set +Eeuo pipefail
+
+  REMOTE_URL="$(git remote get-url origin 2>/dev/null)"
+  REPO_SLUG="$(printf '%s' "$REMOTE_URL" | sed -e 's#^.*github.com[:/]##' -e 's#\.git$##')"
+  if [[ -z "$REPO_SLUG" || "$REPO_SLUG" == "$REMOTE_URL" ]]; then
+    echo "ВНИМАНИЕ: не удалось определить репозиторий из remote ($REMOTE_URL). Проверка CI пропущена."
+    exit 0
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "ВНИМАНИЕ: curl не установлен. Проверка CI пропущена."
+    exit 0
+  fi
+
   CI_JSON="$(curl -fsS --max-time 25 \
     -H 'Accept: application/vnd.github+json' \
-    "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null || true)"
+    "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null)"
   if [[ -z "$CI_JSON" ]]; then
     echo "ВНИМАНИЕ: не удалось получить статус CI (сеть или лимит API). Проверка пропущена."
-  else
-    # set -e + pipefail: если grep ничего не нашёл, конвейер вернёт 1 и
-    # скрипт молча прервётся прямо здесь, не дойдя до проверок ниже.
-    # Поэтому отсутствие совпадений — допустимый результат, а не ошибка.
-    CI_CONCLUSIONS="$(printf '%s' "$CI_JSON" | grep -o '"conclusion": *"[^"]*"' | sed 's/.*: *"//; s/"$//' | sort -u || true)"
-    if [[ -z "$CI_CONCLUSIONS" ]]; then
-      echo "ВНИМАНИЕ: в ответе GitHub API нет поля conclusion. Проверка CI пропущена."
-      CI_CONCLUSIONS="нет данных"
-    fi
-    FAILED_CONCLUSIONS="failure cancelled timed_out action_required startup_failure stale"
-    BLOCKING=""
-    for candidate in $FAILED_CONCLUSIONS; do
-      if printf '%s\n' "$CI_CONCLUSIONS" | grep -qx "$candidate"; then
-        BLOCKING="$BLOCKING $candidate"
-      fi
-    done
-    if [[ -n "$BLOCKING" ]]; then
-      echo "ОШИБКА: CI для $DEPLOY_SHA неуспешен:$BLOCKING. Деплой остановлен."
-      echo "Сначала исправьте CI и дождитесь зелёного, затем повторите."
-      exit 1
-    fi
-    if [[ "$CI_CONCLUSIONS" == *"success"* ]]; then
-      echo "CI зелёный."
-    else
-      echo "ВНИМАНИЕ: CI ещё не завершён успешно (результаты: ${CI_CONCLUSIONS:-нет}). Деплой продолжаю."
-    fi
+    exit 0
   fi
+
+  CI_CONCLUSIONS="$(printf '%s' "$CI_JSON" | grep -o '"conclusion": *"[^"]*"' | sed 's/.*: *"//; s/"$//' | sort -u)"
+  if [[ -z "$CI_CONCLUSIONS" ]]; then
+    echo "ВНИМАНИЕ: в ответе GitHub API нет поля conclusion. Проверка CI пропущена."
+    CI_CONCLUSIONS="нет данных"
+  fi
+
+  BLOCKING=""
+  for candidate in failure cancelled timed_out action_required startup_failure stale; do
+    if printf '%s\n' "$CI_CONCLUSIONS" | grep -qx "$candidate"; then
+      BLOCKING="$BLOCKING $candidate"
+    fi
+  done
+  if [[ -n "$BLOCKING" ]]; then
+    echo "ОШИБКА: CI для $DEPLOY_SHA неуспешен:$BLOCKING. Деплой остановлен."
+    exit 3
+  fi
+  if [[ "$CI_CONCLUSIONS" == *success* ]]; then
+    echo "CI зелёный."
+  else
+    echo "ВНИМАНИЕ: CI ещё не завершён успешно (результаты: $CI_CONCLUSIONS). Деплой продолжаю."
+  fi
+)
+CI_GATE_STATUS=$?
+if [[ $CI_GATE_STATUS -eq 3 ]]; then
+  echo "Сначала исправьте CI и дождитесь зелёного, затем повторите."
+  exit 1
+fi
+if [[ $CI_GATE_STATUS -ne 0 ]]; then
+  echo "ВНИМАНИЕ: проверка CI завершилась с кодом $CI_GATE_STATUS. Деплой продолжаю."
 fi
 
 echo "==> Проверка docker-compose.yml..."
