@@ -180,7 +180,8 @@ MODERATION_RESULT_SOURCES = {
         "await send_group_notice(bot, message.chat.id, notice)"
     ),
     "app/handlers/complaint_actions.py": (
-        "await send_group_notice(bot, group.telegram_chat_id, msg)"
+        "await send_group_notice(",
+        "delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS",
     ),
 }
 
@@ -189,7 +190,8 @@ def test_moderation_result_notices_are_scheduled_for_removal() -> None:
     """Regression guard: text-command results used to reply plainly and stayed forever."""
     for path, expected in MODERATION_RESULT_SOURCES.items():
         source = Path(path).read_text(encoding="utf-8")
-        assert expected in source, path
+        for marker in expected if isinstance(expected, tuple) else (expected,):
+            assert marker in source, f"{path}: {marker}"
 
     group_src = Path("app/handlers/group.py").read_text(encoding="utf-8")
     assert "await message.reply(result)" not in group_src
@@ -283,14 +285,15 @@ async def test_private_deletions_need_an_explicit_opt_in() -> None:
 
 def test_panel_ban_prompts_are_removed_and_disclaimer_is_gone() -> None:
     """Regression guard: the ban-confirmation prompt used to linger forever."""
-    for path in (
-        "app/handlers/complaint_actions.py",
-        "app/handlers/moderation_durable_guard.py",
-    ):
-        source = Path(path).read_text(encoding="utf-8")
-        assert "allow_private=True" in source, path
-        assert "Очистка необратима" not in source, path
-        assert "удалит не все сообщения" not in source, path
+    durable = Path("app/handlers/moderation_durable_guard.py").read_text(encoding="utf-8")
+    assert "allow_private=True" in durable
+    assert "Очистка необратима" not in durable
+    assert "удалит не все сообщения" not in durable
+
+    # Обработчик complaint:ban:cancel остаётся ради старых кнопок из истории,
+    # поэтому проверяем отсутствие карточки, а не отсутствие обработчика.
+    complaint = Path("app/handlers/complaint_actions.py").read_text(encoding="utf-8")
+    assert "Подтверждение бана" not in complaint
 
     ttl_src = Path("app/services/message_ttl.py").read_text(encoding="utf-8")
     assert "PRIVATE_TTL_QUEUE_KEY" in ttl_src

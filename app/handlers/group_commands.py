@@ -30,6 +30,7 @@ from app.services.complaints import (
     complaint_exists_for_message,
 )
 from app.services.message_ttl import (
+    COMPLAINT_MESSAGE_TTL_SECONDS,
     bound_redis,
     schedule_message_deletion,
     send_group_notice,
@@ -167,8 +168,16 @@ async def _notify_complaint_recipients(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="🚫 Забанить", callback_data=f"complaint:ban:{cid}"
+                    text="🚫 Забанить", callback_data=f"complaint:ban:confirm:{cid}"
                 ),
+                InlineKeyboardButton(
+                    text="🚫🗑 Бан + очистка",
+                    callback_data=f"complaint:ban:clean:{cid}",
+                ),
+            ]
+        )
+        rows.append(
+            [
                 InlineKeyboardButton(
                     text="🤐 Наказать отправителя",
                     callback_data=f"complaint:mute_reporter:{cid}",
@@ -213,6 +222,17 @@ async def _notify_complaint_recipients(
     return delivered
 
 
+async def _reply_complaint_notice(message: Message, text: str) -> None:
+    """Ответ о жалобе в группе: показываем и снимаем через 45 секунд."""
+    sent = await message.reply(text)
+    await schedule_message_deletion(
+        bound_redis(),
+        sent.chat.id,
+        sent.message_id,
+        delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
+    )
+
+
 @router.message(
     F.chat.type.in_(GROUP_TYPES),
     F.reply_to_message,
@@ -223,7 +243,9 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
     if target is None or message.from_user is None:
         return
     if target.id == message.from_user.id:
-        await message.reply("Нельзя отправить жалобу на самого себя.")
+        await _reply_complaint_notice(
+            message, "Нельзя отправить жалобу на самого себя."
+        )
         return
     group = await _active_group(session, message.chat.id)
     if group is None:
@@ -235,7 +257,7 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         message_id=message.reply_to_message.message_id,
     )
     if already_reported:
-        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        await _reply_complaint_notice(message, COMPLAINT_DUPLICATE_TEXT)
         return
 
     complaint = Complaint(
@@ -253,9 +275,8 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
     try:
         await session.flush()
     except IntegrityError:
-        # Гонка: параллельная жалоба на то же сообщение выиграла раньше.
         await session.rollback()
-        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        await _reply_complaint_notice(message, COMPLAINT_DUPLICATE_TEXT)
         return
 
     delivered = await _notify_complaint_recipients(
@@ -272,14 +293,16 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
     )
     await session.commit()
     if delivered:
-        await message.reply(
-            "✅ Жалоба принята. Администраторы группы получили уведомление."
+        await _reply_complaint_notice(
+            message,
+            "✅ Жалоба принята. Администраторы группы получили уведомление.",
         )
     else:
-        await message.reply(
+        await _reply_complaint_notice(
+            message,
             "✅ Жалоба сохранена.\n\n"
             "⚠️ В группе нет администраторов Mimoru, кому можно передать жалобу.\n"
-            "Владелец группы может назначить их в личке бота."
+            "Владелец группы может назначить их в личке бота.",
         )
 
 

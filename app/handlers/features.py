@@ -14,6 +14,11 @@ from app.services.complaints import (
     COMPLAINT_DUPLICATE_TEXT,
     complaint_exists_for_message,
 )
+from app.services.message_ttl import (
+    COMPLAINT_MESSAGE_TTL_SECONDS,
+    bound_redis,
+    schedule_message_deletion,
+)
 from app.services.repositories import get_or_create_group
 from app.services.ui import clean_ui_text
 
@@ -229,16 +234,27 @@ async def list_triggers(message: Message, bot: Bot, session: AsyncSession) -> No
     await message.reply(text)
 
 
+async def _reply_complaint_notice(message: Message, text: str) -> None:
+    """Ответ о жалобе в группе: показываем и снимаем через 45 секунд."""
+    sent = await message.reply(text)
+    await schedule_message_deletion(
+        bound_redis(),
+        sent.chat.id,
+        sent.message_id,
+        delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
+    )
+
+
 @router.message(F.text.casefold().in_({"жалоба", "пожаловаться"}))
 async def complaint(message: Message, session: AsyncSession) -> None:
     if not message.from_user or not message.reply_to_message or not message.reply_to_message.from_user:
-        await message.reply("Ответьте командой «жалоба» на сообщение нарушителя.")
+        await _reply_complaint_notice(message, "Ответьте командой «жалоба» на сообщение нарушителя.")
         return
     group = await session.scalar(select(Group).where(Group.telegram_chat_id == message.chat.id, Group.is_active.is_(True)))
     if not group:
         return
     if await complaint_exists_for_message(session, group_id=group.id, message_id=message.reply_to_message.message_id):
-        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        await _reply_complaint_notice(message, COMPLAINT_DUPLICATE_TEXT)
         return
     target = message.reply_to_message.from_user
     item = Complaint(group_id=group.id, reporter_telegram_id=message.from_user.id, target_telegram_id=target.id, message_id=message.reply_to_message.message_id, message_text=message.reply_to_message.text or message.reply_to_message.caption)
@@ -247,12 +263,11 @@ async def complaint(message: Message, session: AsyncSession) -> None:
     try:
         await session.flush()
     except IntegrityError:
-        # Гонка: параллельная жалоба на то же сообщение выиграла раньше.
         await session.rollback()
-        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        await _reply_complaint_notice(message, COMPLAINT_DUPLICATE_TEXT)
         return
     await session.commit()
-    await message.reply(f"✅ Жалоба #{item.id} принята и передана владельцу группы.")
+    await _reply_complaint_notice(message, f"✅ Жалоба #{item.id} принята и передана владельцу группы.")
     if group.owner_telegram_id:
         target_label = clean_ui_text(target.full_name) + (f" (@{target.username})" if target.username else "")
         reporter_label = clean_ui_text(message.from_user.full_name) + (f" (@{message.from_user.username})" if message.from_user.username else "")

@@ -26,6 +26,9 @@ PRIVATE_TTL_QUEUE_KEY = "mimoru:msg:ttl:private"
 # Panel confirmation prompts (ban mode, reason, duration) wait for a click; they
 # are removed after this delay, which matches the pending payload expiry.
 PROMPT_TTL_SECONDS = 600
+COMPLAINT_MESSAGE_TTL_SECONDS = 45
+# The admin notification holding the complaint action buttons deliberately gets
+# no TTL: without it a moderator can lose the buttons before pressing one.
 BATCH_LIMIT = 100
 
 # Bound once at startup (app.main) so deep call chains — protection, moderation
