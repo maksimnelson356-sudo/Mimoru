@@ -45,9 +45,20 @@ echo "==> Проверка статуса CI для $DEPLOY_SHA..."
     exit 0
   fi
 
-  CI_JSON="$(curl -fsS --max-time 25 \
-    -H 'Accept: application/vnd.github+json' \
-    "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null)"
+  # Без токена GitHub отдаёт анонимные запросы с лимитом 60 в час на IP, и
+  # при его исчерпании ответ не содержит поля conclusion. Гейт тогда
+  # предупреждает вместо блокировки. Токен поднимает лимит и возвращает
+  # полные данные, поэтому проверка снова работает по-настоящему.
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    CI_JSON="$(curl -fsS --max-time 25 \
+      -H 'Accept: application/vnd.github+json' \
+      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null)"
+  else
+    CI_JSON="$(curl -fsS --max-time 25 \
+      -H 'Accept: application/vnd.github+json' \
+      "https://api.github.com/repos/$REPO_SLUG/actions/runs?head_sha=$DEPLOY_SHA&per_page=20" 2>/dev/null)"
+  fi
   if [[ -z "$CI_JSON" ]]; then
     echo "ВНИМАНИЕ: не удалось получить статус CI (сеть или лимит API). Проверка пропущена."
     exit 0
@@ -109,7 +120,9 @@ if ! docker compose exec -T bot python -c 'from app.handlers.moderation_command_
 fi
 
 echo "==> Ожидание готовности бота..."
-BOT_ID="$(docker compose ps -q bot)"
+# `|| true`, иначе непустой код docker compose ps -q обрывает скрипт
+# молча, и понятное сообщение о несозданном контейнере ниже не показывается.
+BOT_ID="$(docker compose ps -q bot || true)"
 if [[ -z "$BOT_ID" ]]; then
   echo "ОШИБКА: контейнер bot не создан."
   docker compose ps
