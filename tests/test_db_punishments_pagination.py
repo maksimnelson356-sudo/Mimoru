@@ -119,7 +119,8 @@ async def test_pages_partition_every_ban_exactly_once(
     seen: list[int] = []
     for page in range(pages):
         ids, _text = await _page_ids(monkeypatch, db_session_factory, group_with_bans, page)
-        assert len(ids) == PAGE_SIZE, f"страница {page} неполная: {len(ids)}"
+        expected = min(PAGE_SIZE, TOTAL - page * PAGE_SIZE)
+        assert len(ids) == expected, f"страница {page}: ожидалось {expected}, получено {len(ids)}"
         seen.extend(ids)
 
     assert len(seen) == TOTAL
