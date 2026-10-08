@@ -39,6 +39,7 @@ from app.services.plans import (
     effective_plan,
     feature_available,
     plan_limit,
+    plan_notice,
     remaining_days,
     subscription_state,
 )
@@ -153,6 +154,17 @@ def is_read_only_for(group: Group, user_id: int) -> bool:
     return group.owner_telegram_id != user_id
 
 
+def with_plan_notice(text: str, group: Group) -> str:
+    """Дополняет текст панели объяснением текущего состояния тарифа.
+
+    Истёкший пробный период отключает отчёты и снижает лимиты без
+    единого сообщения владельцу, поэтому причина показывается прямо на
+    карточке группы и в её разделах.
+    """
+    notice = plan_notice(group)
+    return f"{text}\n\n{notice}" if notice else text
+
+
 @router.message(
     F.chat.type == "private",
     F.text.casefold().in_({"панель", "меню", "настройки", "мои группы"}),
@@ -232,9 +244,12 @@ async def open_group(callback: CallbackQuery, session: AsyncSession) -> None:
         await callback.answer("Группа не найдена или нет доступа.", show_alert=True)
         return
     await callback.message.edit_text(
-        panel_header(
-            group.title,
-            f"ID: {group.telegram_chat_id}\nТариф: {effective_plan(group).upper()}" + (f" · до {group.plan_expires_at:%d.%m.%Y}" if group.plan_expires_at else ""),
+        with_plan_notice(
+            panel_header(
+                group.title,
+                f"ID: {group.telegram_chat_id}\nТариф: {effective_plan(group).upper()}" + (f" · до {group.plan_expires_at:%d.%m.%Y}" if group.plan_expires_at else ""),
+            ),
+            group,
         ),
         reply_markup=group_menu(group),
     )
@@ -270,7 +285,9 @@ async def group_section(callback: CallbackQuery, session: AsyncSession) -> None:
     else:
         text = panel_header("Контент", "Слова, ссылки и обязательные каналы")
         keyboard = content_menu(group.id)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.message.edit_text(
+        with_plan_notice(text, group), reply_markup=keyboard
+    )
     await callback.answer()
 
 
@@ -288,8 +305,14 @@ async def toggle_setting(callback: CallbackQuery, session: AsyncSession) -> None
         await callback.answer("Нет доступа.", show_alert=True)
         return
     if setting == "reports" and not feature_available(group, "daily_reports"):
+        expired = (
+            " Пробный период группы истёк — сначала верните тариф STANDARD или PRO."
+            if subscription_state(group) == "expired"
+            else ""
+        )
         await callback.answer(
-            "Ежедневные отчёты доступны на TRIAL, STANDARD и PRO.", show_alert=True
+            "Ежедневные отчёты доступны на TRIAL, STANDARD и PRO." + expired,
+            show_alert=True,
         )
         return
     attr = {
