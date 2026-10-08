@@ -172,3 +172,116 @@ async def test_admin_notification_gets_no_ttl(monkeypatch) -> None:
     await _notification_markup()
 
     schedule.assert_not_awaited()
+
+
+# --- доставка админам --------------------------------------------------
+
+
+def _session() -> SimpleNamespace:
+    return SimpleNamespace(
+        scalar=AsyncMock(return_value=None),
+        add=Mock(),
+        flush=AsyncMock(),
+        commit=AsyncMock(),
+        rollback=AsyncMock(),
+    )
+
+
+def _complaint_command(monkeypatch, delivered: int, attempted: int) -> SimpleNamespace:
+    monkeypatch.setattr(
+        group_commands, "_active_group", AsyncMock(return_value=_group())
+    )
+    monkeypatch.setattr(
+        group_commands,
+        "_target_from_reply",
+        lambda _m: SimpleNamespace(id=99, full_name="Нарушитель", username=None),
+    )
+    monkeypatch.setattr(
+        group_commands,
+        "_notify_complaint_recipients",
+        AsyncMock(return_value=(delivered, attempted)),
+    )
+    monkeypatch.setattr(group_commands, "schedule_message_deletion", AsyncMock())
+
+    replied = SimpleNamespace(chat=SimpleNamespace(id=-1003), message_id=1)
+    message = SimpleNamespace(
+        text="жалоба",
+        chat=SimpleNamespace(id=-1003),
+        from_user=SimpleNamespace(id=42, full_name="Жалобщик", username="reporter"),
+        reply_to_message=SimpleNamespace(
+            message_id=555, text="плохое сообщение", caption=None
+        ),
+        reply=AsyncMock(return_value=replied),
+    )
+    return message
+
+
+def _reply_text(message: SimpleNamespace) -> str:
+    return message.reply.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_full_delivery_reports_all_admins_notified(monkeypatch) -> None:
+    message = _complaint_command(monkeypatch, delivered=3, attempted=3)
+    session = _session()
+
+    await group_commands.group_complaint(
+        message, SimpleNamespace(), session
+    )
+
+    assert "Администраторы группы получили уведомление" in _reply_text(message)
+
+
+@pytest.mark.asyncio
+async def test_partial_delivery_names_the_gap(monkeypatch) -> None:
+    """Раньше при уходе только владельцу группа всё равно слышала «все получили»."""
+    message = _complaint_command(monkeypatch, delivered=1, attempted=4)
+    session = _session()
+
+    await group_commands.group_complaint(
+        message, SimpleNamespace(), session
+    )
+
+    text = _reply_text(message)
+    assert "1 из 4" in text
+    assert "/start" in text
+    assert "Администраторы группы получили" not in text
+
+
+@pytest.mark.asyncio
+async def test_failed_recipient_is_logged(monkeypatch) -> None:
+    """Отказ Telegram больше не уходит в молчание."""
+    from aiogram.exceptions import TelegramBadRequest
+
+    monkeypatch.setattr(group_commands, "get_assignment", AsyncMock(return_value=None))
+    warning = Mock()
+    monkeypatch.setattr(group_commands, "log", warning)
+
+    bot = SimpleNamespace(
+        send_message=AsyncMock(
+            side_effect=[
+                    SimpleNamespace(message_id=1),
+                    TelegramBadRequest(method="sendMessage", message="chat not found"),
+                    SimpleNamespace(message_id=2),
+                ]
+        )
+    )
+    session = SimpleNamespace(add=Mock(), commit=AsyncMock(), scalars=AsyncMock())
+    session.scalars.return_value = SimpleNamespace(all=lambda: [111, 222])
+
+    delivered, attempted = await group_commands._notify_complaint_recipients(
+        bot,
+        session,
+        _group(),
+        42,
+        "Жалобщик",
+        99,
+        "Нарушитель",
+        555,
+        "плохое сообщение",
+        _complaint(),
+    )
+
+    assert (delivered, attempted) == (2, 3)
+    assert warning.warning.call_args.args[0] == "complaint_notification_failed"
+    assert warning.warning.call_args.kwargs["admin_telegram_id"] in {111, 222}

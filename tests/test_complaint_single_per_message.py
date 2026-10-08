@@ -93,7 +93,7 @@ async def test_group_complaint_stops_when_message_already_reported(
     session.scalar.return_value = 17
     monkeypatch.setattr(group_commands, "_active_group", AsyncMock(return_value=_group()))
     monkeypatch.setattr(group_commands, "_target_from_reply", lambda _m: _message().reply_to_message.from_user)
-    notify = AsyncMock(return_value=True)
+    notify = AsyncMock(return_value=(1, 1))
     monkeypatch.setattr(group_commands, "_notify_complaint_recipients", notify)
     message = _message()
 
@@ -112,7 +112,7 @@ async def test_group_complaint_creates_row_when_message_is_free(
     session.scalar.return_value = None
     monkeypatch.setattr(group_commands, "_active_group", AsyncMock(return_value=_group()))
     monkeypatch.setattr(group_commands, "_target_from_reply", lambda _m: _message().reply_to_message.from_user)
-    notify = AsyncMock(return_value=True)
+    notify = AsyncMock(return_value=(1, 1))
     monkeypatch.setattr(group_commands, "_notify_complaint_recipients", notify)
     message = _message()
 
@@ -136,7 +136,7 @@ async def test_group_complaint_reports_duplicate_on_concurrent_insert(
     session.flush.side_effect = IntegrityError("INSERT", {}, Exception("uq"))
     monkeypatch.setattr(group_commands, "_active_group", AsyncMock(return_value=_group()))
     monkeypatch.setattr(group_commands, "_target_from_reply", lambda _m: _message().reply_to_message.from_user)
-    notify = AsyncMock(return_value=True)
+    notify = AsyncMock(return_value=(1, 1))
     monkeypatch.setattr(group_commands, "_notify_complaint_recipients", notify)
     message = _message()
 
