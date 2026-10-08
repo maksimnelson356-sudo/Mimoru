@@ -290,8 +290,9 @@ async def durable_reason_action(
         await reason_admin.moderation_reason_selected(callback, bot, session, redis)
         return
 
-    # Для бана — показать диалог выбора (обычный бан / бан с очисткой)
-    if action == "ban":
+    # Для бана из панели — показать диалог выбора
+    # Бан через команду в группе выполняется сразу
+    if action == "ban" and origin != "group":
         if callback.message is None:
             await callback.answer("Сообщение недоступно.", show_alert=True)
             return
