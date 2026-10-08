@@ -28,7 +28,7 @@ from app.keyboards.panel import (
     words_admin_menu,
 )
 from app.services.access import DEFAULT_ROLE_PERMISSIONS, accessible_group, is_service_owner, owner_or_admin_clause
-from app.services.plans import plan_limit
+from app.services.plans import plan_limit, plan_limit_hint
 from app.services.public_identity import public_user_token
 from app.services.ui import panel_header
 
@@ -95,7 +95,7 @@ async def word_add_text(message: Message, session: AsyncSession, state: FSMConte
         await state.clear(); await message.answer("Доступ к группе потерян."); return
     current = int(await session.scalar(select(func.count()).select_from(ForbiddenWord).where(ForbiddenWord.group_id == group.id)) or 0)
     if current >= plan_limit(group, "words"):
-        await state.clear(); await message.answer("Достигнут лимит запрещённых слов текущего тарифа."); return
+        await state.clear(); await message.answer("Достигнут лимит запрещённых слов текущего тарифа." + plan_limit_hint(group)); return
     word = " ".join((message.text or "").lower().strip().split())[:255]
     if len(word) < 2:
         await message.answer("Слишком короткое значение. Отправьте слово или фразу ещё раз."); return

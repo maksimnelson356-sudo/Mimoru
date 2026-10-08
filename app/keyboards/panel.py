@@ -541,15 +541,45 @@ def member_card_menu(group_id: int, user_id: int, has_mute: bool, has_ban: bool,
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def active_punishments_menu(group_id: int, kind: str, rows) -> InlineKeyboardMarkup:
+async def active_punishments_menu(
+    group_id: int,
+    kind: str,
+    rows,
+    *,
+    page: int = 0,
+    pages: int = 1,
+) -> InlineKeyboardMarkup:
+    """Одна страница списка активных наказаний.
+
+    rows уже ограничен вызывающим обработчиком размером страницы.
+    page и pages нумеруются с нуля; кнопки навигации появляются, только
+    когда страниц больше одной.
+    """
     buttons = []
     icon = {"warn": "⚠️", "mute": "🔇", "ban": "⛔"}.get(kind, "•")
-    for row in rows[:30]:
+    for row in rows:
         name = await stored_visible_name(row.user_telegram_id)
         buttons.append([InlineKeyboardButton(
             text=f"{icon} {name}",
             callback_data=f"member_card:{group_id}:{row.user_telegram_id}",
         )])
+    if pages > 1:
+        nav_row = []
+        if page > 0:
+            nav_row.append(InlineKeyboardButton(
+                text="◀ Назад",
+                callback_data=f"active_punishments:{group_id}:{kind}:page:{page - 1}",
+            ))
+        nav_row.append(InlineKeyboardButton(
+            text=f"{page + 1}/{pages}",
+            callback_data="noop",
+        ))
+        if page + 1 < pages:
+            nav_row.append(InlineKeyboardButton(
+                text="Вперёд ▶",
+                callback_data=f"active_punishments:{group_id}:{kind}:page:{page + 1}",
+            ))
+        buttons.append(nav_row)
     buttons.append([InlineKeyboardButton(text="◀️ К участникам", callback_data=f"group_section:{group_id}:members")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

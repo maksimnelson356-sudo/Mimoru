@@ -26,7 +26,7 @@ from app.services.message_ttl import schedule_message_deletion, send_group_notic
 from app.services.moderation import execute
 from app.services.moderation_reasons import active_reasons
 from app.services.permissions import target_is_protected
-from app.services.plans import plan_limit
+from app.services.plans import plan_limit, plan_limit_hint
 from app.services.public_identity import public_user_token
 from app.services.repositories import get_or_create_group
 from app.utils.commands import ParsedCommand, parse_command
@@ -96,7 +96,10 @@ async def add_word(message: Message, bot: Bot, session: AsyncSession) -> None:
         or 0
     )
     if current_words >= plan_limit(group, "words"):
-        await message.reply("Достигнут лимит запрещённых слов текущего тарифа.")
+        await message.reply(
+            "Достигнут лимит запрещённых слов текущего тарифа."
+            + plan_limit_hint(group)
+        )
         return
     word = message.text.split(maxsplit=2)[2].lower().strip()
     session.add(ForbiddenWord(group_id=group.id, word=word))
