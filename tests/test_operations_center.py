@@ -52,3 +52,4 @@ def test_snapshot_apply_callback_uses_atomic_authorization_service() -> None:
     assert "owned_group(" not in body
     assert "await session.commit()" not in body
     assert "if target is None:" in body
+

@@ -315,7 +315,7 @@ async def configure_bot(bot: Bot) -> None:
             BotCommand(command="games", description="Игры"),
             BotCommand(command="report", description="Пожаловаться"),
             BotCommand(command="help", description="Помощь"),
-            BotCommand(command="comands", description="Список команд"),
+            BotCommand(command="commands", description="Список команд"),
             BotCommand(command="oftop", description="Связь с владельцем бота"),
         ],
         scope=BotCommandScopeAllGroupChats(),
