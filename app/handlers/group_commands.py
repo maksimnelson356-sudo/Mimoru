@@ -102,7 +102,7 @@ async def _notify_complaint_recipients(
     message_id: int,
     message_text: str | None = None,
     complaint: Complaint | None = None,
-) -> int:
+) -> tuple[int, int]:
     reporter_rank = await get_assignment(session, group.id, reporter_id)
     recipients: set[int] = set()
     if (
@@ -203,7 +203,16 @@ async def _notify_complaint_recipients(
                         message_id=sent.message_id,
                     )
                 )
-        except (TelegramBadRequest, TelegramForbiddenError):
+        except (TelegramBadRequest, TelegramForbiddenError) as error:
+            # Обычно админ не нажимал /start: ранг выдаётся по ID, а написать ему
+            # в личку Telegram не даёт.
+            log.warning(
+                "complaint_notification_failed",
+                complaint_id=None if complaint is None else complaint.id,
+                group_id=group.id,
+                admin_telegram_id=recipient,
+                error=str(error),
+            )
             continue
 
     if complaint is not None and delivered > 0:
@@ -219,7 +228,7 @@ async def _notify_complaint_recipients(
             recipients_count=len(recipients),
         )
 
-    return delivered
+    return delivered, len(recipients)
 
 
 async def _reply_complaint_notice(message: Message, text: str) -> None:
@@ -279,7 +288,7 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         await _reply_complaint_notice(message, COMPLAINT_DUPLICATE_TEXT)
         return
 
-    delivered = await _notify_complaint_recipients(
+    delivered, attempted = await _notify_complaint_recipients(
         bot,
         session,
         group,
@@ -292,17 +301,23 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         complaint,
     )
     await session.commit()
-    if delivered:
-        await _reply_complaint_notice(
-            message,
-            "✅ Жалоба принята. Администраторы группы получили уведомление.",
-        )
-    else:
+    if not delivered:
         await _reply_complaint_notice(
             message,
             "✅ Жалоба сохранена.\n\n"
             "⚠️ В группе нет администраторов Mimoru, кому можно передать жалобу.\n"
             "Владелец группы может назначить их в личке бота.",
+        )
+    elif delivered < attempted:
+        await _reply_complaint_notice(
+            message,
+            f"✅ Жалоба принята. Уведомление получили {delivered} из {attempted}.\n"
+            "Остальным нужно открыть бота и нажать /start.",
+        )
+    else:
+        await _reply_complaint_notice(
+            message,
+            "✅ Жалоба принята. Администраторы группы получили уведомление.",
         )
 
 
