@@ -14,7 +14,7 @@ from app.services.access import accessible_group, is_service_owner, owner_or_adm
 from app.services.message_ttl import schedule_message_deletion, send_group_notice
 from app.services.moderation_reasons import ensure_default_reasons, normalize_actions
 from app.services.ui import panel_header
-from app.services.plans import plan_limit
+from app.services.plans import plan_limit, plan_limit_hint
 
 router = Router(name=__name__)
 
@@ -69,7 +69,10 @@ async def reason_add(callback: CallbackQuery, session: AsyncSession, state: FSMC
         return
     current = int(await session.scalar(select(func.count()).select_from(ModerationReason).where(ModerationReason.group_id == group.id)) or 0)
     if current >= plan_limit(group, "reasons"):
-        await callback.answer("Достигнут лимит причин текущего тарифа.", show_alert=True)
+        await callback.answer(
+            "Достигнут лимит причин текущего тарифа." + plan_limit_hint(group),
+            show_alert=True,
+        )
         return
     await state.set_state(ReasonForm.adding)
     await state.update_data(group_id=group_id)
