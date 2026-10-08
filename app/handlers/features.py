@@ -5,10 +5,15 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
 from aiogram.types import Message
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AutoResponse, Complaint, DailyStat, Group, ModerationLog, User
 from app.services.access import can_manage_group
+from app.services.complaints import (
+    COMPLAINT_DUPLICATE_TEXT,
+    complaint_exists_for_message,
+)
 from app.services.repositories import get_or_create_group
 from app.services.ui import clean_ui_text
 
@@ -232,11 +237,20 @@ async def complaint(message: Message, session: AsyncSession) -> None:
     group = await session.scalar(select(Group).where(Group.telegram_chat_id == message.chat.id, Group.is_active.is_(True)))
     if not group:
         return
+    if await complaint_exists_for_message(session, group_id=group.id, message_id=message.reply_to_message.message_id):
+        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        return
     target = message.reply_to_message.from_user
     item = Complaint(group_id=group.id, reporter_telegram_id=message.from_user.id, target_telegram_id=target.id, message_id=message.reply_to_message.message_id, message_text=message.reply_to_message.text or message.reply_to_message.caption)
     session.add(item)
     session.add(ModerationLog(group_id=group.id, actor_telegram_id=message.from_user.id, target_telegram_id=target.id, action="complaint", reason="Жалоба участника"))
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        # Гонка: параллельная жалоба на то же сообщение выиграла раньше.
+        await session.rollback()
+        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        return
     await session.commit()
     await message.reply(f"✅ Жалоба #{item.id} принята и передана владельцу группы.")
     if group.owner_telegram_id:

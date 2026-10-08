@@ -418,6 +418,8 @@ class AutoResponse(Base):
 class Complaint(Base):
     __tablename__ = "complaints"
     __table_args__ = (
+        # Одна жалоба на сообщение: message_id уникален внутри чата.
+        UniqueConstraint("group_id", "message_id", name="uq_complaints_group_message"),
         Index(
             "ix_complaints_group_reporter_created",
             "group_id",

@@ -10,6 +10,7 @@ from aiogram.types import (
     Message,
 )
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -24,6 +25,10 @@ from app.db.models import (
 from app.db.rank_models import RankAssignment
 from app.services.access import can_moderate
 from app.services.action_panel import format_action_panel
+from app.services.complaints import (
+    COMPLAINT_DUPLICATE_TEXT,
+    complaint_exists_for_message,
+)
 from app.services.message_ttl import (
     bound_redis,
     schedule_message_deletion,
@@ -224,16 +229,13 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
     if group is None:
         return
 
-    existing = await session.scalar(
-        select(Complaint.id).where(
-            Complaint.group_id == group.id,
-            Complaint.reporter_telegram_id == message.from_user.id,
-            Complaint.message_id == message.reply_to_message.message_id,
-            Complaint.status == "pending",
-        )
+    already_reported = await complaint_exists_for_message(
+        session,
+        group_id=group.id,
+        message_id=message.reply_to_message.message_id,
     )
-    if existing is not None:
-        await message.reply("Эта жалоба уже отправлена и ожидает проверки.")
+    if already_reported:
+        await message.reply(COMPLAINT_DUPLICATE_TEXT)
         return
 
     complaint = Complaint(
@@ -248,7 +250,13 @@ async def group_complaint(message: Message, bot: Bot, session: AsyncSession) -> 
         status="pending",
     )
     session.add(complaint)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        # Гонка: параллельная жалоба на то же сообщение выиграла раньше.
+        await session.rollback()
+        await message.reply(COMPLAINT_DUPLICATE_TEXT)
+        return
 
     delivered = await _notify_complaint_recipients(
         bot,
