@@ -293,40 +293,73 @@ async def member_card(callback: CallbackQuery, session: AsyncSession) -> None:
     await callback.answer()
 
 
+ACTIVE_PUNISHMENTS_PAGE_SIZE = 10
+
+
 @router.callback_query(F.data.regexp(r"^active_punishments:\d+:(warn|mute|ban)$"))
+@router.callback_query(
+    F.data.regexp(r"^active_punishments:\d+:(warn|mute|ban):page:\d+$")
+)
 async def active_punishments(callback: CallbackQuery, session: AsyncSession) -> None:
-    _, raw_group, kind = callback.data.split(":")
-    group = await accessible_group(session, int(raw_group), callback.from_user.id)
+    # Старая кнопка из истории Telegram без ":page:" открывает первую
+    # страницу, новая — ту, что закодирована в callback.
+    parts = (callback.data or "").split(":")
+    group_id = int(parts[1])
+    kind = parts[2]
+    page = int(parts[4]) if len(parts) > 4 and parts[3] == "page" else 0
+
+    group = await accessible_group(session, group_id, callback.from_user.id)
     if not group:
         await callback.answer("Нет доступа.", show_alert=True)
         return
     if kind == "warn":
-        rows = (
-            await session.scalars(
-                select(Warning)
-                .where(Warning.group_id == group.id, Warning.active.is_(True))
-                .order_by(Warning.created_at.desc())
-                .limit(30)
-            )
-        ).all()
+        conditions = (Warning.group_id == group.id, Warning.active.is_(True))
+        rows_query = (
+            select(Warning)
+            .where(*conditions)
+            .order_by(Warning.created_at.desc(), Warning.id.desc())
+        )
+        count_query = select(func.count()).select_from(Warning).where(*conditions)
         title = "Активные предупреждения"
     else:
-        rows = (
-            await session.scalars(
-                select(Punishment)
-                .where(
-                    Punishment.group_id == group.id,
-                    Punishment.kind == kind,
-                    Punishment.active.is_(True),
-                )
-                .order_by(Punishment.created_at.desc())
-                .limit(30)
-            )
-        ).all()
+        conditions = (
+            Punishment.group_id == group.id,
+            Punishment.kind == kind,
+            Punishment.active.is_(True),
+        )
+        rows_query = (
+            select(Punishment)
+            .where(*conditions)
+            .order_by(Punishment.created_at.desc(), Punishment.id.desc())
+        )
+        count_query = (
+            select(func.count()).select_from(Punishment).where(*conditions)
+        )
         title = "Активные муты" if kind == "mute" else "Активные блокировки"
+
+    total = int(await session.scalar(count_query) or 0)
+    pages = max(
+        1,
+        (total + ACTIVE_PUNISHMENTS_PAGE_SIZE - 1) // ACTIVE_PUNISHMENTS_PAGE_SIZE,
+    )
+    page = max(0, min(page, pages - 1))
+
+    rows = (
+        await session.scalars(
+            rows_query.offset(page * ACTIVE_PUNISHMENTS_PAGE_SIZE).limit(
+                ACTIVE_PUNISHMENTS_PAGE_SIZE
+            )
+        )
+    ).all()
+
+    subtitle = f"Найдено: {total}"
+    if pages > 1:
+        subtitle = f"{subtitle} · Страница {page + 1}/{pages}"
     await callback.message.edit_text(
-        panel_header(title, f"Найдено: {len(rows)}"),
-        reply_markup=await active_punishments_menu(group.id, kind, rows),
+        panel_header(title, subtitle),
+        reply_markup=await active_punishments_menu(
+            group.id, kind, rows, page=page, pages=pages
+        ),
     )
     await callback.answer()
 
