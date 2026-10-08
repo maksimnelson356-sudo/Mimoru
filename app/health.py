@@ -32,9 +32,14 @@ class HealthServer:
 
     async def _dependencies_ok(self) -> bool:
         try:
+            # Run DB and Redis checks in parallel to reduce latency and improve readiness reporting.
             async with SessionFactory() as session:
-                await session.execute(text("SELECT 1"))
-            return bool(await self.redis.ping())
+                db_task = session.execute(text("SELECT 1"))
+                redis_task = self.redis.ping()
+                db_result, redis_ok = await asyncio.gather(db_task, redis_task, return_exceptions=True)
+                if isinstance(db_result, Exception) or isinstance(redis_ok, Exception):
+                    return False
+                return bool(redis_ok)
         except Exception:
             return False
 

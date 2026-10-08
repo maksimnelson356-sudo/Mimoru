@@ -1,0 +1,500 @@
+﻿=== broadcasts ===
+  id: INTEGER PK
+  actor_telegram_id: BIGINT idx
+  text: TEXT
+  status: VARCHAR(32) idx
+  sent_count: INTEGER
+  failed_count: INTEGER
+  created_at: DATETIME
+  finished_at: DATETIME
+=== global_post_requests ===
+  id: INTEGER PK
+  buyer_telegram_id: BIGINT idx
+  status: VARCHAR(24) idx
+  text: TEXT
+  photo_file_id: VARCHAR(512)
+  button_text: VARCHAR(64)
+  button_url: VARCHAR(2048)
+  price_stars: INTEGER
+  payment_charge_id: VARCHAR(255) uniq
+  reviewed_by_telegram_id: BIGINT idx
+  reviewed_at: DATETIME idx
+  paid_at: DATETIME idx
+  completed_at: DATETIME idx
+  created_at: DATETIME idx
+  updated_at: DATETIME
+=== groups ===
+  id: INTEGER PK
+  telegram_chat_id: BIGINT idx uniq
+  title: VARCHAR(255)
+  owner_telegram_id: BIGINT
+  is_active: BOOLEAN
+  plan_code: VARCHAR(32)
+  plan_expires_at: DATETIME
+  created_at: DATETIME
+=== promo_codes ===
+  id: INTEGER PK
+  code: VARCHAR(64) idx uniq
+  plan_code: VARCHAR(32)
+  bonus_days: INTEGER
+  max_uses: INTEGER
+  current_uses: INTEGER
+  active: BOOLEAN idx
+  expires_at: DATETIME
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== user_profile_history ===
+  id: INTEGER PK
+  user_telegram_id: BIGINT idx
+  username: VARCHAR(64)
+  first_name: VARCHAR(128)
+  last_name: VARCHAR(128)
+  recorded_at: DATETIME idx
+=== users ===
+  id: INTEGER PK
+  telegram_id: BIGINT idx uniq
+  username: VARCHAR(64)
+  first_name: VARCHAR(128)
+  last_name: VARCHAR(128)
+  service_blocked: BOOLEAN idx
+  created_at: DATETIME
+=== ad_placements ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  owner_telegram_id: BIGINT idx
+  title: VARCHAR(255)
+  description: TEXT
+  price_stars: INTEGER
+  format_text: VARCHAR(255)
+  category: VARCHAR(32) idx
+  duration_hours: INTEGER
+  member_count_snapshot: INTEGER
+  avg_daily_messages_snapshot: INTEGER
+  avg_daily_active_snapshot: INTEGER
+  stats_updated_at: DATETIME
+  active: BOOLEAN idx
+  created_at: DATETIME
+  updated_at: DATETIME
+=== allowed_links ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  domain: VARCHAR(253)
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== allowed_sender_chats ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  sender_chat_id: BIGINT idx
+  title: VARCHAR(255)
+  username: VARCHAR(64)
+  added_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== auto_responses ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  trigger: VARCHAR(255)
+  response_text: TEXT
+  match_type: VARCHAR(32)
+  active: BOOLEAN
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== automation_logs ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  rule_code: VARCHAR(48) idx
+  status: VARCHAR(16) idx
+  details: JSON
+  created_at: DATETIME idx
+=== broadcast_deliveries ===
+  id: INTEGER PK
+  broadcast_id: INTEGER idx
+  group_id: INTEGER idx
+  status: VARCHAR(16) idx
+  error_text: TEXT
+  created_at: DATETIME idx
+  finished_at: DATETIME idx
+=== broadcast_executions ===
+  id: INTEGER PK
+  request_token: VARCHAR(64) idx uniq
+  broadcast_id: INTEGER idx uniq
+  payload: JSON
+  created_at: DATETIME idx
+=== chat_permission_transitions ===
+  id: INTEGER PK
+  group_id: INTEGER idx uniq
+  operation: VARCHAR(24) idx
+  previous_permissions: JSON
+  desired_permissions: JSON
+  payload: JSON
+  created_at: DATETIME idx
+  updated_at: DATETIME
+=== complaints ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  reporter_telegram_id: BIGINT idx
+  target_telegram_id: BIGINT idx
+  message_id: BIGINT
+  message_text: TEXT
+  status: VARCHAR(32)
+  reviewed_by_telegram_id: BIGINT
+  resolution: TEXT
+  reviewed_at: DATETIME
+  created_at: DATETIME idx
+=== daily_stats ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  date: VARCHAR(10) idx
+  messages_count: INTEGER
+  deleted_count: INTEGER
+=== deleted_cleanup_retries ===
+  group_id: INTEGER PK
+  retry_at: DATETIME idx
+  attempts: INTEGER
+  last_error: TEXT
+  created_at: DATETIME
+  updated_at: DATETIME
+=== direct_required_rules ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  channel_username: VARCHAR(64) idx
+  mode: VARCHAR(16)
+  limit_value: INTEGER
+  used_count: INTEGER
+  expires_at: DATETIME idx
+  active: BOOLEAN idx
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME idx
+  updated_at: DATETIME
+=== forbidden_words ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  word: VARCHAR(255)
+=== fun_auto_immunity ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  enabled: BOOLEAN idx
+  updated_at: DATETIME
+=== fun_group_settings ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  auto_enabled: BOOLEAN
+  interval_code: VARCHAR(16)
+  updated_at: DATETIME
+=== game_events ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  event_type: VARCHAR(24) idx
+  action: VARCHAR(80) idx
+  actor_telegram_id: BIGINT idx
+  target_telegram_id: BIGINT idx
+  actor_name: VARCHAR(160)
+  target_name: VARCHAR(160)
+  outcome: VARCHAR(24) idx
+  created_at: DATETIME idx
+=== game_group_settings ===
+  group_id: INTEGER PK
+  enabled: BOOLEAN
+  allowed_games: JSON
+  creator_policy: VARCHAR(24)
+  allow_duels: BOOLEAN
+  rating_enabled: BOOLEAN
+  settings_json: JSON
+  updated_at: DATETIME
+=== game_panels ===
+  group_id: INTEGER PK
+  message_id: BIGINT
+  pinned: BOOLEAN
+  updated_at: DATETIME
+=== game_player_game_stats ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  game_type: VARCHAR(32) idx
+  games_played: INTEGER
+  wins: INTEGER
+  losses: INTEGER
+  rating: INTEGER
+  score: INTEGER
+  updated_at: DATETIME
+=== game_player_stats ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  games_played: INTEGER
+  wins: INTEGER
+  losses: INTEGER
+  rating: INTEGER idx
+  score: INTEGER
+  win_streak: INTEGER
+  best_win_streak: INTEGER
+  updated_at: DATETIME
+=== game_sessions ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  game_type: VARCHAR(32) idx
+  status: VARCHAR(16) idx
+  phase: VARCHAR(32) idx
+  phase_seq: INTEGER
+  round_no: INTEGER
+  creator_telegram_id: BIGINT idx
+  exclusive_group_game: BOOLEAN
+  lobby_message_id: BIGINT
+  game_message_id: BIGINT
+  deadline_at: DATETIME idx
+  state_json: JSON
+  created_at: DATETIME
+  started_at: DATETIME
+  finished_at: DATETIME idx
+  finish_reason: VARCHAR(64)
+=== global_post_deliveries ===
+  id: INTEGER PK
+  request_id: INTEGER idx
+  group_id: INTEGER idx
+  message_id: BIGINT
+  status: VARCHAR(16) idx
+  error_text: TEXT
+  delivered_at: DATETIME idx
+=== global_post_duplicate_refunds ===
+  id: INTEGER PK
+  request_id: INTEGER idx
+  buyer_telegram_id: BIGINT idx
+  telegram_payment_charge_id: VARCHAR(255) idx uniq
+  status: VARCHAR(24) idx
+  attempts: INTEGER
+  last_error: TEXT
+  refunded_at: DATETIME idx
+  created_at: DATETIME idx
+  updated_at: DATETIME
+=== group_config_snapshots ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  name: VARCHAR(120)
+  payload: JSON
+  created_by_telegram_id: BIGINT idx
+  created_at: DATETIME idx
+=== group_disconnect_intents ===
+  group_id: INTEGER PK
+  actor_telegram_id: BIGINT
+  status: VARCHAR(24) idx
+  error_text: TEXT
+  created_at: DATETIME
+  updated_at: DATETIME
+=== group_marriages ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user1_telegram_id: BIGINT idx
+  user2_telegram_id: BIGINT idx
+  active: BOOLEAN idx
+  created_at: DATETIME
+  ended_at: DATETIME
+=== group_members ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  is_present: BOOLEAN idx
+  is_deleted_account: BOOLEAN idx
+  last_seen_at: DATETIME
+  last_checked_at: DATETIME
+  joined_at: DATETIME idx
+  reputation_override: INTEGER
+  trust_status: VARCHAR(32) idx
+=== group_moderators ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  role: VARCHAR(32)
+  permissions: JSON
+  active: BOOLEAN
+  assigned_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== group_rank_policies ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  rank_code: VARCHAR(32) idx
+  permissions: JSON
+  updated_by_telegram_id: BIGINT
+  updated_at: DATETIME
+=== group_settings ===
+  id: INTEGER PK
+  group_id: INTEGER uniq
+  antiflood_enabled: BOOLEAN
+  links_enabled: BOOLEAN
+  captcha_enabled: BOOLEAN
+  welcome_enabled: BOOLEAN
+  welcome_text: TEXT
+  warnings_limit: INTEGER
+  default_mute_seconds: INTEGER
+  antiflood_limit: INTEGER
+  antiflood_window_seconds: INTEGER
+  antiflood_mute_seconds: INTEGER
+  repeats_enabled: BOOLEAN
+  repeats_limit: INTEGER
+  caps_enabled: BOOLEAN
+  caps_percent: INTEGER
+  caps_min_length: INTEGER
+  voices_allowed: BOOLEAN
+  stickers_allowed: BOOLEAN
+  forwards_allowed: BOOLEAN
+  rules_text: TEXT
+  reports_enabled: BOOLEAN
+  report_hour_utc: INTEGER
+  timezone_name: VARCHAR(64)
+  last_report_date: VARCHAR(10)
+  anti_raid_enabled: BOOLEAN
+  anti_raid_limit: INTEGER
+  anti_raid_window_seconds: INTEGER
+  warning_expire_days: INTEGER
+  lockdown_enabled: BOOLEAN
+  lockdown_until: DATETIME
+  lockdown_previous_permissions: JSON
+  audit_chat_id: BIGINT
+  audit_topic_id: INTEGER
+  night_mode_enabled: BOOLEAN
+  night_mode_start: VARCHAR(5)
+  night_mode_end: VARCHAR(5)
+  night_mode_active: BOOLEAN
+  night_mode_previous_permissions: JSON
+  join_requests_enabled: BOOLEAN
+  join_requests_auto_approve: BOOLEAN
+  newcomer_quarantine_enabled: BOOLEAN
+  newcomer_quarantine_seconds: INTEGER
+  newcomer_quarantine_block_links: BOOLEAN
+  newcomer_quarantine_block_media: BOOLEAN
+  newcomer_quarantine_block_forwards: BOOLEAN
+  slow_mode_enabled: BOOLEAN
+  slow_mode_seconds: INTEGER
+  campaign_spam_enabled: BOOLEAN
+  campaign_spam_limit: INTEGER
+  campaign_spam_window_seconds: INTEGER
+  campaign_spam_mute_seconds: INTEGER
+  edit_protection_enabled: BOOLEAN
+  edit_protection_window_seconds: INTEGER
+  mention_filter_enabled: BOOLEAN
+  mention_limit: INTEGER
+  hashtag_limit: INTEGER
+  mention_mute_seconds: INTEGER
+  sender_chat_filter_enabled: BOOLEAN
+  allow_group_sender_identity: BOOLEAN
+  moderation_reasons_initialized: BOOLEAN
+  automation_enabled: BOOLEAN
+  deleted_cleanup_schedule: VARCHAR(16)
+  deleted_cleanup_last_run_at: DATETIME
+=== group_subscription_events ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  actor_telegram_id: BIGINT idx
+  event_type: VARCHAR(32) idx
+  plan_code: VARCHAR(32)
+  expires_at: DATETIME
+  created_at: DATETIME idx
+=== invite_campaigns ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  name: VARCHAR(64)
+  invite_link: VARCHAR(255) idx uniq
+  creates_join_request: BOOLEAN
+  active: BOOLEAN idx
+  joined_count: INTEGER
+  requested_count: INTEGER
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== member_tags ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  name: VARCHAR(48)
+  created_by_telegram_id: BIGINT
+  created_at: DATETIME
+=== moderation_command_preferences ===
+  group_id: INTEGER PK
+  mode: VARCHAR(16)
+=== moderation_logs ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  actor_telegram_id: BIGINT idx
+  target_telegram_id: BIGINT idx
+  action: VARCHAR(64) idx
+  reason: TEXT
+  metadata_json: JSON
+  created_at: DATETIME idx
+  delivered_at: DATETIME idx
+  delivery_error: TEXT
+  delivery_attempts: INTEGER
+=== moderation_operation_intents ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  target_telegram_id: BIGINT idx
+  actor_telegram_id: BIGINT idx
+  action: VARCHAR(24) idx
+  source: VARCHAR(24) idx
+  payload: JSON
+  created_at: DATETIME idx
+  updated_at: DATETIME idx
+=== moderation_reasons ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  name: VARCHAR(120)
+  actions: JSON
+  active: BOOLEAN idx
+  sort_order: INTEGER
+  created_at: DATETIME
+=== moderator_notes ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  target_telegram_id: BIGINT idx
+  author_telegram_id: BIGINT idx
+  text: TEXT
+  created_at: DATETIME idx
+=== new_member_records ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  joined_at: DATETIME idx
+  source: VARCHAR(32)
+=== operation_events ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  event_type: VARCHAR(48) idx
+  status: VARCHAR(16) idx
+  actor_telegram_id: BIGINT idx
+  target_telegram_id: BIGINT idx
+  message: TEXT
+  details: JSON
+  created_at: DATETIME idx
+=== payments ===
+  id: INTEGER PK
+  user_telegram_id: BIGINT idx
+  group_id: INTEGER idx
+  provider: VARCHAR(32)
+  provider_payment_id: VARCHAR(255) uniq
+  amount: INTEGER
+  currency: VARCHAR(8)
+  plan_code: VARCHAR(32)
+  duration_days: INTEGER
+  status: VARCHAR(32) idx
+  created_at: DATETIME
+  paid_at: DATETIME
+=== pending_bans ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  username: VARCHAR(64) idx
+  moderator_telegram_id: BIGINT
+  reason: TEXT
+  active: BOOLEAN idx
+  created_at: DATETIME
+=== promo_code_uses ===
+  id: INTEGER PK
+  promo_code_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  group_id: INTEGER idx
+  used_at: DATETIME
+=== punishments ===
+  id: INTEGER PK
+  group_id: INTEGER idx
+  user_telegram_id: BIGINT idx
+  moderator_telegram_id: BIGINT
+  kind: VARCHAR(32)
+  reason: TEXT
+  ends_at: DATETIME

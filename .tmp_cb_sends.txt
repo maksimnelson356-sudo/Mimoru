@@ -1,0 +1,877 @@
+﻿D:\Projects\Mimoru\app\games\arena\keyboards.py:6|        InlineKeyboardButton(text="рџ›Ў Р—Р°С‰РёС‚Р°", callback_data=f"gm:ag:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\arena\keyboards.py:7|        InlineKeyboardButton(text="вќ¤пёЏ Р›РµС‡РµРЅРёРµ", callback_data=f"gm:ah:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\arena\keyboards.py:10|        rows.append([InlineKeyboardButton(text=f"вљ”пёЏ {name[:24]}", callback_data=f"gm:aa:{game_id}:{phase_seq}:{user_id}")])
+D:\Projects\Mimoru\app\games\arena\keyboards.py:16|        [InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:arena"), InlineKeyboardButton(text="рџ“Љ Р РµР№С‚РёРЅРі", callback_data="gm:rating")]
+D:\Projects\Mimoru\app\games\battleship\handlers.py:196|        InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:bfinal:{game.id}")
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:17|                    callback_data=f"gm:bf:{game_id}:{phase_seq}:{cell}",
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:22|        InlineKeyboardButton(text="рџ—є РњРѕС‘ РїРѕР»Рµ", callback_data=f"gm:bm:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:23|        InlineKeyboardButton(text="вќЊ РћС‚РјРµРЅРёС‚СЊ", callback_data=f"gm:bc:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:30|        [InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:battleship")],
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:32|            InlineKeyboardButton(text="рџ“‹ Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:bres:{game_id}"),
+D:\Projects\Mimoru\app\games\battleship\keyboards.py:33|            InlineKeyboardButton(text="рџЏ† Р РµР№С‚РёРЅРі", callback_data="gm:rating"),
+D:\Projects\Mimoru\app\games\cards\handlers.py:194|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:cgfinal:{game.id}")]
+D:\Projects\Mimoru\app\games\cards\keyboards.py:8|        InlineKeyboardButton(text="рџѓЏ РњРѕСЏ СЂСѓРєР°", callback_data=f"gm:ch:{game_id}:{phase_seq}:0"),
+D:\Projects\Mimoru\app\games\cards\keyboards.py:9|        InlineKeyboardButton(text="вћ• Р’Р·СЏС‚СЊ РєР°СЂС‚Сѓ", callback_data=f"gm:cd:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\cards\keyboards.py:12|        InlineKeyboardButton(text=str(number), callback_data=f"gm:cp:{game_id}:{phase_seq}:{number}")
+D:\Projects\Mimoru\app\games\cards\keyboards.py:23|            InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:cards"),
+D:\Projects\Mimoru\app\games\cards\keyboards.py:24|            InlineKeyboardButton(text="рџЏ† Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:cgres:{game_id}"),
+D:\Projects\Mimoru\app\games\cards\keyboards.py:26|        [InlineKeyboardButton(text="рџ“Љ Р РµР№С‚РёРЅРі", callback_data="gm:rating")],
+D:\Projects\Mimoru\app\games\crocodile\handlers.py:273|            InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:cfinal:{game.id}")
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:14|                callback_data=f"gm:cw:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:18|                callback_data=f"gm:cl:{game_id}:{phase_seq}:0",
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:26|                callback_data=f"gm:cl:{game_id}:{phase_seq}:{start // _TARGET_PAGE_SIZE}",
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:33|        InlineKeyboardButton(text=str(number), callback_data=f"gm:ct:{game_id}:{phase_seq}:{number}")
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:41|            callback_data=f"gm:ck:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:51|                InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:crocodile"),
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:52|                InlineKeyboardButton(text="рџЏ† Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:cres:{game_id}"),
+D:\Projects\Mimoru\app\games\crocodile\keyboards.py:54|            [InlineKeyboardButton(text="рџ“Љ Р РµР№С‚РёРЅРі", callback_data="gm:rating")],
+D:\Projects\Mimoru\app\games\detective\keyboards.py:7|            InlineKeyboardButton(text="рџ”Ћ РЈР»РёРєР° 1", callback_data=f"gm:dc:{game_id}:{phase_seq}:1"),
+D:\Projects\Mimoru\app\games\detective\keyboards.py:8|            InlineKeyboardButton(text="рџ”Ћ РЈР»РёРєР° 2", callback_data=f"gm:dc:{game_id}:{phase_seq}:2"),
+D:\Projects\Mimoru\app\games\detective\keyboards.py:9|            InlineKeyboardButton(text="рџ”Ћ РЈР»РёРєР° 3", callback_data=f"gm:dc:{game_id}:{phase_seq}:3"),
+D:\Projects\Mimoru\app\games\detective\keyboards.py:11|        [InlineKeyboardButton(text="рџ‘Ґ РџРѕРґРѕР·СЂРµРІР°РµРјС‹Рµ", callback_data=f"gm:dsus:{game_id}:{phase_seq}")],
+D:\Projects\Mimoru\app\games\detective\keyboards.py:12|        [InlineKeyboardButton(text=str(number), callback_data=f"gm:da:{game_id}:{phase_seq}:{number}") for number in range(1, 5)],
+D:\Projects\Mimoru\app\games\detective\keyboards.py:19|            InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:detective"),
+D:\Projects\Mimoru\app\games\detective\keyboards.py:20|            InlineKeyboardButton(text="рџ“Љ Р РµР№С‚РёРЅРі", callback_data="gm:rating"),
+D:\Projects\Mimoru\app\games\mafia\handlers.py:264|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:mfinal:{game.id}")]
+D:\Projects\Mimoru\app\games\mafia\handlers.py:279|        [InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:mafia")],
+D:\Projects\Mimoru\app\games\mafia\handlers.py:280|        [InlineKeyboardButton(text="рџ“‹ Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:mres:{game.id}")],
+D:\Projects\Mimoru\app\games\mafia\handlers.py:281|        [InlineKeyboardButton(text="рџЏ† Р РµР№С‚РёРЅРі", callback_data="gm:rating")],
+D:\Projects\Mimoru\app\games\mafia\keyboards.py:10|            callback_data=f"gm:mr:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\mafia\keyboards.py:18|                callback_data=f"gm:mm:{game_id}:{phase_seq}:1",
+D:\Projects\Mimoru\app\games\mafia\keyboards.py:25|                    callback_data=f"gm:mm:{game_id}:{phase_seq}:2",
+D:\Projects\Mimoru\app\games\mafia\keyboards.py:33|                    callback_data=f"gm:ma:{game_id}:{phase_seq}:{number}",
+D:\Projects\Mimoru\app\games\mafia\keyboards.py:40|            callback_data=f"gm:mc:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\mafia\presentation.py:161|    rows = [[InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:mafia")]]
+D:\Projects\Mimoru\app\games\mafia\presentation.py:163|        rows.append([InlineKeyboardButton(text="рџ“‹ Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:mres:{game.id}")])
+D:\Projects\Mimoru\app\games\mafia\presentation.py:164|    rows.append([InlineKeyboardButton(text="рџЏ† Р РµР№С‚РёРЅРі", callback_data="gm:rating")])
+D:\Projects\Mimoru\app\games\quiz\handlers.py:180|        InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:qfinal:{game.id}")
+D:\Projects\Mimoru\app\games\quiz\keyboards.py:14|                callback_data=f"gm:qa:{game_id}:{phase_seq}:{number}",
+D:\Projects\Mimoru\app\games\quiz\keyboards.py:22|            callback_data=f"gm:qc:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\quiz\keyboards.py:30|        [InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:quiz")],
+D:\Projects\Mimoru\app\games\quiz\keyboards.py:32|            InlineKeyboardButton(text="рџ“‹ Р РµР·СѓР»СЊС‚Р°С‚С‹", callback_data=f"gm:qres:{game_id}"),
+D:\Projects\Mimoru\app\games\quiz\keyboards.py:33|            InlineKeyboardButton(text="рџЏ† Р РµР№С‚РёРЅРі", callback_data="gm:rating"),
+D:\Projects\Mimoru\app\games\roulette\handlers.py:182|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РёС‚РѕРіСѓ", callback_data=f"gm:rfinal:{game.id}")]
+D:\Projects\Mimoru\app\games\roulette\keyboards.py:12|                    callback_data=f"gm:rt:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\roulette\keyboards.py:18|                    callback_data=f"gm:rc:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\roulette\keyboards.py:31|                    callback_data="gm:new:roulette",
+D:\Projects\Mimoru\app\games\roulette\keyboards.py:37|                    callback_data=f"gm:rres:{game_id}",
+D:\Projects\Mimoru\app\games\roulette\keyboards.py:41|                    callback_data="gm:rating",
+D:\Projects\Mimoru\app\games\spy\handlers.py:385|                    callback_data=f"gm:sfinal:{game.id}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:17|            callback_data=f"{prefix}:{number}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:39|                callback_data=f"gm:sr:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:48|                    callback_data=f"gm:svm:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:63|                    callback_data=f"gm:slm:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:77|                callback_data=f"gm:sc:{game_id}:{phase_seq}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:90|                    callback_data="gm:new:spy",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:96|                    callback_data=f"gm:sres:{game_id}",
+D:\Projects\Mimoru\app\games\spy\keyboards.py:100|                    callback_data="gm:rating",
+D:\Projects\Mimoru\app\games\words\keyboards.py:7|            InlineKeyboardButton(text="рџ§© РњРѕРё РІР°СЂРёР°РЅС‚С‹", callback_data=f"gm:wo:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\words\keyboards.py:8|            InlineKeyboardButton(text="вЏ­ РџСЂРѕРїСѓСЃС‚РёС‚СЊ", callback_data=f"gm:wskip:{game_id}:{phase_seq}"),
+D:\Projects\Mimoru\app\games\words\keyboards.py:10|        [InlineKeyboardButton(text=str(number), callback_data=f"gm:wp:{game_id}:{phase_seq}:{number}") for number in range(1, 7)],
+D:\Projects\Mimoru\app\games\words\keyboards.py:17|            InlineKeyboardButton(text="рџ”„ РЎС‹РіСЂР°С‚СЊ РµС‰С‘", callback_data="gm:new:words"),
+D:\Projects\Mimoru\app\games\words\keyboards.py:18|            InlineKeyboardButton(text="рџ“Љ Р РµР№С‚РёРЅРі", callback_data="gm:rating"),
+D:\Projects\Mimoru\app\games\admin_handlers.py:58|                callback_data=f"gm:adm:panel:{group_id}:{requester_id}",
+D:\Projects\Mimoru\app\games\admin_handlers.py:66|                callback_data=f"gm:adm:cancel:{game.id}:{requester_id}",
+D:\Projects\Mimoru\app\games\admin_handlers.py:72|            callback_data=f"gm:adm:close:{group_id}:{requester_id}",
+D:\Projects\Mimoru\app\games\admin_handlers.py:83|                callback_data=f"gm:adm:confirm:{game_id}:{requester_id}",
+D:\Projects\Mimoru\app\games\admin_handlers.py:89|                callback_data=f"gm:adm:back:{group_id}:{requester_id}",
+D:\Projects\Mimoru\app\games\game_center.py:30|        InlineKeyboardButton(text=definition.title, callback_data=f"gm:new:{definition.code}")
+D:\Projects\Mimoru\app\games\game_center.py:34|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Р’ РёРіСЂРѕРІРѕР№ С†РµРЅС‚СЂ", callback_data="gm:home")])
+D:\Projects\Mimoru\app\games\handlers.py:98|        InlineKeyboardButton(text=d.title, callback_data=f"gm:new:{d.code}")
+D:\Projects\Mimoru\app\games\handlers.py:103|        [InlineKeyboardButton(text="в—ЂпёЏ Р’ РёРіСЂРѕРІРѕР№ С†РµРЅС‚СЂ", callback_data="gm:home")]
+D:\Projects\Mimoru\app\games\handlers.py:188|            [InlineKeyboardButton(text="в—ЂпёЏ Р’ РёРіСЂРѕРІРѕР№ С†РµРЅС‚СЂ", callback_data="gm:home")]
+D:\Projects\Mimoru\app\games\limit_handlers.py:48|            callback_data=f"gm:cap:{group_id}:{requester_id}:{value}",
+D:\Projects\Mimoru\app\games\limit_handlers.py:57|            callback_data=f"gm:cap:{group_id}:{requester_id}:0",
+D:\Projects\Mimoru\app\games\limit_handlers.py:63|            callback_data=f"gm:capclose:{group_id}:{requester_id}",
+D:\Projects\Mimoru\app\games\lobby.py:47|        [InlineKeyboardButton(text="вћ• РџСЂРёСЃРѕРµРґРёРЅРёС‚СЊСЃСЏ", callback_data=f"gm:j:{game_id}"), InlineKeyboardButton(text="вћ– Р’С‹Р№С‚Рё", callback_data=f"gm:l:{game_id}")],
+D:\Projects\Mimoru\app\games\lobby.py:48|        [InlineKeyboardButton(text="в–¶пёЏ РќР°С‡Р°С‚СЊ", callback_data=start_callback), InlineKeyboardButton(text="вќЊ РћС‚РјРµРЅРёС‚СЊ", callback_data=f"gm:c:{game_id}")],
+D:\Projects\Mimoru\app\games\panels.py:31|                    text="рџ‘Ђ РћС‚РєСЂС‹С‚СЊ РёРіСЂСѓ", callback_data=f"gm:open:{active_game.id}"
+D:\Projects\Mimoru\app\games\panels.py:36|                    text="рџ“– РџСЂР°РІРёР»Р°", callback_data=f"gm:rules:{active_game.game_type}"
+D:\Projects\Mimoru\app\games\panels.py:48|                        callback_data=f"gm:leave:{active_game.id}",
+D:\Projects\Mimoru\app\games\panels.py:55|            [InlineKeyboardButton(text="рџЋ® РќР°С‡Р°С‚СЊ РёРіСЂСѓ", callback_data="gm:list")],
+D:\Projects\Mimoru\app\games\panels.py:57|                InlineKeyboardButton(text="рџЏ† Р РµР№С‚РёРЅРі", callback_data="gm:rating"),
+D:\Projects\Mimoru\app\games\panels.py:58|                InlineKeyboardButton(text="рџ‘¤ РњРѕР№ РїСЂРѕС„РёР»СЊ", callback_data="gm:profile"),
+D:\Projects\Mimoru\app\games\panels.py:61|                InlineKeyboardButton(text="в„№пёЏ РџСЂР°РІРёР»Р°", callback_data="gm:rules:all"),
+D:\Projects\Mimoru\app\games\panels.py:62|                InlineKeyboardButton(text="вљ™пёЏ РќР°СЃС‚СЂРѕР№РєРё", callback_data="gm:settings"),
+D:\Projects\Mimoru\app\games\settings_handlers.py:141|            callback_data="gm:cfg:enabled",
+D:\Projects\Mimoru\app\games\settings_handlers.py:145|            callback_data="gm:cfg:games",
+D:\Projects\Mimoru\app\games\settings_handlers.py:149|            callback_data="gm:cfg:rating",
+D:\Projects\Mimoru\app\games\settings_handlers.py:151|        [InlineKeyboardButton(text=creator_text, callback_data="gm:cfg:creator")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:152|        [InlineKeyboardButton(text="рџђє РњР°С„РёСЏ", callback_data="gm:cfg:mafia")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:153|        [InlineKeyboardButton(text="в—ЂпёЏ Р’ РёРіСЂРѕРІРѕР№ С†РµРЅС‚СЂ", callback_data="gm:home")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:177|            callback_data=f"gm:cfg:game:{definition.code}",
+D:\Projects\Mimoru\app\games\settings_handlers.py:182|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РћР±С‰РёРµ РЅР°СЃС‚СЂРѕР№РєРё", callback_data="gm:settings")])
+D:\Projects\Mimoru\app\games\settings_handlers.py:203|            callback_data="gm:cfg:mafia:self",
+D:\Projects\Mimoru\app\games\settings_handlers.py:207|            callback_data="gm:cfg:mafia:repeat",
+D:\Projects\Mimoru\app\games\settings_handlers.py:211|            callback_data="gm:cfg:mafia:afk",
+D:\Projects\Mimoru\app\games\settings_handlers.py:213|        [InlineKeyboardButton(text="вЏ± РўР°Р№РјРµСЂС‹", callback_data="gm:cfg:mafia:timers")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:214|        [InlineKeyboardButton(text="в™»пёЏ РЎР±СЂРѕСЃРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё", callback_data="gm:cfg:mafia:reset")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:215|        [InlineKeyboardButton(text="в—ЂпёЏ РћР±С‰РёРµ РЅР°СЃС‚СЂРѕР№РєРё", callback_data="gm:settings")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:230|        [InlineKeyboardButton(text="в™»пёЏ РЎР±СЂРѕСЃРёС‚СЊ", callback_data="gm:cfg:mafia:reset:confirm")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:231|        [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data="gm:cfg:mafia")],
+D:\Projects\Mimoru\app\games\settings_handlers.py:256|                callback_data="gm:cfg:mafia:timer:day_start",
+D:\Projects\Mimoru\app\games\settings_handlers.py:260|                callback_data="gm:cfg:mafia:timer:discussion",
+D:\Projects\Mimoru\app\games\settings_handlers.py:266|                callback_data="gm:cfg:mafia:timer:voting",
+D:\Projects\Mimoru\app\games\settings_handlers.py:270|                callback_data="gm:cfg:mafia:timer:result",
+D:\Projects\Mimoru\app\games\settings_handlers.py:276|                callback_data="gm:cfg:mafia:timer:night_start",
+D:\Projects\Mimoru\app\games\settings_handlers.py:280|                callback_data="gm:cfg:mafia:timer:night",
+D:\Projects\Mimoru\app\games\settings_handlers.py:283|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°СЃС‚СЂРѕР№РєРё Mafia", callback_data="gm:cfg:mafia")],
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:200|            callback_data=f"admin_access_apply:{group_id}:{user_id}:{rank_code}:telegram",
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:204|        callback_data=f"admin_access_apply:{group_id}:{user_id}:{rank_code}:bot_only",
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:206|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back)])
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:232|            callback_data=f"admin_access_user:{group.id}:{entry.user_id}",
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:247|    buttons.append([InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ СѓРїСЂР°РІР»РµРЅРёРµ С‡РµСЂРµР· Mimoru", callback_data=f"rank_add:{group.id}")])
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:248|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group.id}:moderation")])
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:262|        callback_data=f"admin_access_rank:{group.id}:{raw_user}:{code}",
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:264|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ Р°РґРјРёРЅРёСЃС‚СЂР°С†РёРё", callback_data=f"admin_access:{group.id}")])
+D:\Projects\Mimoru\app\handlers\admin_access_mode.py:311|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ Р°РґРјРёРЅРёСЃС‚СЂР°С†РёРё", callback_data=f"admin_access:{group.id}")]
+D:\Projects\Mimoru\app\handlers\ad_invoice_safety.py:44|            [InlineKeyboardButton(text="вћ• РќРѕРІС‹Р№ СЂРµРєР»Р°РјРЅС‹Р№ РїРѕСЃС‚", callback_data="ads:buy:post")],
+D:\Projects\Mimoru\app\handlers\ad_invoice_safety.py:45|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:78|                        text="в—ЂпёЏ РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:121|                                callback_data="gpost:mine",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:144|                                callback_data="gpost:mine",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:241|                        callback_data=f"reqlist:group:{group.id}",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:244|                [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:307|                        callback_data=f"reqlist:start:{group.id}",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:313|                        callback_data=f"reqlist:toggle:{listing.id}",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:318|                        text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:323|                        text="в—ЂпёЏ Рљ РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="ads:sell:required"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:422|                            text="вњ… РџСЂРёРЅСЏС‚СЊ", callback_data=f"reqdeal:accept:{deal.id}"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:426|                            callback_data=f"reqdeal:reject:{deal.id}",
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:431|                            text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:461|                        text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:464|                [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:591|                        text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:594|                [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:630|                            text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer"
+D:\Projects\Mimoru\app\handlers\ad_market_atomic.py:633|                    [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:50|    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=text, callback_data=callback_data)]])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:81|            InlineKeyboardButton(text="вњЏпёЏ РўРµРєСЃС‚", callback_data=f"gpost:text:{item.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:82|            InlineKeyboardButton(text="рџ–ј РР·РѕР±СЂР°Р¶РµРЅРёРµ", callback_data=f"gpost:photo:{item.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:84|        [InlineKeyboardButton(text="рџ”— РљРЅРѕРїРєР°", callback_data=f"gpost:button:{item.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:87|        rows.append([InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ", callback_data=f"gpost:remove_photo:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:89|        rows.append([InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ РєРЅРѕРїРєСѓ", callback_data=f"gpost:remove_button:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:90|    rows.append([InlineKeyboardButton(text="рџ‘Ѓ РџСЂРµРґРїСЂРѕСЃРјРѕС‚СЂ", callback_data=f"gpost:preview:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:92|        rows.append([InlineKeyboardButton(text="рџ“Ё РћС‚РїСЂР°РІРёС‚СЊ РЅР° РїСЂРѕРІРµСЂРєСѓ", callback_data=f"gpost:submit:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:93|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РїРѕРєСѓРїРєРµ СЂРµРєР»Р°РјС‹", callback_data="ads:buy")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:102|        rows.append([InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂ", callback_data=f"gpost:preview_close:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:313|                        InlineKeyboardButton(text="вњ… РћРґРѕР±СЂРёС‚СЊ", callback_data=f"gpost:approve:{item.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:314|                        InlineKeyboardButton(text="вќЊ РћС‚РєР»РѕРЅРёС‚СЊ", callback_data=f"gpost:reject:{item.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:338|            [InlineKeyboardButton(text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:339|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:356|            [InlineKeyboardButton(text="в—ЂпёЏ РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:392|                    [InlineKeyboardButton(text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine")]
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:407|                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine")]]),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:436|            rows.append([InlineKeyboardButton(text=f"вњЏпёЏ РџСЂРѕРґРѕР»Р¶РёС‚СЊ #{item.id}", callback_data=f"gpost:editor:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:438|            rows.append([InlineKeyboardButton(text=f"в­ђ РџРѕР»СѓС‡РёС‚СЊ СЃС‡С‘С‚ #{item.id}", callback_data=f"gpost:pay:{item.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:440|        [InlineKeyboardButton(text="вћ• РќРѕРІС‹Р№ СЂРµРєР»Р°РјРЅС‹Р№ РїРѕСЃС‚", callback_data="ads:buy:post")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:441|        [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:538|    rows = [[InlineKeyboardButton(text=_group_title_or_placeholder(group)[:58], callback_data=f"reqlist:group:{group.id}")] for group in groups]
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:539|    rows.append([InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:540|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:562|            [InlineKeyboardButton(text="вћ• РЎРѕР·РґР°С‚СЊ РѕР±СЉСЏРІР»РµРЅРёРµ", callback_data=f"reqlist:start:{group.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:563|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="ads:sell:required")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:578|            [InlineKeyboardButton(text="вњЏпёЏ РР·РјРµРЅРёС‚СЊ СѓСЃР»РѕРІРёСЏ", callback_data=f"reqlist:start:{group.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:579|            [InlineKeyboardButton(text="вЏё РЎРєСЂС‹С‚СЊ" if listing.active else "в–¶пёЏ РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ", callback_data=f"reqlist:toggle:{listing.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:580|            [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:581|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="ads:sell:required")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:624|            [InlineKeyboardButton(text="рџ“… Р¦РµРЅР° Р·Р° СЃСѓС‚РєРё", callback_data=f"reqlist:unit:{group_id}:day")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:625|            [InlineKeyboardButton(text="рџ‘¤ Р¦РµРЅР° Р·Р° РїРѕРґРїРёСЃС‡РёРєР°", callback_data=f"reqlist:unit:{group_id}:subscriber")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:626|            [InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅРёС‚СЊ", callback_data=f"reqlist:group:{group_id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:693|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РѕР±СЉСЏРІР»РµРЅРёСЋ", callback_data=f"reqlist:group:{group.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:694|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:734|        rows.append([InlineKeyboardButton(text=label[:60], callback_data=f"reqmarket:{listing.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:736|    rows.append([InlineKeyboardButton(text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:737|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РїРѕРєСѓРїРєРµ СЂРµРєР»Р°РјС‹", callback_data="ads:buy")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:771|            [InlineKeyboardButton(text="рџ“Ё РћС‚РїСЂР°РІРёС‚СЊ Р·Р°РїСЂРѕСЃ", callback_data=f"reqdeal:start:{listing.id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:772|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РѕР±СЉСЏРІР»РµРЅРёСЏРј", callback_data="ads:buy:required")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:795|            callback_data=f"reqdeal:pick:{listing.id}:{group.id}",
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:797|    rows.append([InlineKeyboardButton(text="вћ• Р’РІРµСЃС‚Рё @username РёР»Рё СЃСЃС‹Р»РєСѓ РІСЂСѓС‡РЅСѓСЋ", callback_data=f"reqdeal:manual:{listing.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:798|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"reqmarket:{listing.id}")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:799|    rows.append([InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data="ads:home")])
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:886|                    InlineKeyboardButton(text="вњ… РџСЂРёРЅСЏС‚СЊ", callback_data=f"reqdeal:accept:{deal.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:887|                    InlineKeyboardButton(text="вќЊ РћС‚РєР»РѕРЅРёС‚СЊ", callback_data=f"reqdeal:reject:{deal.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:889|                [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:899|            [InlineKeyboardButton(text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:900|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:984|                    InlineKeyboardButton(text="вњ… РџСЂРёРЅСЏС‚СЊ", callback_data=f"reqdeal:accept:{deal.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:985|                    InlineKeyboardButton(text="вќЊ РћС‚РєР»РѕРЅРёС‚СЊ", callback_data=f"reqdeal:reject:{deal.id}"),
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:987|                [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:997|            [InlineKeyboardButton(text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:998|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1033|            [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1034|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1048|                [InlineKeyboardButton(text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹", callback_data="reqdeal:buyer")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1049|                [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1081|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back)],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1082|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1113|            [InlineKeyboardButton(text="рџ“Ј РЎРѕР·РґР°С‚СЊ СЂРµРєР»Р°РјРЅС‹Р№ РїРѕСЃС‚", callback_data="ads:buy:post")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1114|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1129|            [InlineKeyboardButton(text="вњ… РћР±СЏР·Р°С‚РµР»СЊРЅР°СЏ РїРѕРґРїРёСЃРєР°", callback_data=f"channels:{group_id}")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1130|            [InlineKeyboardButton(text="рџ“ў РћС‚РєСЂС‹С‚СЊ СЂРµРєР»Р°РјСѓ", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_market_v3.py:1131|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:19|            InlineKeyboardButton(text="рџ›’ РљСѓРїРёС‚СЊ СЂРµРєР»Р°РјСѓ", callback_data="ads:buy"),
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:20|            InlineKeyboardButton(text="рџ’ј РџСЂРѕРґР°С‚СЊ РћРџ", callback_data="ads:sell"),
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:23|            InlineKeyboardButton(text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine"),
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:24|            InlineKeyboardButton(text="рџ“Ё РњРѕРё Р·Р°РїСЂРѕСЃС‹ РћРџ", callback_data="reqdeal:buyer:home"),
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:26|        [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё РћРџ", callback_data="reqdeal:seller:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:27|        [InlineKeyboardButton(text="в—ЂпёЏ Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:63|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:91|            [InlineKeyboardButton(text="вњ… РљСѓРїРёС‚СЊ РѕР±СЏР·Р°С‚РµР»СЊРЅСѓСЋ РїРѕРґРїРёСЃРєСѓ", callback_data="ads:buy:required")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:92|            [InlineKeyboardButton(text="рџ“Ј РЎРѕР·РґР°С‚СЊ СЂРµРєР»Р°РјРЅС‹Р№ РїРѕСЃС‚", callback_data="ads:buy:post")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:93|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:108|            [InlineKeyboardButton(text="рџ“‹ РњРѕРё РѕР±СЉСЏРІР»РµРЅРёСЏ РћРџ", callback_data="ads:sell:required")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:109|            [InlineKeyboardButton(text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:110|            [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:144|            [InlineKeyboardButton(text="рџ“ў РћС‚РєСЂС‹С‚СЊ СЂРµРєР»Р°РјСѓ", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\ad_navigation.py:145|            [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\automation.py:286|                        text="в—ЂпёЏ РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{group.id}"
+D:\Projects\Mimoru\app\handlers\billing.py:275|                [InlineKeyboardButton(text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine")],
+D:\Projects\Mimoru\app\handlers\billing.py:276|                [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
+D:\Projects\Mimoru\app\handlers\billing.py:398|                [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Сѓ РіСЂСѓРїРїС‹", callback_data=f"plan:{group.id}")],
+D:\Projects\Mimoru\app\handlers\billing.py:399|                [InlineKeyboardButton(text="в—ЂпёЏ Рљ РіСЂСѓРїРїРµ", callback_data=f"group:{group.id}")],
+D:\Projects\Mimoru\app\handlers\complaint_actions.py:343|                    callback_data=f"complaint:ban:confirm:{cid}",
+D:\Projects\Mimoru\app\handlers\complaint_actions.py:349|                    callback_data=f"complaint:ban:clean:{cid}",
+D:\Projects\Mimoru\app\handlers\complaint_actions.py:355|                    callback_data=f"complaint:ban:cancel:{cid}",
+D:\Projects\Mimoru\app\handlers\complaint_actions.py:614|                    callback_data=f"complaint:mute_reporter:confirm:{cid}",
+D:\Projects\Mimoru\app\handlers\complaint_actions.py:620|                    callback_data=f"complaint:mute_reporter:cancel:{cid}",
+D:\Projects\Mimoru\app\handlers\contextual_back.py:86|        [InlineKeyboardButton(text="рџ’Ћ РЈРїСЂР°РІР»РµРЅРёРµ С‚Р°СЂРёС„РѕРј", callback_data=f"cp:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:88|            InlineKeyboardButton(text="рџ©є РџСЂРѕРІРµСЂРёС‚СЊ Telegram", callback_data=f"ch:{source}:{group.id}"),
+D:\Projects\Mimoru\app\handlers\contextual_back.py:89|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data=f"cs:{source}:{group.id}"),
+D:\Projects\Mimoru\app\handlers\contextual_back.py:93|        rows.append([InlineKeyboardButton(text="рџ‘¤ РћС‚РєСЂС‹С‚СЊ РІР»Р°РґРµР»СЊС†Р°", callback_data=f"cc:{source}:{group.id}:{group.owner_telegram_id}")])
+D:\Projects\Mimoru\app\handlers\contextual_back.py:97|        callback_data=f"gc:{source}:{group.id}:{action}",
+D:\Projects\Mimoru\app\handlers\contextual_back.py:99|    rows.append([InlineKeyboardButton(text=back_text, callback_data=back_callback)])
+D:\Projects\Mimoru\app\handlers\contextual_back.py:177|        callback_data=f"cg:c{telegram_id}:{group.id}",
+D:\Projects\Mimoru\app\handlers\contextual_back.py:182|        callback_data=f"uc:{source}:{group_id}:{telegram_id}:{action}",
+D:\Projects\Mimoru\app\handlers\contextual_back.py:188|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back_callback)])
+D:\Projects\Mimoru\app\handlers\contextual_back.py:247|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"ua:{source}:{raw_gid}:{raw_tid}:{action}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:248|            [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=back)],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:279|            [InlineKeyboardButton(text="рџ§Є TRIAL В· 7 РґРЅРµР№", callback_data=f"pc:{source}:{group.id}:trial:7")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:280|            [InlineKeyboardButton(text="в­ђ STANDARD В· 30 РґРЅРµР№", callback_data=f"pc:{source}:{group.id}:standard:30")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:281|            [InlineKeyboardButton(text="рџ’Ћ PRO В· 30 РґРЅРµР№", callback_data=f"pc:{source}:{group.id}:pro:30")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:282|            [InlineKeyboardButton(text="рџ†“ РџРµСЂРµРІРµСЃС‚Рё РЅР° FREE", callback_data=f"pc:{source}:{group.id}:free:0")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:283|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ РіСЂСѓРїРїС‹", callback_data=f"cg:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:309|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"pa:{source}:{group.id}:{plan_code}:{raw_days}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:310|            [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=f"cp:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:356|            [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"ch:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:357|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ РіСЂСѓРїРїС‹", callback_data=f"cg:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:377|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ РіСЂСѓРїРїС‹", callback_data=f"cg:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:398|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"ga:{source}:{group.id}:{action}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:399|            [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=f"cg:{source}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\contextual_back.py:453|        rows[-1] = [InlineKeyboardButton(text=back_text, callback_data=back_callback)]
+D:\Projects\Mimoru\app\handlers\dashboard.py:641|    kb_rows = [[InlineKeyboardButton(text=f"{g.title[:28]} В· {effective_plan(g).upper()}", callback_data=f"service_plan:{g.id}")] for g in rows]
+D:\Projects\Mimoru\app\handlers\dashboard.py:642|    kb_rows.append([InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")])
+D:\Projects\Mimoru\app\handlers\fun_help.py:65|        [InlineKeyboardButton(text="рџЋ­ Р’СЃРµ РґРµР№СЃС‚РІРёСЏ", callback_data=_cb(owner_id, "all:0"))],
+D:\Projects\Mimoru\app\handlers\fun_help.py:66|        [InlineKeyboardButton(text="рџ’ћ РЎРµРјСЊСЏ Рё РѕС‚РЅРѕС€РµРЅРёСЏ", callback_data=_cb(owner_id, "family"))],
+D:\Projects\Mimoru\app\handlers\fun_help.py:67|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ", callback_data=_cb(owner_id, "close"))],
+D:\Projects\Mimoru\app\handlers\fun_help.py:73|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°Р·РІР»РµС‡РµРЅРёСЏРј", callback_data=_cb(owner_id, "home"))],
+D:\Projects\Mimoru\app\handlers\fun_help.py:74|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ", callback_data=_cb(owner_id, "close"))],
+D:\Projects\Mimoru\app\handlers\fun_help.py:82|        nav.append(InlineKeyboardButton(text="в¬…пёЏ РќР°Р·Р°Рґ", callback_data=_cb(owner_id, f"all:{page - 1}")))
+D:\Projects\Mimoru\app\handlers\fun_help.py:84|        nav.append(InlineKeyboardButton(text="Р’РїРµСЂС‘Рґ вћЎпёЏ", callback_data=_cb(owner_id, f"all:{page + 1}")))
+D:\Projects\Mimoru\app\handlers\group_action_aliases.py:283|            callback_data=f"{PROFILE_CALLBACK_PREFIX}:{group_id}:{target_id}:{requester_id}:{view}",
+D:\Projects\Mimoru\app\handlers\group_commands.py:155|                    text="вњ… РџСЂРѕРІРµСЂРµРЅРѕ", callback_data=f"complaint:ack:{cid}"
+D:\Projects\Mimoru\app\handlers\group_commands.py:158|                    text="вљ пёЏ Р’С‹РґР°С‚СЊ РїСЂРµРґ", callback_data=f"complaint:warn:{cid}"
+D:\Projects\Mimoru\app\handlers\group_commands.py:165|                    text="рџљ« Р—Р°Р±Р°РЅРёС‚СЊ", callback_data=f"complaint:ban:{cid}"
+D:\Projects\Mimoru\app\handlers\group_commands.py:169|                    callback_data=f"complaint:mute_reporter:{cid}",
+D:\Projects\Mimoru\app\handlers\group_commands.py:540|                    callback_data=f"bulk_unmute:confirm:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_commands.py:546|                    callback_data=f"bulk_unmute:cancel:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_commands.py:679|                    callback_data=f"bulk_unban:confirm:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_commands.py:685|                    callback_data=f"bulk_unban:cancel:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:91|                    callback_data=f"group:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:98|                text="рџ”Ћ РќР°Р№С‚Рё РїРѕ ID / @username", callback_data="group_lookup:user"
+D:\Projects\Mimoru\app\handlers\group_directory.py:108|        [InlineKeyboardButton(text="в—ЂпёЏ Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")]
+D:\Projects\Mimoru\app\handlers\group_directory.py:189|                text="вњ… РђРєС‚РёРІРЅС‹Рµ", callback_data="service:groups:active"
+D:\Projects\Mimoru\app\handlers\group_directory.py:192|                text="в›” РћС‚РєР»СЋС‡С‘РЅРЅС‹Рµ", callback_data="service:groups:disabled"
+D:\Projects\Mimoru\app\handlers\group_directory.py:203|                    callback_data=f"service_group:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:210|                text="рџ”Ћ РќР°Р№С‚Рё РїРѕ ID / @username", callback_data="group_lookup:service"
+D:\Projects\Mimoru\app\handlers\group_directory.py:215|        [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")]
+D:\Projects\Mimoru\app\handlers\group_directory.py:272|                text="рџ’Ћ РЈРїСЂР°РІР»РµРЅРёРµ С‚Р°СЂРёС„РѕРј", callback_data=f"service_plan:{group.id}"
+D:\Projects\Mimoru\app\handlers\group_directory.py:278|                callback_data=f"service_group_health:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:281|                text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data=f"service_group_stats:{group.id}"
+D:\Projects\Mimoru\app\handlers\group_directory.py:290|                    callback_data=f"service_client:{group.owner_telegram_id}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:303|                callback_data=f"service_group_confirm:{group.id}:{action}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:310|                text="в—ЂпёЏ РљРѕ РІСЃРµРј РіСЂСѓРїРїР°Рј", callback_data="service:groups"
+D:\Projects\Mimoru\app\handlers\group_directory.py:372|                        callback_data=f"service_group_action:{group.id}:{action}",
+D:\Projects\Mimoru\app\handlers\group_directory.py:377|                        text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=f"service_group:{group.id}"
+D:\Projects\Mimoru\app\handlers\group_lookup.py:98|            [InlineKeyboardButton(text=open_text, callback_data=open_callback)],
+D:\Projects\Mimoru\app\handlers\group_lookup.py:99|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back_callback)],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:87|        [InlineKeyboardButton(text="рџ‘® РЎРѕРіР»Р°СЃРѕРІР°С‚СЊ Р°РґРјРёРЅРёСЃС‚СЂР°С†РёСЋ", callback_data=f"admin_access:{group_id}")],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:88|        [InlineKeyboardButton(text="рџљЂ РќР°СЃС‚СЂРѕРёС‚СЊ Mimoru", callback_data=f"setup:{group_id}:start")],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:89|        [InlineKeyboardButton(text="в­ђ РџСЂРѕРІРµСЂРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:90|        [InlineKeyboardButton(text="рџЏ  РћС‚РєСЂС‹С‚СЊ РіСЂСѓРїРїСѓ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:96|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="panel:groups")],
+D:\Projects\Mimoru\app\handlers\group_onboarding_flow.py:97|        [InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:210|                        callback_data=f"group_disconnect_do:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:215|                        text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group.id}"
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:266|                        text="в—ЂпёЏ Рљ РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="panel:groups"
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:271|                        text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home"
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:317|                callback_data=f"reqlist:group:{group.id}",
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:325|                text="рџ“Ґ Р’С…РѕРґСЏС‰РёРµ Р·Р°СЏРІРєРё", callback_data="reqdeal:seller"
+D:\Projects\Mimoru\app\handlers\group_shortcuts.py:329|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")])
+D:\Projects\Mimoru\app\handlers\group_stats_v2.py:95|            callback_data=f"{CALLBACK_PREFIX}:{group_id}:{requester_id}:summary:{code}:10",
+D:\Projects\Mimoru\app\handlers\group_stats_v2.py:102|            callback_data=f"{CALLBACK_PREFIX}:{group_id}:{requester_id}:top:{period}:{value}",
+D:\Projects\Mimoru\app\handlers\group_stats_v2.py:112|        rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")])
+D:\Projects\Mimoru\app\handlers\home_panel.py:91|        [InlineKeyboardButton(text=f"рџ“Љ {group.title[:44]}", callback_data=f"group_section:{group.id}:analytics")]
+D:\Projects\Mimoru\app\handlers\home_panel.py:94|    rows.append([InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")])
+D:\Projects\Mimoru\app\handlers\members.py:58|            rows.append([InlineKeyboardButton(text=f"рџ“ў {display}", callback_data=f"noop:ch:{channel}")])
+D:\Projects\Mimoru\app\handlers\members.py:61|    rows.append([InlineKeyboardButton(text="вњ… РџСЂРѕРІРµСЂРёС‚СЊ", callback_data=f"verify:{chat_id}:{user_id}")])
+D:\Projects\Mimoru\app\handlers\member_center.py:631|                    callback_data=f"member_note_new:{group.id}:{uid}",
+D:\Projects\Mimoru\app\handlers\member_center.py:636|                    text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"member_card:{group.id}:{uid}"
+D:\Projects\Mimoru\app\handlers\member_navigation.py:80|        rows[-1] = [InlineKeyboardButton(text=back_text, callback_data=back_callback)]
+D:\Projects\Mimoru\app\handlers\member_navigation.py:132|            InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РєР°СЂС‚РѕС‡РєРµ", callback_data=f"mc:{source}:{group.id}:{user_id}")
+D:\Projects\Mimoru\app\handlers\member_navigation.py:157|            callback_data=f"mtt:{source}:{group.id}:{user_id}:{tag.id}",
+D:\Projects\Mimoru\app\handlers\member_navigation.py:159|    rows.append([InlineKeyboardButton(text="вћ• РќРѕРІС‹Р№ С‚РµРі", callback_data=f"mtn:{source}:{group.id}:{user_id}")])
+D:\Projects\Mimoru\app\handlers\member_navigation.py:160|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"mc:{source}:{group.id}:{user_id}")])
+D:\Projects\Mimoru\app\handlers\member_navigation.py:281|            [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ Р·Р°РјРµС‚РєСѓ", callback_data=f"mnn:{source}:{group.id}:{user_id}")],
+D:\Projects\Mimoru\app\handlers\member_navigation.py:282|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"mc:{source}:{group.id}:{user_id}")],
+D:\Projects\Mimoru\app\handlers\member_profile_v2.py:42|            callback_data=f"{PROFILE_CALLBACK_PREFIX}:{group_id}:{target_id}:{requester_id}:{view}",
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:120|                    text="рџљ© Р–Р°Р»РѕР±С‹", callback_data=f"complaints:{group_id}"
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:125|                    text="рџ“Њ РџСЂРёС‡РёРЅС‹ РЅР°РєР°Р·Р°РЅРёР№", callback_data=f"reasons:{group_id}"
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:131|                    callback_data=f"setting_num:{group_id}:defaultmute",
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:137|                    callback_data=f"modcmd_mode:{group_id}",
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:142|                    text="рџ‘® РњРѕРґРµСЂР°С‚РѕСЂС‹", callback_data=f"roles:{group_id}"
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:145|                    text="рџ“‹ Р–СѓСЂРЅР°Р»", callback_data=f"logs:{group_id}"
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:151|                    callback_data=f"moderation_help:{group_id}",
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:156|                    text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}"
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:182|            callback_data=f"modcmd_set:{group_id}:{mode}",
+D:\Projects\Mimoru\app\handlers\moderation_command_modes.py:193|                    callback_data=f"group_section:{group_id}:moderation",
+D:\Projects\Mimoru\app\handlers\moderation_durable_guard.py:312|                        callback_data=f"modreason:confirm:{token}:{raw_reason_id}",
+D:\Projects\Mimoru\app\handlers\moderation_durable_guard.py:318|                        callback_data=f"modreason:clean:{token}:{raw_reason_id}",
+D:\Projects\Mimoru\app\handlers\moderation_durable_guard.py:324|                        callback_data=f"modreason:cancel:{token}:{raw_reason_id}",
+D:\Projects\Mimoru\app\handlers\navigation.py:80|                callback_data=f"health_{'from_ops' if source == 'ops' else 'direct'}:{group_id}",
+D:\Projects\Mimoru\app\handlers\navigation.py:85|                text="рџ›Ў Р—Р°С‰РёС‚Р°", callback_data=f"group_section:{group_id}:protection"
+D:\Projects\Mimoru\app\handlers\navigation.py:88|                text="вљ™пёЏ РќР°СЃС‚СЂРѕР№РєРё", callback_data=f"group_section:{group_id}:settings"
+D:\Projects\Mimoru\app\handlers\navigation.py:96|                    text="рџ§° Р Р°СЃС€РёСЂРµРЅРЅР°СЏ РґРёР°РіРЅРѕСЃС‚РёРєР°", callback_data=f"ops:{group_id}"
+D:\Projects\Mimoru\app\handlers\navigation.py:100|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back_callback)])
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:29|                callback_data=f"automation_warning_limit_set:{group_id}:{value}",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:37|                text="в—ЂпёЏ РќР°Р·Р°Рґ Рє Р°РІС‚РѕРјР°С‚РёР·Р°С†РёРё", callback_data=f"automation:{group_id}"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:56|                callback_data=f"setting_set:{group_id}:defaultmute:{seconds}",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:65|                callback_data=f"group_section:{group_id}:moderation",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:84|                callback_data=f"setting_flood:{group_id}:{limit}:{window}",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:93|                callback_data=f"group_section:{group_id}:protection",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:106|                    callback_data=f"setup:{group_id}:type:community",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:109|                    text="рџЋ® РРіСЂС‹", callback_data=f"setup:{group_id}:type:gaming"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:114|                    text="рџЄ™ РљСЂРёРїС‚Р°", callback_data=f"setup:{group_id}:type:crypto"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:117|                    text="рџ›Ќ РџСЂРѕРґР°Р¶Рё", callback_data=f"setup:{group_id}:type:sales"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:122|                    text="рџ“° РќРѕРІРѕСЃС‚Рё", callback_data=f"setup:{group_id}:type:news"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:125|                    text="рџЋ“ РћР±СѓС‡РµРЅРёРµ", callback_data=f"setup:{group_id}:type:education"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:130|                    text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data=f"group_section:{group_id}:settings"
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:139|        inline_keyboard=[[InlineKeyboardButton(text=text, callback_data=callback_data)]]
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:382|                    callback_data=f"logs:{group.id}:page:{page - 1}",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:389|                    callback_data="noop",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:396|                    callback_data=f"logs:{group.id}:page:{page + 1}",
+D:\Projects\Mimoru\app\handlers\navigation_fixes.py:404|                callback_data=f"group_section:{group.id}:moderation",
+D:\Projects\Mimoru\app\handlers\operations_center.py:133|                        text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"ops_diag:{gid}"
+D:\Projects\Mimoru\app\handlers\operations_center.py:138|                        text="в—ЂпёЏ Operations Center", callback_data=f"ops:{gid}"
+D:\Projects\Mimoru\app\handlers\operations_center.py:208|                        text="в—ЂпёЏ Operations Center", callback_data=f"ops:{gid}"
+D:\Projects\Mimoru\app\handlers\operations_center.py:236|                callback_data=f"ops_backup_create:{gid}",
+D:\Projects\Mimoru\app\handlers\operations_center.py:245|                    callback_data=f"ops_snapshot:{s.id}",
+D:\Projects\Mimoru\app\handlers\operations_center.py:250|        [InlineKeyboardButton(text="в—ЂпёЏ Operations Center", callback_data=f"ops:{gid}")]
+D:\Projects\Mimoru\app\handlers\operations_center.py:329|                    callback_data=f"ops_snapshot_apply:{sid}:{gid}",
+D:\Projects\Mimoru\app\handlers\operations_center.py:334|                    text="вќЊ РћС‚РјРµРЅР°", callback_data=f"ops_snapshot:{sid}"
+D:\Projects\Mimoru\app\handlers\operations_center.py:372|                        text="рџ§° Operations Center", callback_data=f"ops:{target.id}"
+D:\Projects\Mimoru\app\handlers\panel.py:488|                    callback_data=f"logs:{group.id}:page:{page - 1}",
+D:\Projects\Mimoru\app\handlers\panel.py:495|                    callback_data="noop",
+D:\Projects\Mimoru\app\handlers\panel.py:502|                    callback_data=f"logs:{group.id}:page:{page + 1}",
+D:\Projects\Mimoru\app\handlers\panel.py:510|                callback_data=f"group_section:{group.id}:moderation",
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:25|        [InlineKeyboardButton(text="рџ†“ FREE", callback_data="plans_catalog:free")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:26|        [InlineKeyboardButton(text="в­ђ STANDARD В· 250 Stars / 30 РґРЅРµР№", callback_data="plans_catalog:standard")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:27|        [InlineKeyboardButton(text="рџ’Ћ PRO В· 500 Stars / 30 РґРЅРµР№", callback_data="plans_catalog:pro")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:28|        [InlineKeyboardButton(text="рџ“Љ РЎСЂР°РІРЅРёС‚СЊ С‚Р°СЂРёС„С‹", callback_data="plans_catalog:compare")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:29|        [InlineKeyboardButton(text="в—ЂпёЏ Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:81|        rows.append([InlineKeyboardButton(text="рџЏ  Р’С‹Р±СЂР°С‚СЊ РіСЂСѓРїРїСѓ РґР»СЏ СЌС‚РѕРіРѕ С‚Р°СЂРёС„Р°", callback_data=f"plans_choose_group:{plan_code}")])
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:83|        [InlineKeyboardButton(text="рџ“Љ РЎСЂР°РІРЅРёС‚СЊ С‚Р°СЂРёС„С‹", callback_data="plans_catalog:compare")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:84|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј", callback_data="panel:plans")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:105|        [InlineKeyboardButton(text=f"рџЏ  {group.title[:42]}", callback_data=f"plans_apply:{plan_code}:{group.id}:catalog")]
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:108|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РѕРїРёСЃР°РЅРёСЋ С‚Р°СЂРёС„Р°", callback_data=f"plans_catalog:{plan_code}")])
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:114|        [InlineKeyboardButton(text="в­ђ STANDARD В· 250 Stars", callback_data=f"plans_apply:standard:{group_id}:group")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:115|        [InlineKeyboardButton(text="рџ’Ћ PRO В· 500 Stars", callback_data=f"plans_apply:pro:{group_id}:group")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:116|        [InlineKeyboardButton(text="рџ“њ РСЃС‚РѕСЂРёСЏ РїР»Р°С‚РµР¶РµР№", callback_data=f"plans_history:{group_id}")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:117|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:125|        [InlineKeyboardButton(text=f"в­ђ РћС„РѕСЂРјРёС‚СЊ Р·Р° {plan['stars']} Stars", callback_data=f"plan_checkout:{group_id}:{plan_code}:{source}")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:126|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back)],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:157|            [InlineKeyboardButton(text="в­ђ STANDARD", callback_data="plans_catalog:standard"), InlineKeyboardButton(text="рџ’Ћ PRO", callback_data="plans_catalog:pro")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:158|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј", callback_data="panel:plans")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:239|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РѕРїРёСЃР°РЅРёСЋ С‚Р°СЂРёС„Р°", callback_data=f"plan_invoice_back:{group.id}:{plan_code}:{source}")],
+D:\Projects\Mimoru\app\handlers\plan_catalog.py:285|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє С‚Р°СЂРёС„Сѓ РіСЂСѓРїРїС‹", callback_data=f"plan:{group.id}")]
+D:\Projects\Mimoru\app\handlers\plan_directory.py:19|        [InlineKeyboardButton(text="рџ†“ FREE", callback_data="plans_catalog:free")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:20|        [InlineKeyboardButton(text="в­ђ STANDARD В· 250 Stars / 30 РґРЅРµР№", callback_data="plans_catalog:standard")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:21|        [InlineKeyboardButton(text="рџ’Ћ PRO В· 500 Stars / 30 РґРЅРµР№", callback_data="plans_catalog:pro")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:22|        [InlineKeyboardButton(text="рџ“Љ РЎСЂР°РІРЅРёС‚СЊ С‚Р°СЂРёС„С‹", callback_data="plans_catalog:compare")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:23|        [InlineKeyboardButton(text="в—ЂпёЏ Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:32|            callback_data=f"plans_choose_group:{plan_code}",
+D:\Projects\Mimoru\app\handlers\plan_directory.py:34|    rows.append([InlineKeyboardButton(text="рџ“Љ РЎСЂР°РІРЅРёС‚СЊ С‚Р°СЂРёС„С‹", callback_data="plans_catalog:compare")])
+D:\Projects\Mimoru\app\handlers\plan_directory.py:35|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј", callback_data="panel:plans")])
+D:\Projects\Mimoru\app\handlers\plan_directory.py:90|            callback_data=f"plan_checkout:{group_id}:{plan_code}:{source}",
+D:\Projects\Mimoru\app\handlers\plan_directory.py:92|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=back)],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:135|                InlineKeyboardButton(text="в­ђ STANDARD", callback_data="plans_catalog:standard"),
+D:\Projects\Mimoru\app\handlers\plan_directory.py:136|                InlineKeyboardButton(text="рџ’Ћ PRO", callback_data="plans_catalog:pro"),
+D:\Projects\Mimoru\app\handlers\plan_directory.py:138|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј", callback_data="panel:plans")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:158|            callback_data=f"plans_apply:{plan_code}:{group.id}:catalog",
+D:\Projects\Mimoru\app\handlers\plan_directory.py:162|        callback_data=f"group_lookup:plan:{plan_code}",
+D:\Projects\Mimoru\app\handlers\plan_directory.py:164|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РѕРїРёСЃР°РЅРёСЋ С‚Р°СЂРёС„Р°", callback_data=f"plans_catalog:{plan_code}")])
+D:\Projects\Mimoru\app\handlers\plan_directory.py:209|            [InlineKeyboardButton(text="в­ђ STANDARD В· 250 Stars", callback_data=f"plans_apply:standard:{group.id}:group")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:210|            [InlineKeyboardButton(text="рџ’Ћ PRO В· 500 Stars", callback_data=f"plans_apply:pro:{group.id}:group")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:211|            [InlineKeyboardButton(text="рџ“њ РСЃС‚РѕСЂРёСЏ РїР»Р°С‚РµР¶РµР№", callback_data=f"plans_history:{group.id}")],
+D:\Projects\Mimoru\app\handlers\plan_directory.py:212|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group.id}")],
+D:\Projects\Mimoru\app\handlers\plan_legacy_redirect.py:48|                callback_data=f"plans_apply:{plan_code}:{raw_group_id}:group",
+D:\Projects\Mimoru\app\handlers\plan_legacy_redirect.py:50|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј РіСЂСѓРїРїС‹", callback_data=f"plan:{raw_group_id}")],
+D:\Projects\Mimoru\app\handlers\promo_redemption.py:21|            callback_data=f"promo_redeem:{group.id}:{promo_id}",
+D:\Projects\Mimoru\app\handlers\promo_redemption.py:25|    rows.append([InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data="panel:plans")])
+D:\Projects\Mimoru\app\handlers\rank_legacy_guard.py:27|            [InlineKeyboardButton(text="рџ‘Ґ РћС‚РєСЂС‹С‚СЊ СЂР°РЅРіРё", callback_data=f"roles:{group_id}")],
+D:\Projects\Mimoru\app\handlers\rank_legacy_guard.py:28|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group_id}:moderation")],
+D:\Projects\Mimoru\app\handlers\rank_policy_fix.py:44|            callback_data=f"rank_policy_perm:{group.id}:{rank_code}:{name}",
+D:\Projects\Mimoru\app\handlers\rank_policy_fix.py:48|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"rank_policies:{group.id}")])
+D:\Projects\Mimoru\app\handlers\rank_provisioning_handlers.py:165|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ Р°РґРјРёРЅРёСЃС‚СЂР°С†РёРё", callback_data=f"admin_access:{group.id}")]
+D:\Projects\Mimoru\app\handlers\rank_provisioning_handlers.py:199|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")]
+D:\Projects\Mimoru\app\handlers\rank_provisioning_handlers.py:221|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")]
+D:\Projects\Mimoru\app\handlers\reason_admin.py:371|                        InlineKeyboardButton(text="рџ‘¤ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"member_card:{group.id}:{int(data['target_id'])}")
+D:\Projects\Mimoru\app\handlers\reason_admin.py:402|                    InlineKeyboardButton(text="рџ‘¤ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"member_card:{group.id}:{int(data['target_id'])}")
+D:\Projects\Mimoru\app\handlers\reason_admin.py:440|                InlineKeyboardButton(text="рџ‘¤ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"member_card:{int(data['group_id'])}:{int(data['target_id'])}")
+D:\Projects\Mimoru\app\handlers\service_admin.py:25|        [InlineKeyboardButton(text="рџ§Є Р’С‹РґР°С‚СЊ TRIAL В· 7 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:trial:7")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:26|        [InlineKeyboardButton(text="в­ђ STANDARD В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:standard:30")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:27|        [InlineKeyboardButton(text="рџ’Ћ PRO В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:pro:30")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:28|        [InlineKeyboardButton(text="рџ†“ РџРµСЂРµРІРµСЃС‚Рё РЅР° FREE", callback_data=f"service_plan_confirm:{group.id}:free:0")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:29|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ РіСЂСѓРїРїС‹", callback_data=f"service_group:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:80|        [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"service_plan_apply:{group.id}:{plan_code}:{days}")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:81|        [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=f"service_plan:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:230|            [InlineKeyboardButton(text="рџ“Ј РћС‚РєСЂС‹С‚СЊ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ СЂР°СЃСЃС‹Р»РєРё", callback_data="service:broadcast")],
+D:\Projects\Mimoru\app\handlers\service_admin.py:231|            [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:103|        [InlineKeyboardButton(text=text_label, callback_data="service:broadcast:text")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:104|        [InlineKeyboardButton(text=photo_label, callback_data="service:broadcast:photo")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:105|        [InlineKeyboardButton(text=button_label, callback_data="service:broadcast:button")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:108|        rows.append([InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ", callback_data="service:broadcast:photo_remove")])
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:110|        rows.append([InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ РєРЅРѕРїРєСѓ", callback_data="service:broadcast:button_remove")])
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:112|        [InlineKeyboardButton(text="рџ‘Ѓ РџСЂРµРґРїСЂРѕСЃРјРѕС‚СЂ", callback_data="service:broadcast:preview")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:113|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data="service:broadcast")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:120|        [InlineKeyboardButton(text="рџ“ќ РќРѕРІС‹Р№ С‡РµСЂРЅРѕРІРёРє", callback_data="service:broadcast:new")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:121|        [InlineKeyboardButton(text="вњЏпёЏ РџСЂРѕРґРѕР»Р¶РёС‚СЊ С‡РµСЂРЅРѕРІРёРє", callback_data="service:broadcast:draft")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:122|        [InlineKeyboardButton(text="рџ“‹ РСЃС‚РѕСЂРёСЏ СЂР°СЃСЃС‹Р»РѕРє", callback_data="service:broadcast:history")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:123|        [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:129|        [InlineKeyboardButton(text="вњ… Рљ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЋ", callback_data="service:broadcast:confirm")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:130|        [InlineKeyboardButton(text="вњЏпёЏ Р’РµСЂРЅСѓС‚СЊСЃСЏ Рє СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЋ", callback_data="service:broadcast:draft")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:131|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data="service:broadcast")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:137|        [InlineKeyboardButton(text="рџљЂ РџРѕРґС‚РІРµСЂРґРёС‚СЊ Рё РѕС‚РїСЂР°РІРёС‚СЊ", callback_data="service:broadcast:send")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:138|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂСѓ", callback_data="service:broadcast:preview")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:487|                [InlineKeyboardButton(text="рџ“‹ РСЃС‚РѕСЂРёСЏ СЂР°СЃСЃС‹Р»РѕРє", callback_data="service:broadcast:history")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:488|                [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:553|                [InlineKeyboardButton(text="рџ“‹ РСЃС‚РѕСЂРёСЏ СЂР°СЃСЃС‹Р»РѕРє", callback_data="service:broadcast:history")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:554|                [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:566|            [InlineKeyboardButton(text="рџ”„ РџСЂРѕРґРѕР»Р¶РёС‚СЊ", callback_data="service:broadcast:send")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:567|            [InlineKeyboardButton(text="рџ“‹ РСЃС‚РѕСЂРёСЏ СЂР°СЃСЃС‹Р»РѕРє", callback_data="service:broadcast:history")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:585|            [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє СЂР°СЃСЃС‹Р»РєР°Рј", callback_data="service:broadcast")],
+D:\Projects\Mimoru\app\handlers\service_broadcast.py:586|            [InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")],
+D:\Projects\Mimoru\app\handlers\service_management.py:27|    return InlineKeyboardButton(text=text, callback_data=callback_data)
+D:\Projects\Mimoru\app\handlers\service_management.py:60|        [InlineKeyboardButton(text="рџ‘¤ Р’СЃРµ РїРѕР»СЊР·РѕРІР°С‚РµР»Рё", callback_data="service:clients:all")],
+D:\Projects\Mimoru\app\handlers\service_management.py:61|        [InlineKeyboardButton(text="рџЏ  Р’Р»Р°РґРµР»СЊС†С‹ РіСЂСѓРїРї", callback_data="service:clients:owners")],
+D:\Projects\Mimoru\app\handlers\service_management.py:62|        [InlineKeyboardButton(text="рџљ« Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹Рµ", callback_data="service:clients:blocked")],
+D:\Projects\Mimoru\app\handlers\service_management.py:111|            callback_data=f"service_client:{user.telegram_id}",
+D:\Projects\Mimoru\app\handlers\service_management.py:166|        callback_data=f"service_group:{group.id}",
+D:\Projects\Mimoru\app\handlers\service_management.py:171|        callback_data=f"service_client_confirm:{telegram_id}:{action}",
+D:\Projects\Mimoru\app\handlers\service_management.py:206|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"service_client_action:{tid}:{action}")],
+D:\Projects\Mimoru\app\handlers\service_management.py:242|        InlineKeyboardButton(text="вњ… РђРєС‚РёРІРЅС‹Рµ", callback_data="service:groups:active"),
+D:\Projects\Mimoru\app\handlers\service_management.py:243|        InlineKeyboardButton(text="в›” РћС‚РєР»СЋС‡С‘РЅРЅС‹Рµ", callback_data="service:groups:disabled"),
+D:\Projects\Mimoru\app\handlers\service_management.py:248|            callback_data=f"service_group:{group.id}",
+D:\Projects\Mimoru\app\handlers\service_management.py:291|            InlineKeyboardButton(text="рџ©є РџСЂРѕРІРµСЂРёС‚СЊ Telegram", callback_data=f"service_group_health:{group.id}"),
+D:\Projects\Mimoru\app\handlers\service_management.py:292|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data=f"service_group_stats:{group.id}"),
+D:\Projects\Mimoru\app\handlers\service_management.py:294|        [InlineKeyboardButton(text="рџ’Ћ РЈРїСЂР°РІР»РµРЅРёРµ С‚Р°СЂРёС„РѕРј", callback_data=f"service_plan:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_management.py:297|        rows.append([InlineKeyboardButton(text="рџ‘¤ РћС‚РєСЂС‹С‚СЊ РІР»Р°РґРµР»СЊС†Р°", callback_data=f"service_client:{group.owner_telegram_id}")])
+D:\Projects\Mimoru\app\handlers\service_management.py:301|        callback_data=f"service_group_confirm:{group.id}:{action}",
+D:\Projects\Mimoru\app\handlers\service_management.py:345|            [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"service_group_health:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_management.py:401|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"service_group_action:{group.id}:{action}")],
+D:\Projects\Mimoru\app\handlers\service_management.py:439|            [InlineKeyboardButton(text="рџ§Є TRIAL В· 7 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:trial:7")],
+D:\Projects\Mimoru\app\handlers\service_management.py:440|            [InlineKeyboardButton(text="в­ђ STANDARD В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:standard:30")],
+D:\Projects\Mimoru\app\handlers\service_management.py:441|            [InlineKeyboardButton(text="рџ’Ћ PRO В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group.id}:pro:30")],
+D:\Projects\Mimoru\app\handlers\service_management.py:442|            [InlineKeyboardButton(text="рџ†“ РџРµСЂРµРІРµСЃС‚Рё РЅР° FREE", callback_data=f"service_plan_confirm:{group.id}:free:0")],
+D:\Projects\Mimoru\app\handlers\service_management.py:465|            [InlineKeyboardButton(text="вњ… Р”Р°, РїРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"service_plan_action:{group.id}:{plan_code}:{raw_days}")],
+D:\Projects\Mimoru\app\handlers\service_management.py:511|            InlineKeyboardButton(text=f"рџ’Ћ РџР»Р°С‚РЅС‹Рµ ({len(paid)})", callback_data="service:subscriptions:paid"),
+D:\Projects\Mimoru\app\handlers\service_management.py:512|            InlineKeyboardButton(text=f"рџ§Є TRIAL ({len(trial)})", callback_data="service:subscriptions:trial"),
+D:\Projects\Mimoru\app\handlers\service_management.py:514|        [InlineKeyboardButton(text="вЊ› РСЃС‚РµРєР°СЋС‚ в‰¤7 РґРЅРµР№", callback_data="service:subscriptions:expiring")],
+D:\Projects\Mimoru\app\handlers\service_management.py:544|        callback_data=f"service_group:{group.id}",
+D:\Projects\Mimoru\app\handlers\service_management_fixes.py:26|        [InlineKeyboardButton(text="рџ§Є TRIAL В· 7 РґРЅРµР№", callback_data=f"service_plan_confirm:{group_id}:trial:7")],
+D:\Projects\Mimoru\app\handlers\service_management_fixes.py:27|        [InlineKeyboardButton(text="в­ђ STANDARD В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group_id}:standard:30")],
+D:\Projects\Mimoru\app\handlers\service_management_fixes.py:28|        [InlineKeyboardButton(text="рџ’Ћ PRO В· 30 РґРЅРµР№", callback_data=f"service_plan_confirm:{group_id}:pro:30")],
+D:\Projects\Mimoru\app\handlers\service_management_fixes.py:29|        [InlineKeyboardButton(text="рџ†“ РџРµСЂРµРІРµСЃС‚Рё РЅР° FREE", callback_data=f"service_plan_confirm:{group_id}:free:0")],
+D:\Projects\Mimoru\app\handlers\service_management_fixes.py:30|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ РіСЂСѓРїРїС‹", callback_data=f"service_group:{group_id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:77|            callback_data=f"owner_card:{owner_id}",
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:79|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")])
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:112|        callback_data=f"owner_group:{telegram_id}:{group.id}",
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:114|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РІР»Р°РґРµР»СЊС†Р°Рј", callback_data="service:clients")])
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:157|        [InlineKeyboardButton(text="рџ“Ґ РЎРєР°С‡Р°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Excel", callback_data=f"owner_export:{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:159|            InlineKeyboardButton(text="рџ©є РџСЂРѕРІРµСЂРёС‚СЊ Telegram", callback_data=f"owner_health:{owner_id}:{group.id}"),
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:160|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data=f"owner_stats:{owner_id}:{group.id}"),
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:162|        [InlineKeyboardButton(text="рџ’Ћ РЈРїСЂР°РІР»РµРЅРёРµ С‚Р°СЂРёС„РѕРј", callback_data=f"cp:c{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:163|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РІР»Р°РґРµР»СЊС†Сѓ", callback_data=f"owner_card:{owner_id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:304|            [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"owner_health:{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:305|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РіСЂСѓРїРїРµ", callback_data=f"owner_group:{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:330|            [InlineKeyboardButton(text="рџ“Ґ РЎРєР°С‡Р°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Excel", callback_data=f"owner_export:{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\service_owner_directory.py:331|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ РіСЂСѓРїРїРµ", callback_data=f"owner_group:{owner_id}:{group.id}")],
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:145|                callback_data=f"rank_edit:{group.id}:{item.id}",
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:149|        buttons.append([InlineKeyboardButton(text="вћ• РќР°Р·РЅР°С‡РёС‚СЊ СЂР°РЅРі", callback_data=f"rank_add:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:151|        buttons.append([InlineKeyboardButton(text="вљ™пёЏ РџСЂР°РІР° СЂР°РЅРіРѕРІ РіСЂСѓРїРїС‹", callback_data=f"rank_policies:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:152|    buttons.append([InlineKeyboardButton(text="рџ“њ РСЃС‚РѕСЂРёСЏ РЅР°Р·РЅР°С‡РµРЅРёР№", callback_data=f"rank_history:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:153|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group.id}:moderation")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:216|    rows = [[InlineKeyboardButton(text=_rank_label(code), callback_data=f"rank_add_choose:{group.id}:{code}")] for code in available]
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:217|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:354|            [InlineKeyboardButton(text="вљ™пёЏ РћС‚РєСЂС‹С‚СЊ СЂР°РЅРі", callback_data=f"rank_edit:{group.id}:{assignment.id}")],
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:355|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")],
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:375|                    callback_data=f"rank_perm:{group.id}:{assignment.id}:{name}",
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:379|            rows.append([InlineKeyboardButton(text="в™»пёЏ РЎР±СЂРѕСЃРёС‚СЊ Р»РёС‡РЅС‹Рµ РїСЂР°РІР°", callback_data=f"rank_reset:{group.id}:{assignment.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:386|                    callback_data=f"rank_change:{group.id}:{assignment.id}:{code}",
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:390|        rows.append([InlineKeyboardButton(text="рџ—‘ РЎРЅСЏС‚СЊ СЂР°РЅРі", callback_data=f"rank_remove_confirm:{group.id}:{assignment.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:391|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:520|            [InlineKeyboardButton(text="вњ… Р”Р°, СЃРЅСЏС‚СЊ", callback_data=f"rank_remove:{group.id}:{assignment.id}")],
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:521|            [InlineKeyboardButton(text="в—ЂпёЏ РћС‚РјРµРЅР°", callback_data=f"rank_edit:{group.id}:{assignment.id}")],
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:566|    rows = [[InlineKeyboardButton(text=_rank_label(code), callback_data=f"rank_policy:{group.id}:{code}")] for code in RANK_CODES]
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:567|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:606|            callback_data=f"rank_policy_perm:{group.id}:{rank_code}:{name}",
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:610|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"rank_policies:{group.id}")])
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:674|            [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂР°РЅРіР°Рј", callback_data=f"roles:{group.id}")]
+D:\Projects\Mimoru\app\handlers\telegram_roles.py:717|        callback_data=f"rank_quick:{group.id}:{target_id}:{code}",
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:28|            InlineKeyboardButton(text="рџ‘Ґ РЎРѕРѕР±С‰РµСЃС‚РІРѕ", callback_data=f"setupnav:{group_id}:type:community"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:29|            InlineKeyboardButton(text="рџЋ® РРіСЂС‹", callback_data=f"setupnav:{group_id}:type:gaming"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:32|            InlineKeyboardButton(text="рџЄ™ РљСЂРёРїС‚Р°", callback_data=f"setupnav:{group_id}:type:crypto"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:33|            InlineKeyboardButton(text="рџ›Ќ РџСЂРѕРґР°Р¶Рё", callback_data=f"setupnav:{group_id}:type:sales"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:36|            InlineKeyboardButton(text="рџ“° РќРѕРІРѕСЃС‚Рё", callback_data=f"setupnav:{group_id}:type:news"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:37|            InlineKeyboardButton(text="рџЋ“ РћР±СѓС‡РµРЅРёРµ", callback_data=f"setupnav:{group_id}:type:education"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:39|        [InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data=f"group_section:{group_id}:settings")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:45|        [InlineKeyboardButton(text="рџџў РњРёРЅРёРјР°Р»СЊРЅС‹Р№", callback_data=f"setupnav:{group_id}:level:{profile}:minimal")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:46|        [InlineKeyboardButton(text="рџџЎ РЎС‚Р°РЅРґР°СЂС‚РЅС‹Р№", callback_data=f"setupnav:{group_id}:level:{profile}:standard")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:47|        [InlineKeyboardButton(text="рџ”ґ РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№", callback_data=f"setupnav:{group_id}:level:{profile}:maximum")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:48|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"setupnav:{group_id}:step1")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:49|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РІРµСЂС€РёС‚СЊ РїРѕР·Р¶Рµ", callback_data=f"group_section:{group_id}:settings")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:61|            InlineKeyboardButton(text="вњ… Р”Р°", callback_data=f"setupnav:{group_id}:{field}:{profile}:{level}:on"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:62|            InlineKeyboardButton(text="вќЊ РќРµС‚", callback_data=f"setupnav:{group_id}:{field}:{profile}:{level}:off"),
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:64|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=previous)],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:65|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РІРµСЂС€РёС‚СЊ РїРѕР·Р¶Рµ", callback_data=f"group_section:{group_id}:settings")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:327|        [InlineKeyboardButton(text="в­ђ РџСЂРѕРІРµСЂРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ", callback_data=f"health:{group.id}")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:328|        [InlineKeyboardButton(text="вљ™пёЏ Рљ РЅР°СЃС‚СЂРѕР№РєР°Рј", callback_data=f"group_section:{group.id}:settings")],
+D:\Projects\Mimoru\app\handlers\wizard_navigation.py:329|        [InlineKeyboardButton(text="рџЏ  Рљ РіСЂСѓРїРїРµ", callback_data=f"group:{group.id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:13|        rows.append([InlineKeyboardButton(text="рџ‘‘ РЈРїСЂР°РІР»РµРЅРёРµ Mimoru", callback_data="service:home")])
+D:\Projects\Mimoru\app\keyboards\home.py:16|            [InlineKeyboardButton(text="рџЏ  РЈРїСЂР°РІР»СЏС‚СЊ РјРѕРёРјРё РіСЂСѓРїРїР°РјРё", callback_data="panel:groups")],
+D:\Projects\Mimoru\app\keyboards\home.py:17|            [InlineKeyboardButton(text="рџ’Ћ РўР°СЂРёС„С‹ Рё РїРѕРґРїРёСЃРєР°", callback_data="panel:plans")],
+D:\Projects\Mimoru\app\keyboards\home.py:19|                InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР°", callback_data="ads:home"),
+D:\Projects\Mimoru\app\keyboards\home.py:20|                InlineKeyboardButton(text="рџ’¬ РџРѕРґРґРµСЂР¶РєР°", callback_data="panel:support"),
+D:\Projects\Mimoru\app\keyboards\home.py:22|            [InlineKeyboardButton(text="вќ“ РљР°Рє РїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ Mimoru", callback_data="panel:commands")],
+D:\Projects\Mimoru\app\keyboards\home.py:31|            InlineKeyboardButton(text="рџ‘Ґ РљР»РёРµРЅС‚С‹", callback_data="service:clients"),
+D:\Projects\Mimoru\app\keyboards\home.py:32|            InlineKeyboardButton(text="рџЏ  Р’СЃРµ РіСЂСѓРїРїС‹", callback_data="service:groups"),
+D:\Projects\Mimoru\app\keyboards\home.py:35|            InlineKeyboardButton(text="рџ’Ћ РџРѕРґРїРёСЃРєРё Рё TRIAL", callback_data="service:subscriptions"),
+D:\Projects\Mimoru\app\keyboards\home.py:36|            InlineKeyboardButton(text="рџ’і РџР»Р°С‚РµР¶Рё", callback_data="service:billing"),
+D:\Projects\Mimoru\app\keyboards\home.py:39|            InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР°", callback_data="service:ads"),
+D:\Projects\Mimoru\app\keyboards\home.py:40|            InlineKeyboardButton(text="рџ“Ј Р Р°СЃСЃС‹Р»РєР° РїРѕ РіСЂСѓРїРїР°Рј", callback_data="service:broadcast"),
+D:\Projects\Mimoru\app\keyboards\home.py:43|            InlineKeyboardButton(text="рџ’¬ РћР±СЂР°С‰РµРЅРёСЏ", callback_data="service:tickets"),
+D:\Projects\Mimoru\app\keyboards\home.py:44|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data="service:stats"),
+D:\Projects\Mimoru\app\keyboards\home.py:46|        [InlineKeyboardButton(text="в—ЂпёЏ Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\keyboards\home.py:52|        [InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅРёС‚СЊ РІРІРѕРґ", callback_data=callback_data)],
+D:\Projects\Mimoru\app\keyboards\home.py:58|        [InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅРёС‚СЊ РІРІРѕРґ", callback_data=f"reply_cancel:{prompt_message_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:65|            InlineKeyboardButton(text="рџ›Ў Р—Р°С‰РёС‚Р° РѕС‚ СЃРїР°РјР°", callback_data=f"group_section:{group_id}:protection"),
+D:\Projects\Mimoru\app\keyboards\home.py:66|            InlineKeyboardButton(text="рџ‘® РњРѕРґРµСЂР°С†РёСЏ", callback_data=f"group_section:{group_id}:moderation"),
+D:\Projects\Mimoru\app\keyboards\home.py:69|            InlineKeyboardButton(text="рџ‘Ґ РЈС‡Р°СЃС‚РЅРёРєРё", callback_data=f"group_section:{group_id}:members"),
+D:\Projects\Mimoru\app\keyboards\home.py:70|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР° РіСЂСѓРїРїС‹", callback_data=f"group_section:{group_id}:analytics"),
+D:\Projects\Mimoru\app\keyboards\home.py:73|            InlineKeyboardButton(text="рџ“ќ РљРѕРЅС‚РµРЅС‚ Рё РїСЂР°РІРёР»Р°", callback_data=f"group_section:{group_id}:content"),
+D:\Projects\Mimoru\app\keyboards\home.py:74|            InlineKeyboardButton(text="вљ™пёЏ РќР°СЃС‚СЂРѕР№РєРё РіСЂСѓРїРїС‹", callback_data=f"group_section:{group_id}:settings"),
+D:\Projects\Mimoru\app\keyboards\home.py:77|            InlineKeyboardButton(text="рџ¤– РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:78|            InlineKeyboardButton(text="рџ’Ћ РўР°СЂРёС„ РіСЂСѓРїРїС‹", callback_data=f"plan:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:81|            InlineKeyboardButton(text="рџ©є Р”РёР°РіРЅРѕСЃС‚РёРєР°", callback_data=f"health_direct:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:82|            InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР° РіСЂСѓРїРїС‹", callback_data=f"ads:placement:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:84|        [InlineKeyboardButton(text="в›” РћС‚РєР»СЋС‡РёС‚СЊ РіСЂСѓРїРїСѓ", callback_data=f"group_disconnect:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:85|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РјРѕРёРј РіСЂСѓРїРїР°Рј", callback_data="panel:groups")],
+D:\Projects\Mimoru\app\keyboards\home.py:86|        [InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\keyboards\home.py:94|            InlineKeyboardButton(text=f"{_status(s.antiflood_enabled)} РђРЅС‚РёС„Р»СѓРґ", callback_data=f"toggle:{gid}:antiflood"),
+D:\Projects\Mimoru\app\keyboards\home.py:95|            InlineKeyboardButton(text=f"{_status(s.repeats_enabled)} РџРѕРІС‚РѕСЂС‹", callback_data=f"toggle:{gid}:repeats"),
+D:\Projects\Mimoru\app\keyboards\home.py:97|        [InlineKeyboardButton(text="рџЊЉ РќР°СЃС‚СЂРѕРёС‚СЊ Р°РЅС‚РёС„Р»СѓРґ", callback_data=f"setting_num:{gid}:antiflood")],
+D:\Projects\Mimoru\app\keyboards\home.py:99|            InlineKeyboardButton(text=f"{'рџљ«' if not s.links_enabled else 'вњ…'} РЎСЃС‹Р»РєРё", callback_data=f"toggle:{gid}:links"),
+D:\Projects\Mimoru\app\keyboards\home.py:100|            InlineKeyboardButton(text=f"{_status(s.caps_enabled)} РљР°РїСЃ", callback_data=f"toggle:{gid}:caps"),
+D:\Projects\Mimoru\app\keyboards\home.py:103|            InlineKeyboardButton(text=f"{_status(s.captcha_enabled)} РљР°РїС‡Р°", callback_data=f"toggle:{gid}:captcha"),
+D:\Projects\Mimoru\app\keyboards\home.py:104|            InlineKeyboardButton(text=f"{_status(s.newcomer_quarantine_enabled)} РљР°СЂР°РЅС‚РёРЅ", callback_data=f"toggle:{gid}:quarantine"),
+D:\Projects\Mimoru\app\keyboards\home.py:107|            InlineKeyboardButton(text=f"{_status(s.edit_protection_enabled)} Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ", callback_data=f"toggle:{gid}:edit"),
+D:\Projects\Mimoru\app\keyboards\home.py:108|            InlineKeyboardButton(text=f"{_status(s.mention_filter_enabled)} РЈРїРѕРјРёРЅР°РЅРёСЏ", callback_data=f"toggle:{gid}:mentions"),
+D:\Projects\Mimoru\app\keyboards\home.py:111|            InlineKeyboardButton(text=f"{_status(s.sender_chat_filter_enabled)} Sender Chat", callback_data=f"toggle:{gid}:sender"),
+D:\Projects\Mimoru\app\keyboards\home.py:112|            InlineKeyboardButton(text=f"{_status(s.anti_raid_enabled)} Anti-Raid", callback_data=f"toggle:{gid}:raid"),
+D:\Projects\Mimoru\app\keyboards\home.py:114|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:120|        [InlineKeyboardButton(text="рџљ© Р–Р°Р»РѕР±С‹", callback_data=f"complaints:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:121|        [InlineKeyboardButton(text="рџ“Њ РџСЂРёС‡РёРЅС‹ РЅР°РєР°Р·Р°РЅРёР№", callback_data=f"reasons:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:122|        [InlineKeyboardButton(text="рџ”‡ РњСѓС‚ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ", callback_data=f"setting_num:{group_id}:defaultmute")],
+D:\Projects\Mimoru\app\keyboards\home.py:124|            InlineKeyboardButton(text="рџ‘® РњРѕРґРµСЂР°С‚РѕСЂС‹", callback_data=f"roles:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:125|            InlineKeyboardButton(text="рџ“‹ Р–СѓСЂРЅР°Р»", callback_data=f"logs:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:127|        [InlineKeyboardButton(text="в„№пёЏ РљР°Рє РјРѕРґРµСЂРёСЂРѕРІР°С‚СЊ", callback_data=f"moderation_help:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:128|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:134|        [InlineKeyboardButton(text="рџ”Ћ РќР°Р№С‚Рё СѓС‡Р°СЃС‚РЅРёРєР°", callback_data=f"member_find:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:136|            InlineKeyboardButton(text="рџЏ† РђРєС‚РёРІРЅС‹Рµ", callback_data=f"people_active:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:137|            InlineKeyboardButton(text="рџґ РќРµР°РєС‚РёРІРЅС‹Рµ", callback_data=f"people_inactive:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:140|            InlineKeyboardButton(text="рџ†• РќРѕРІРёС‡РєРё", callback_data=f"people_new:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:141|            InlineKeyboardButton(text="рџ¤– РџРѕРґРѕР·СЂРёС‚РµР»СЊРЅС‹Рµ", callback_data=f"people_suspicious:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\home.py:144|            InlineKeyboardButton(text="вљ пёЏ РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёСЏ", callback_data=f"active_punishments:{group_id}:warn"),
+D:\Projects\Mimoru\app\keyboards\home.py:145|            InlineKeyboardButton(text="рџ”‡ РњСѓС‚С‹", callback_data=f"active_punishments:{group_id}:mute"),
+D:\Projects\Mimoru\app\keyboards\home.py:147|        [InlineKeyboardButton(text="в›” Р‘Р»РѕРєРёСЂРѕРІРєРё", callback_data=f"active_punishments:{group_id}:ban")],
+D:\Projects\Mimoru\app\keyboards\home.py:148|        [InlineKeyboardButton(text="рџЄ¦ РЈРґР°Р»С‘РЅРЅС‹Рµ Р°РєРєР°СѓРЅС‚С‹", callback_data=f"deleted_accounts:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:149|        [InlineKeyboardButton(text="рџЏ† РђРєС‚РёРІРЅРѕСЃС‚СЊ СѓС‡Р°СЃС‚РЅРёРєРѕРІ", callback_data=f"members_stats:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:150|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:156|        [InlineKeyboardButton(text="рџљ« Р—Р°РїСЂРµС‰С‘РЅРЅС‹Рµ СЃР»РѕРІР° Рё С„СЂР°Р·С‹", callback_data=f"words:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:157|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:165|        [InlineKeyboardButton(text=f"{status(s.welcome_enabled)} РџСЂРёРІРµС‚СЃС‚РІРёРµ", callback_data=f"toggle:{gid}:welcome")],
+D:\Projects\Mimoru\app\keyboards\home.py:167|            InlineKeyboardButton(text=f"{status(s.night_mode_enabled)} РќРѕС‡РЅРѕР№ СЂРµР¶РёРј", callback_data=f"toggle:{gid}:night"),
+D:\Projects\Mimoru\app\keyboards\home.py:168|            InlineKeyboardButton(text=f"{status(s.join_requests_enabled)} Р—Р°СЏРІРєРё", callback_data=f"toggle:{gid}:joinreq"),
+D:\Projects\Mimoru\app\keyboards\home.py:170|        [InlineKeyboardButton(text="рџ“ќ РџСЂРёРІРµС‚СЃС‚РІРёРµ Рё РїСЂР°РІРёР»Р°", callback_data=f"settings_detail:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:171|        [InlineKeyboardButton(text="рџљЂ РњР°СЃС‚РµСЂ РЅР°СЃС‚СЂРѕР№РєРё", callback_data=f"setup:{gid}:start")],
+D:\Projects\Mimoru\app\keyboards\home.py:172|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:179|        [InlineKeyboardButton(text="вњЏпёЏ РўРµРєСЃС‚ РїСЂРёРІРµС‚СЃС‚РІРёСЏ", callback_data=f"setting_text:{gid}:welcome")],
+D:\Projects\Mimoru\app\keyboards\home.py:180|        [InlineKeyboardButton(text="рџ“њ РџСЂР°РІРёР»Р° РіСЂСѓРїРїС‹", callback_data=f"setting_text:{gid}:rules")],
+D:\Projects\Mimoru\app\keyboards\home.py:181|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РЅР°СЃС‚СЂРѕР№РєР°Рј", callback_data=f"group_section:{gid}:settings")],
+D:\Projects\Mimoru\app\keyboards\home.py:187|        [InlineKeyboardButton(text=f"рџ—‘ {channel}", callback_data=f"channel_remove:{group_id}:{idx}")]
+D:\Projects\Mimoru\app\keyboards\home.py:191|        [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Р№ РєР°РЅР°Р»", callback_data=f"channel_add:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:192|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂРµРєР»Р°РјРµ РіСЂСѓРїРїС‹", callback_data=f"ads:placement:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:201|        [InlineKeyboardButton(text=f"{_status(s.automation_enabled)} РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation_toggle:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:202|        [InlineKeyboardButton(text=f"рџЄ¦ РћС‡РёСЃС‚РєР° Р°РєРєР°СѓРЅС‚РѕРІ: {schedule_names.get(s.deleted_cleanup_schedule, 'РІС‹РєР»')}", callback_data=f"automation_cleanup:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:203|        [InlineKeyboardButton(text=f"вљ пёЏ РЎСЂРѕРє РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№: {s.warning_expire_days if s.warning_expire_days else 'РЅРµ СѓРґР°Р»СЏС‚СЊ'}", callback_data=f"automation_warnings:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:204|        [InlineKeyboardButton(text=f"вљ пёЏ Р›РёРјРёС‚ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№: {s.warnings_limit}", callback_data=f"automation_warning_limit:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:205|        [InlineKeyboardButton(text="рџ‘‹ РЎС†РµРЅР°СЂРёР№ РЅРѕРІРёС‡РєР°", callback_data=f"automation_newcomer:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:206|        [InlineKeyboardButton(text="рџ“‹ Р–СѓСЂРЅР°Р» Р°РІС‚РѕРјР°С‚РёР·Р°С†РёРё", callback_data=f"automation_logs:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:207|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\home.py:213|        [InlineKeyboardButton(text="рџ©є Р”РёР°РіРЅРѕСЃС‚РёРєР° Рё РїСЂР°РІР°", callback_data=f"ops_diag:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:214|        [InlineKeyboardButton(text="рџ“‹ Р•РґРёРЅС‹Р№ Р¶СѓСЂРЅР°Р»", callback_data=f"ops_logs:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:215|        [InlineKeyboardButton(text="рџ“¦ Р РµР·РµСЂРІРЅС‹Рµ РєРѕРїРёРё", callback_data=f"ops_backup:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:216|        [InlineKeyboardButton(text="в­ђ РЎРѕСЃС‚РѕСЏРЅРёРµ РіСЂСѓРїРїС‹", callback_data=f"health_from_ops:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:217|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:223|        [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\home.py:224|        [InlineKeyboardButton(text="рџљЂ РњР°СЃС‚РµСЂ РЅР°СЃС‚СЂРѕР№РєРё", callback_data=f"setup:{group_id}:start")],
+D:\Projects\Mimoru\app\keyboards\home.py:225|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:14|            InlineKeyboardButton(text="рџЏ  РњРѕРё РіСЂСѓРїРїС‹", callback_data="panel:groups"),
+D:\Projects\Mimoru\app\keyboards\panel.py:15|            InlineKeyboardButton(text="рџ“Љ РђРЅР°Р»РёС‚РёРєР°", callback_data="panel:my_stats"),
+D:\Projects\Mimoru\app\keyboards\panel.py:18|            InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР°", callback_data="ads:home"),
+D:\Projects\Mimoru\app\keyboards\panel.py:19|            InlineKeyboardButton(text="рџ’Ћ РџРѕРґРїРёСЃРєР°", callback_data="panel:plans"),
+D:\Projects\Mimoru\app\keyboards\panel.py:22|            InlineKeyboardButton(text="рџ’¬ РџРѕРґРґРµСЂР¶РєР°", callback_data="panel:support"),
+D:\Projects\Mimoru\app\keyboards\panel.py:23|            InlineKeyboardButton(text="вљ™пёЏ РџРѕРјРѕС‰СЊ", callback_data="panel:commands"),
+D:\Projects\Mimoru\app\keyboards\panel.py:27|        rows.insert(0, [InlineKeyboardButton(text="рџ‘‘ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")])
+D:\Projects\Mimoru\app\keyboards\panel.py:32|    rows = [[InlineKeyboardButton(text=f"рџЏ  {g.title[:44]}", callback_data=f"group:{g.id}")] for g in groups]
+D:\Projects\Mimoru\app\keyboards\panel.py:33|    rows.append([InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")])
+D:\Projects\Mimoru\app\keyboards\panel.py:41|            InlineKeyboardButton(text="рџ›Ў Р—Р°С‰РёС‚Р°", callback_data=f"group_section:{gid}:protection"),
+D:\Projects\Mimoru\app\keyboards\panel.py:42|            InlineKeyboardButton(text="рџ‘® РњРѕРґРµСЂР°С†РёСЏ", callback_data=f"group_section:{gid}:moderation"),
+D:\Projects\Mimoru\app\keyboards\panel.py:45|            InlineKeyboardButton(text="рџ‘Ґ РЈС‡Р°СЃС‚РЅРёРєРё", callback_data=f"group_section:{gid}:members"),
+D:\Projects\Mimoru\app\keyboards\panel.py:46|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data=f"group_section:{gid}:analytics"),
+D:\Projects\Mimoru\app\keyboards\panel.py:49|            InlineKeyboardButton(text="рџ’¬ РљРѕРЅС‚РµРЅС‚", callback_data=f"group_section:{gid}:content"),
+D:\Projects\Mimoru\app\keyboards\panel.py:50|            InlineKeyboardButton(text="вљ™пёЏ РќР°СЃС‚СЂРѕР№РєРё", callback_data=f"group_section:{gid}:settings"),
+D:\Projects\Mimoru\app\keyboards\panel.py:53|            InlineKeyboardButton(text="вљ™пёЏ РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{gid}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:54|            InlineKeyboardButton(text="рџ’Ћ РџРѕРґРїРёСЃРєР°", callback_data=f"plan:{gid}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:57|            InlineKeyboardButton(text="рџ§° РћРїРµСЂР°С†РёРё", callback_data=f"ops:{gid}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:58|            InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР°", callback_data=f"ads:placement:{gid}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:60|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РіСЂСѓРїРїР°Рј", callback_data="panel:groups")],
+D:\Projects\Mimoru\app\keyboards\panel.py:67|            InlineKeyboardButton(text="РЎРµРіРѕРґРЅСЏ", callback_data=f"stats:{group_id}:1"),
+D:\Projects\Mimoru\app\keyboards\panel.py:68|            InlineKeyboardButton(text="7 РґРЅРµР№", callback_data=f"stats:{group_id}:7"),
+D:\Projects\Mimoru\app\keyboards\panel.py:69|            InlineKeyboardButton(text="30 РґРЅРµР№", callback_data=f"stats:{group_id}:30"),
+D:\Projects\Mimoru\app\keyboards\panel.py:72|            InlineKeyboardButton(text="рџ‘Ґ РђРєС‚РёРІРЅРѕСЃС‚СЊ", callback_data=f"analytics:{group_id}:activity"),
+D:\Projects\Mimoru\app\keyboards\panel.py:73|            InlineKeyboardButton(text="рџ›Ў РњРѕРґРµСЂР°С†РёСЏ", callback_data=f"analytics:{group_id}:moderation"),
+D:\Projects\Mimoru\app\keyboards\panel.py:76|            InlineKeyboardButton(text="рџ“€ Р”РёРЅР°РјРёРєР°", callback_data=f"analytics:{group_id}:growth"),
+D:\Projects\Mimoru\app\keyboards\panel.py:77|            InlineKeyboardButton(text="рџ“¬ РћС‚С‡С‘С‚С‹", callback_data=f"analytics:{group_id}:reports"),
+D:\Projects\Mimoru\app\keyboards\panel.py:79|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:85|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ Р°РЅР°Р»РёС‚РёРєРµ", callback_data=f"group_section:{group_id}:analytics")],
+D:\Projects\Mimoru\app\keyboards\panel.py:94|            callback_data=f"analytics_report_toggle:{gid}",
+D:\Projects\Mimoru\app\keyboards\panel.py:97|            InlineKeyboardButton(text="06:00", callback_data=f"analytics_report_hour:{gid}:6"),
+D:\Projects\Mimoru\app\keyboards\panel.py:98|            InlineKeyboardButton(text="08:00", callback_data=f"analytics_report_hour:{gid}:8"),
+D:\Projects\Mimoru\app\keyboards\panel.py:99|            InlineKeyboardButton(text="12:00", callback_data=f"analytics_report_hour:{gid}:12"),
+D:\Projects\Mimoru\app\keyboards\panel.py:102|            InlineKeyboardButton(text="18:00", callback_data=f"analytics_report_hour:{gid}:18"),
+D:\Projects\Mimoru\app\keyboards\panel.py:103|            InlineKeyboardButton(text="21:00", callback_data=f"analytics_report_hour:{gid}:21"),
+D:\Projects\Mimoru\app\keyboards\panel.py:105|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ Р°РЅР°Р»РёС‚РёРєРµ", callback_data=f"group_section:{gid}:analytics")],
+D:\Projects\Mimoru\app\keyboards\panel.py:114|            InlineKeyboardButton(text=f"{_status(s.antiflood_enabled)} РђРЅС‚РёС„Р»СѓРґ", callback_data=f"toggle:{gid}:antiflood"),
+D:\Projects\Mimoru\app\keyboards\panel.py:115|            InlineKeyboardButton(text=f"{_status(s.repeats_enabled)} РџРѕРІС‚РѕСЂС‹", callback_data=f"toggle:{gid}:repeats"),
+D:\Projects\Mimoru\app\keyboards\panel.py:118|            InlineKeyboardButton(text=f"{'рџљ«' if not s.links_enabled else 'вњ…'} РЎСЃС‹Р»РєРё", callback_data=f"toggle:{gid}:links"),
+D:\Projects\Mimoru\app\keyboards\panel.py:119|            InlineKeyboardButton(text=f"{_status(s.caps_enabled)} РљР°РїСЃ", callback_data=f"toggle:{gid}:caps"),
+D:\Projects\Mimoru\app\keyboards\panel.py:122|            InlineKeyboardButton(text=f"{_status(s.captcha_enabled)} РљР°РїС‡Р°", callback_data=f"toggle:{gid}:captcha"),
+D:\Projects\Mimoru\app\keyboards\panel.py:123|            InlineKeyboardButton(text=f"{_status(s.newcomer_quarantine_enabled)} РљР°СЂР°РЅС‚РёРЅ", callback_data=f"toggle:{gid}:quarantine"),
+D:\Projects\Mimoru\app\keyboards\panel.py:126|            InlineKeyboardButton(text=f"{_status(s.edit_protection_enabled)} Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ", callback_data=f"toggle:{gid}:edit"),
+D:\Projects\Mimoru\app\keyboards\panel.py:127|            InlineKeyboardButton(text=f"{_status(s.mention_filter_enabled)} РЈРїРѕРјРёРЅР°РЅРёСЏ", callback_data=f"toggle:{gid}:mentions"),
+D:\Projects\Mimoru\app\keyboards\panel.py:130|            InlineKeyboardButton(text=f"{_status(s.sender_chat_filter_enabled)} Sender Chat", callback_data=f"toggle:{gid}:sender"),
+D:\Projects\Mimoru\app\keyboards\panel.py:131|            InlineKeyboardButton(text=f"{_status(s.anti_raid_enabled)} Anti-Raid", callback_data=f"toggle:{gid}:raid"),
+D:\Projects\Mimoru\app\keyboards\panel.py:133|        [InlineKeyboardButton(text="рџљ« Р—Р°РїСЂРµС‰С‘РЅРЅС‹Рµ СЃР»РѕРІР°", callback_data=f"words:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:134|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:140|        [InlineKeyboardButton(text="рџљ© Р–Р°Р»РѕР±С‹", callback_data=f"complaints:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:141|        [InlineKeyboardButton(text="рџ“Њ РџСЂРёС‡РёРЅС‹ РЅР°РєР°Р·Р°РЅРёР№", callback_data=f"reasons:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:143|            InlineKeyboardButton(text="рџ‘® РњРѕРґРµСЂР°С‚РѕСЂС‹", callback_data=f"roles:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:144|            InlineKeyboardButton(text="рџ“‹ Р–СѓСЂРЅР°Р»", callback_data=f"logs:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:146|        [InlineKeyboardButton(text="в„№пёЏ РљР°Рє РјРѕРґРµСЂРёСЂРѕРІР°С‚СЊ", callback_data=f"moderation_help:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:147|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:152|    rows = [[InlineKeyboardButton(text=f"{'вњ…' if r.active else 'вќЊ'} {r.name[:44]}", callback_data=f"reason_edit:{group_id}:{r.id}")] for r in reasons]
+D:\Projects\Mimoru\app\keyboards\panel.py:154|        [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ РїСЂРёС‡РёРЅСѓ", callback_data=f"reason_add:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:155|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group_id}:moderation")],
+D:\Projects\Mimoru\app\keyboards\panel.py:162|        return InlineKeyboardButton(text=f"{'вњ…' if code in (reason.actions or []) else 'вќЊ'} {label}", callback_data=f"reason_action:{group_id}:{reason.id}:{code}")
+D:\Projects\Mimoru\app\keyboards\panel.py:166|        [InlineKeyboardButton(text="вњЏпёЏ РџРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ", callback_data=f"reason_rename:{group_id}:{reason.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:167|        [InlineKeyboardButton(text="вЏЇ Р’РєР» / РІС‹РєР»", callback_data=f"reason_toggle:{group_id}:{reason.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:168|        [InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ", callback_data=f"reason_delete_confirm:{group_id}:{reason.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:169|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РїСЂРёС‡РёРЅР°Рј", callback_data=f"reasons:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:175|        [InlineKeyboardButton(text="рџ—‘ Р”Р°, СѓРґР°Р»РёС‚СЊ", callback_data=f"reason_delete:{group_id}:{reason_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:176|        [InlineKeyboardButton(text="РћС‚РјРµРЅР°", callback_data=f"reason_edit:{group_id}:{reason_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:187|        row = [InlineKeyboardButton(text=label, callback_data=f"modduration:{token}:{seconds}") for seconds, label in variants[i:i+2]]
+D:\Projects\Mimoru\app\keyboards\panel.py:189|    rows.append([InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data=f"modcancel:{token}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:194|    rows = [[InlineKeyboardButton(text=f"рџ“Њ {r.name[:48]}", callback_data=f"modreason:{token}:{r.id}")] for r in reasons]
+D:\Projects\Mimoru\app\keyboards\panel.py:195|    rows.append([InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data=f"modcancel:{token}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:201|        [InlineKeyboardButton(text="рџ”Ћ РќР°Р№С‚Рё СѓС‡Р°СЃС‚РЅРёРєР°", callback_data=f"member_find:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:202|        [InlineKeyboardButton(text="рџЏ† РђРєС‚РёРІРЅС‹Рµ", callback_data=f"people_active:{group_id}"), InlineKeyboardButton(text="рџґ РќРµР°РєС‚РёРІРЅС‹Рµ", callback_data=f"people_inactive:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:203|        [InlineKeyboardButton(text="рџ†• РќРѕРІРёС‡РєРё", callback_data=f"people_new:{group_id}"), InlineKeyboardButton(text="рџ¤– РџРѕРґРѕР·СЂРёС‚РµР»СЊРЅС‹Рµ", callback_data=f"people_suspicious:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:205|            InlineKeyboardButton(text="вљ пёЏ РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёСЏ", callback_data=f"active_punishments:{group_id}:warn"),
+D:\Projects\Mimoru\app\keyboards\panel.py:206|            InlineKeyboardButton(text="рџ”‡ РњСѓС‚С‹", callback_data=f"active_punishments:{group_id}:mute"),
+D:\Projects\Mimoru\app\keyboards\panel.py:208|        [InlineKeyboardButton(text="в›” Р‘Р»РѕРєРёСЂРѕРІРєРё", callback_data=f"active_punishments:{group_id}:ban")],
+D:\Projects\Mimoru\app\keyboards\panel.py:209|        [InlineKeyboardButton(text="рџЄ¦ РЈРґР°Р»С‘РЅРЅС‹Рµ Р°РєРєР°СѓРЅС‚С‹", callback_data=f"deleted_accounts:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:210|        [InlineKeyboardButton(text="рџЏ† РђРєС‚РёРІРЅРѕСЃС‚СЊ СѓС‡Р°СЃС‚РЅРёРєРѕРІ", callback_data=f"members_stats:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:211|        [InlineKeyboardButton(text="рџ‘® Р РѕР»Рё РјРѕРґРµСЂР°С‚РѕСЂРѕРІ", callback_data=f"roles:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:212|        [InlineKeyboardButton(text="рџ“‹ Р–СѓСЂРЅР°Р» РґРµР№СЃС‚РІРёР№", callback_data=f"logs:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:213|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:219|        [InlineKeyboardButton(text="рџљ« Р—Р°РїСЂРµС‰С‘РЅРЅС‹Рµ СЃР»РѕРІР°", callback_data=f"words:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:220|        [InlineKeyboardButton(text="рџ“ў РћР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РєР°РЅР°Р»С‹", callback_data=f"channels:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:221|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:229|            InlineKeyboardButton(text=f"{_status(s.welcome_enabled)} РџСЂРёРІРµС‚СЃС‚РІРёРµ", callback_data=f"toggle:{gid}:welcome"),
+D:\Projects\Mimoru\app\keyboards\panel.py:230|            InlineKeyboardButton(text=f"{_status(s.reports_enabled)} РћС‚С‡С‘С‚С‹", callback_data=f"toggle:{gid}:reports"),
+D:\Projects\Mimoru\app\keyboards\panel.py:233|            InlineKeyboardButton(text=f"{_status(s.night_mode_enabled)} РќРѕС‡РЅРѕР№ СЂРµР¶РёРј", callback_data=f"toggle:{gid}:night"),
+D:\Projects\Mimoru\app\keyboards\panel.py:234|            InlineKeyboardButton(text=f"{_status(s.join_requests_enabled)} Р—Р°СЏРІРєРё", callback_data=f"toggle:{gid}:joinreq"),
+D:\Projects\Mimoru\app\keyboards\panel.py:237|            InlineKeyboardButton(text="в­ђ РЎРѕСЃС‚РѕСЏРЅРёРµ РіСЂСѓРїРїС‹", callback_data=f"health:{gid}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:238|            InlineKeyboardButton(text="рџљЂ РњР°СЃС‚РµСЂ РЅР°СЃС‚СЂРѕР№РєРё", callback_data=f"setup:{gid}:start"),
+D:\Projects\Mimoru\app\keyboards\panel.py:240|        [InlineKeyboardButton(text="рџ§° РџР°СЂР°РјРµС‚СЂС‹ РіСЂСѓРїРїС‹", callback_data=f"settings_detail:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:241|        [InlineKeyboardButton(text="рџ“ў РћР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РєР°РЅР°Р»С‹", callback_data=f"channels:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:242|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:247|    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")]])
+D:\Projects\Mimoru\app\keyboards\panel.py:253|        [InlineKeyboardButton(text="рџљЂ РќР°СЃС‚СЂРѕРёС‚СЊ Mimoru", callback_data=f"setup:{group_id}:start")],
+D:\Projects\Mimoru\app\keyboards\panel.py:254|        [InlineKeyboardButton(text="в­ђ РџСЂРѕРІРµСЂРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:261|            InlineKeyboardButton(text="рџ‘Ґ РЎРѕРѕР±С‰РµСЃС‚РІРѕ", callback_data=f"setup:{group_id}:type:community"),
+D:\Projects\Mimoru\app\keyboards\panel.py:262|            InlineKeyboardButton(text="рџЋ® РРіСЂС‹", callback_data=f"setup:{group_id}:type:gaming"),
+D:\Projects\Mimoru\app\keyboards\panel.py:265|            InlineKeyboardButton(text="рџЄ™ РљСЂРёРїС‚Р°", callback_data=f"setup:{group_id}:type:crypto"),
+D:\Projects\Mimoru\app\keyboards\panel.py:266|            InlineKeyboardButton(text="рџ›Ќ РџСЂРѕРґР°Р¶Рё", callback_data=f"setup:{group_id}:type:sales"),
+D:\Projects\Mimoru\app\keyboards\panel.py:269|            InlineKeyboardButton(text="рџ“° РќРѕРІРѕСЃС‚Рё", callback_data=f"setup:{group_id}:type:news"),
+D:\Projects\Mimoru\app\keyboards\panel.py:270|            InlineKeyboardButton(text="рџЋ“ РћР±СѓС‡РµРЅРёРµ", callback_data=f"setup:{group_id}:type:education"),
+D:\Projects\Mimoru\app\keyboards\panel.py:272|        [InlineKeyboardButton(text="вњ–пёЏ РћС‚РјРµРЅР°", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:278|        [InlineKeyboardButton(text="рџџў РњРёРЅРёРјР°Р»СЊРЅС‹Р№", callback_data=f"setup:{group_id}:level:{profile}:minimal")],
+D:\Projects\Mimoru\app\keyboards\panel.py:279|        [InlineKeyboardButton(text="рџџЎ РЎС‚Р°РЅРґР°СЂС‚РЅС‹Р№", callback_data=f"setup:{group_id}:level:{profile}:standard")],
+D:\Projects\Mimoru\app\keyboards\panel.py:280|        [InlineKeyboardButton(text="рџ”ґ РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№", callback_data=f"setup:{group_id}:level:{profile}:maximum")],
+D:\Projects\Mimoru\app\keyboards\panel.py:281|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"setup:{group_id}:start")],
+D:\Projects\Mimoru\app\keyboards\panel.py:288|            InlineKeyboardButton(text=yes, callback_data=f"setup:{group_id}:{step}:on"),
+D:\Projects\Mimoru\app\keyboards\panel.py:289|            InlineKeyboardButton(text=no, callback_data=f"setup:{group_id}:{step}:off"),
+D:\Projects\Mimoru\app\keyboards\panel.py:291|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РІРµСЂС€РёС‚СЊ РїРѕР·Р¶Рµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:313|        [InlineKeyboardButton(text="в­ђ РџСЂРѕРІРµСЂРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:314|        [InlineKeyboardButton(text="рџ›Ў РћС‚РєСЂС‹С‚СЊ Р·Р°С‰РёС‚Сѓ", callback_data=f"group_section:{group_id}:protection")],
+D:\Projects\Mimoru\app\keyboards\panel.py:315|        [InlineKeyboardButton(text="рџЏ  Рљ РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:321|        [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРЅРѕРІР°", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:323|            InlineKeyboardButton(text="рџ›Ў Р—Р°С‰РёС‚Р°", callback_data=f"group_section:{group_id}:protection"),
+D:\Projects\Mimoru\app\keyboards\panel.py:324|            InlineKeyboardButton(text="рџЄ¦ РЈРґР°Р»С‘РЅРЅС‹Рµ Р°РєРєР°СѓРЅС‚С‹", callback_data=f"deleted_accounts:{group_id}"),
+D:\Projects\Mimoru\app\keyboards\panel.py:326|        [InlineKeyboardButton(text="рџљЂ РњР°СЃС‚РµСЂ РЅР°СЃС‚СЂРѕР№РєРё", callback_data=f"setup:{group_id}:start")],
+D:\Projects\Mimoru\app\keyboards\panel.py:327|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РЅР°СЃС‚СЂРѕР№РєР°Рј", callback_data=f"group_section:{group_id}:settings")],
+D:\Projects\Mimoru\app\keyboards\panel.py:334|            InlineKeyboardButton(text="в­ђ STANDARD В· 250", callback_data=f"plan_buy:{group_id}:standard"),
+D:\Projects\Mimoru\app\keyboards\panel.py:335|            InlineKeyboardButton(text="рџ’Ћ PRO В· 500", callback_data=f"plan_buy:{group_id}:pro"),
+D:\Projects\Mimoru\app\keyboards\panel.py:337|        [InlineKeyboardButton(text="рџ“њ РСЃС‚РѕСЂРёСЏ РїР»Р°С‚РµР¶РµР№", callback_data=f"plan_history:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:338|        [InlineKeyboardButton(text="рџ“‹ РЎСЂР°РІРЅРёС‚СЊ С‚Р°СЂРёС„С‹", callback_data=f"plan_compare:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:339|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:345|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РїРѕРґРїРёСЃРєРµ", callback_data=f"plan:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:356|            InlineKeyboardButton(text="рџ‘Ґ РљР»РёРµРЅС‚С‹", callback_data="service:clients"),
+D:\Projects\Mimoru\app\keyboards\panel.py:357|            InlineKeyboardButton(text="рџЏ  Р“СЂСѓРїРїС‹", callback_data="service:groups"),
+D:\Projects\Mimoru\app\keyboards\panel.py:360|            InlineKeyboardButton(text="рџ’і РџР»Р°С‚РµР¶Рё", callback_data="service:billing"),
+D:\Projects\Mimoru\app\keyboards\panel.py:361|            InlineKeyboardButton(text="рџ’Ћ РўР°СЂРёС„С‹", callback_data="service:subscriptions"),
+D:\Projects\Mimoru\app\keyboards\panel.py:363|        [InlineKeyboardButton(text="рџ“ў Р РµРєР»Р°РјР°", callback_data="service:ads")],
+D:\Projects\Mimoru\app\keyboards\panel.py:365|            InlineKeyboardButton(text="рџ’¬ РћР±СЂР°С‰РµРЅРёСЏ", callback_data="service:tickets"),
+D:\Projects\Mimoru\app\keyboards\panel.py:366|            InlineKeyboardButton(text="рџ“Љ РЎС‚Р°С‚РёСЃС‚РёРєР°", callback_data="service:stats"),
+D:\Projects\Mimoru\app\keyboards\panel.py:368|        [InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\keyboards\panel.py:393|            callback_data=f"role_edit:{group_id}:{m.id}",
+D:\Projects\Mimoru\app\keyboards\panel.py:396|        [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ РїРѕ Telegram ID", callback_data=f"role_add:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:397|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group_id}:moderation")],
+D:\Projects\Mimoru\app\keyboards\panel.py:406|            callback_data=f"role_perm:{group_id}:{moderator.id}:{code}",
+D:\Projects\Mimoru\app\keyboards\panel.py:410|            InlineKeyboardButton(text="рџ‘‘ РЎС‚Р°СЂС€РёР№", callback_data=f"role_set:{group_id}:{moderator.id}:senior"),
+D:\Projects\Mimoru\app\keyboards\panel.py:411|            InlineKeyboardButton(text="рџ›Ў РњРѕРґРµСЂР°С‚РѕСЂ", callback_data=f"role_set:{group_id}:{moderator.id}:moderator"),
+D:\Projects\Mimoru\app\keyboards\panel.py:413|        [InlineKeyboardButton(text="рџ¤ќ РџРѕРјРѕС‰РЅРёРє", callback_data=f"role_set:{group_id}:{moderator.id}:helper")],
+D:\Projects\Mimoru\app\keyboards\panel.py:420|        [InlineKeyboardButton(text="в™»пёЏ РЎР±СЂРѕСЃРёС‚СЊ РїСЂР°РІР° СЂРѕР»Рё", callback_data=f"role_reset:{group_id}:{moderator.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:421|        [InlineKeyboardButton(text="вЏЇ Р’РєР» / РІС‹РєР»", callback_data=f"role_toggle:{group_id}:{moderator.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:422|        [InlineKeyboardButton(text="рџ—‘ РЈРґР°Р»РёС‚СЊ СЂРѕР»СЊ", callback_data=f"role_remove_confirm:{group_id}:{moderator.id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:423|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ СЂРѕР»СЏРј", callback_data=f"roles:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:429|        [InlineKeyboardButton(text="рџ—‘ Р”Р°, СѓРґР°Р»РёС‚СЊ СЂРѕР»СЊ", callback_data=f"role_remove:{group_id}:{moderator_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:430|        [InlineKeyboardButton(text="РћС‚РјРµРЅР°", callback_data=f"role_edit:{group_id}:{moderator_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:436|        [InlineKeyboardButton(text=f"рџ—‘ {word[:45]}", callback_data=f"word_remove:{group_id}:{idx}")]
+D:\Projects\Mimoru\app\keyboards\panel.py:440|        [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ СЃР»РѕРІРѕ / С„СЂР°Р·Сѓ", callback_data=f"word_add:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:441|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєРѕРЅС‚РµРЅС‚Сѓ", callback_data=f"group_section:{group_id}:content")],
+D:\Projects\Mimoru\app\keyboards\panel.py:448|        [InlineKeyboardButton(text=f"рџ—‘ {channel}", callback_data=f"channel_remove:{group_id}:{idx}")]
+D:\Projects\Mimoru\app\keyboards\panel.py:452|        [InlineKeyboardButton(text="вћ• Р”РѕР±Р°РІРёС‚СЊ РєР°РЅР°Р»", callback_data=f"channel_add:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:453|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РєРѕРЅС‚РµРЅС‚Сѓ", callback_data=f"group_section:{group_id}:content")],
+D:\Projects\Mimoru\app\keyboards\panel.py:461|        [InlineKeyboardButton(text="вњЏпёЏ РўРµРєСЃС‚ РїСЂРёРІРµС‚СЃС‚РІРёСЏ", callback_data=f"setting_text:{gid}:welcome")],
+D:\Projects\Mimoru\app\keyboards\panel.py:462|        [InlineKeyboardButton(text="рџ“њ РџСЂР°РІРёР»Р° РіСЂСѓРїРїС‹", callback_data=f"setting_text:{gid}:rules")],
+D:\Projects\Mimoru\app\keyboards\panel.py:463|        [InlineKeyboardButton(text=f"вљ пёЏ Р›РёРјРёС‚ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№: {s.warnings_limit}", callback_data=f"setting_num:{gid}:warnings")],
+D:\Projects\Mimoru\app\keyboards\panel.py:464|        [InlineKeyboardButton(text=f"рџ”‡ РњСѓС‚ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ: {s.default_mute_seconds // 60} РјРёРЅ", callback_data=f"setting_num:{gid}:defaultmute")],
+D:\Projects\Mimoru\app\keyboards\panel.py:465|        [InlineKeyboardButton(text=f"рџЊЉ РђРЅС‚РёС„Р»СѓРґ: {s.antiflood_limit}/{s.antiflood_window_seconds}СЃ", callback_data=f"setting_num:{gid}:antiflood")],
+D:\Projects\Mimoru\app\keyboards\panel.py:466|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group_section:{gid}:settings")],
+D:\Projects\Mimoru\app\keyboards\panel.py:472|        [InlineKeyboardButton(text="вњ‰пёЏ РќРѕРІРѕРµ РѕР±СЂР°С‰РµРЅРёРµ", callback_data="support:new")],
+D:\Projects\Mimoru\app\keyboards\panel.py:473|        [InlineKeyboardButton(text="рџ“‚ РњРѕРё РѕР±СЂР°С‰РµРЅРёСЏ", callback_data="support:mine")],
+D:\Projects\Mimoru\app\keyboards\panel.py:474|        [InlineKeyboardButton(text="рџЏ  Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ", callback_data="panel:home")],
+D:\Projects\Mimoru\app\keyboards\panel.py:480|        [InlineKeyboardButton(text="вњ‰пёЏ РћС‚РІРµС‚РёС‚СЊ", callback_data=f"ticket_reply:{ticket_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:481|        [InlineKeyboardButton(text="вњ… Р—Р°РєСЂС‹С‚СЊ", callback_data=f"ticket_close:{ticket_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:482|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ РѕР±СЂР°С‰РµРЅРёСЏРј", callback_data="service:tickets")],
+D:\Projects\Mimoru\app\keyboards\panel.py:488|        [InlineKeyboardButton(text=f"{'вњ… ' if current == n else ''}{n}", callback_data=f"setting_set:{group_id}:warnings:{n}") for n in (1, 2, 3, 4, 5)],
+D:\Projects\Mimoru\app\keyboards\panel.py:489|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"settings_detail:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:495|    rows = [[InlineKeyboardButton(text=f"{'вњ… ' if current == seconds else ''}{label}", callback_data=f"setting_set:{group_id}:defaultmute:{seconds}")] for seconds, label in variants]
+D:\Projects\Mimoru\app\keyboards\panel.py:496|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"settings_detail:{group_id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:502|    rows = [[InlineKeyboardButton(text=f"{'вњ… ' if (current_limit, current_window) == (limit, window) else ''}{label}", callback_data=f"setting_flood:{group_id}:{limit}:{window}")] for limit, window, label in variants]
+D:\Projects\Mimoru\app\keyboards\panel.py:503|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"settings_detail:{group_id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:513|            callback_data=f"ticket:{t.id}",
+D:\Projects\Mimoru\app\keyboards\panel.py:515|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РџР°РЅРµР»СЊ Mimoru", callback_data="service:home")])
+D:\Projects\Mimoru\app\keyboards\panel.py:522|            InlineKeyboardButton(text="вљ пёЏ РџСЂРµРґСѓРїСЂРµРґРёС‚СЊ", callback_data=f"member_punish:{group_id}:{user_id}:warn"),
+D:\Projects\Mimoru\app\keyboards\panel.py:523|            InlineKeyboardButton(text="рџ”‡ РњСѓС‚", callback_data=f"member_punish:{group_id}:{user_id}:mute"),
+D:\Projects\Mimoru\app\keyboards\panel.py:526|            InlineKeyboardButton(text="рџљЄ РљРёРє", callback_data=f"member_punish:{group_id}:{user_id}:kick"),
+D:\Projects\Mimoru\app\keyboards\panel.py:527|            InlineKeyboardButton(text="в›” Р‘Р°РЅ", callback_data=f"member_punish:{group_id}:{user_id}:ban"),
+D:\Projects\Mimoru\app\keyboards\panel.py:531|        rows.append([InlineKeyboardButton(text=f"вљ пёЏ РЎРЅСЏС‚СЊ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ ({warnings})", callback_data=f"member_action:{group_id}:{user_id}:unwarn")])
+D:\Projects\Mimoru\app\keyboards\panel.py:533|        rows.append([InlineKeyboardButton(text="рџ”Љ РЎРЅСЏС‚СЊ РјСѓС‚", callback_data=f"member_action:{group_id}:{user_id}:unmute")])
+D:\Projects\Mimoru\app\keyboards\panel.py:535|        rows.append([InlineKeyboardButton(text="вњ… Р Р°Р·Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ", callback_data=f"member_action:{group_id}:{user_id}:unban")])
+D:\Projects\Mimoru\app\keyboards\panel.py:537|        [InlineKeyboardButton(text="рџ“њ РСЃС‚РѕСЂРёСЏ РґРµР№СЃС‚РІРёР№", callback_data=f"member_history:{group_id}:{user_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:538|        [InlineKeyboardButton(text="рџЏ· РўРµРіРё", callback_data=f"member_tags:{group_id}:{user_id}"), InlineKeyboardButton(text="рџ“ќ Р—Р°РјРµС‚РєРё", callback_data=f"member_notes:{group_id}:{user_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:539|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ СѓС‡Р°СЃС‚РЅРёРєР°Рј", callback_data=f"group_section:{group_id}:members")],
+D:\Projects\Mimoru\app\keyboards\panel.py:551|            callback_data=f"member_card:{group_id}:{row.user_telegram_id}",
+D:\Projects\Mimoru\app\keyboards\panel.py:553|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СѓС‡Р°СЃС‚РЅРёРєР°Рј", callback_data=f"group_section:{group_id}:members")])
+D:\Projects\Mimoru\app\keyboards\panel.py:563|            callback_data=f"complaint:{group_id}:{c.id}",
+D:\Projects\Mimoru\app\keyboards\panel.py:565|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РјРѕРґРµСЂР°С†РёРё", callback_data=f"group_section:{group_id}:moderation")])
+D:\Projects\Mimoru\app\keyboards\panel.py:571|        [InlineKeyboardButton(text="рџ‘¤ РљР°СЂС‚РѕС‡РєР° СѓС‡Р°СЃС‚РЅРёРєР°", callback_data=f"member_card:{group_id}:{target_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:572|        [InlineKeyboardButton(text="вњ… Р—Р°РєСЂС‹С‚СЊ РєР°Рє СЂР°СЃСЃРјРѕС‚СЂРµРЅРЅСѓСЋ", callback_data=f"complaint_close:{group_id}:{complaint_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:573|        [InlineKeyboardButton(text="рџ—‘ РћС‚РєР»РѕРЅРёС‚СЊ", callback_data=f"complaint_reject:{group_id}:{complaint_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:574|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ Р¶Р°Р»РѕР±Р°Рј", callback_data=f"complaints:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:580|        [InlineKeyboardButton(text="рџ”„ РџСЂРѕРІРµСЂРёС‚СЊ СЃРµР№С‡Р°СЃ", callback_data=f"deleted_accounts_scan:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:583|        rows.append([InlineKeyboardButton(text="рџ§№ РЈРґР°Р»РёС‚СЊ РІСЃРµ", callback_data=f"deleted_accounts_remove_confirm:{group_id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:584|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СѓС‡Р°СЃС‚РЅРёРєР°Рј", callback_data=f"group_section:{group_id}:members")])
+D:\Projects\Mimoru\app\keyboards\panel.py:590|        [InlineKeyboardButton(text="рџ§№ Р”Р°, СѓРґР°Р»РёС‚СЊ РЅР°Р№РґРµРЅРЅС‹Рµ", callback_data=f"deleted_accounts_remove:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:591|        [InlineKeyboardButton(text="РћС‚РјРµРЅР°", callback_data=f"deleted_accounts:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:598|            InlineKeyboardButton(text="STANDARD +30Рґ", callback_data=f"service_plan_grant:{group_id}:standard:30"),
+D:\Projects\Mimoru\app\keyboards\panel.py:599|            InlineKeyboardButton(text="PRO +30Рґ", callback_data=f"service_plan_grant:{group_id}:pro:30"),
+D:\Projects\Mimoru\app\keyboards\panel.py:601|        [InlineKeyboardButton(text="TRIAL +7Рґ", callback_data=f"service_plan_grant:{group_id}:trial:7")],
+D:\Projects\Mimoru\app\keyboards\panel.py:602|        [InlineKeyboardButton(text="рџ†“ РџРµСЂРµРІРµСЃС‚Рё РЅР° FREE", callback_data=f"service_plan_grant:{group_id}:free:0")],
+D:\Projects\Mimoru\app\keyboards\panel.py:603|        [InlineKeyboardButton(text="в—ЂпёЏ Рљ С‚Р°СЂРёС„Р°Рј", callback_data="service:subscriptions")],
+D:\Projects\Mimoru\app\keyboards\panel.py:608|    buttons = [[InlineKeyboardButton(text=str(label)[:52], callback_data=f"member_card:{group_id}:{uid}")] for uid, label in rows[:30]]
+D:\Projects\Mimoru\app\keyboards\panel.py:609|    buttons.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ СѓС‡Р°СЃС‚РЅРёРєР°Рј", callback_data=f"group_section:{group_id}:members")])
+D:\Projects\Mimoru\app\keyboards\panel.py:616|        rows.append([InlineKeyboardButton(text=f"{mark} {tag.name}", callback_data=f"member_tag_toggle:{group_id}:{user_id}:{tag.id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:617|    rows.append([InlineKeyboardButton(text="вћ• РќРѕРІС‹Р№ С‚РµРі", callback_data=f"member_tag_new:{group_id}:{user_id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:618|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ Рљ РєР°СЂС‚РѕС‡РєРµ", callback_data=f"member_card:{group_id}:{user_id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:626|        [InlineKeyboardButton(text=f"{_status(s.automation_enabled)} РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation_toggle:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:627|        [InlineKeyboardButton(text=f"рџЄ¦ РћС‡РёСЃС‚РєР° Р°РєРєР°СѓРЅС‚РѕРІ: {schedule_names.get(s.deleted_cleanup_schedule, 'РІС‹РєР»')}", callback_data=f"automation_cleanup:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:628|        [InlineKeyboardButton(text=f"вљ пёЏ РЎСЂРѕРє РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№: {s.warning_expire_days if s.warning_expire_days else 'РЅРµ СѓРґР°Р»СЏС‚СЊ'}", callback_data=f"automation_warnings:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:629|        [InlineKeyboardButton(text=f"вљ пёЏ {s.warnings_limit}/{s.warnings_limit} РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№ в†’ РјСѓС‚", callback_data=f"setting_num:{gid}:warnings")],
+D:\Projects\Mimoru\app\keyboards\panel.py:630|        [InlineKeyboardButton(text="рџ‘‹ РЎС†РµРЅР°СЂРёР№ РЅРѕРІРёС‡РєР°", callback_data=f"automation_newcomer:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:631|        [InlineKeyboardButton(text="рџ“‹ Р–СѓСЂРЅР°Р» Р°РІС‚РѕРјР°С‚РёР·Р°С†РёРё", callback_data=f"automation_logs:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:632|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"group:{gid}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:637|        return InlineKeyboardButton(text=("вњ… " if current == code else "") + label, callback_data=f"automation_cleanup_set:{group_id}:{code}")
+D:\Projects\Mimoru\app\keyboards\panel.py:638|    return InlineKeyboardMarkup(inline_keyboard=[[b("off","Р’С‹РєР»")],[b("weekly","Р Р°Р· РІ РЅРµРґРµР»СЋ")],[b("monthly","Р Р°Р· РІ РјРµСЃСЏС†")],[InlineKeyboardButton(text="в—ЂпёЏ РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{group_id}")]])
+D:\Projects\Mimoru\app\keyboards\panel.py:642|    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=("вњ… " if current==v else "")+label, callback_data=f"automation_warning_set:{group_id}:{v}")] for v,label in vals]+[[InlineKeyboardButton(text="в—ЂпёЏ РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{group_id}")]])
+D:\Projects\Mimoru\app\keyboards\panel.py:649|    def b(code,label): return InlineKeyboardButton(text=("вњ… " if current==code else "")+label, callback_data=f"automation_newcomer_set:{gid}:{code}")
+D:\Projects\Mimoru\app\keyboards\panel.py:650|    return InlineKeyboardMarkup(inline_keyboard=[[b("basic","Р‘Р°Р·РѕРІС‹Р№")],[b("standard","РЎС‚Р°РЅРґР°СЂС‚РЅС‹Р№")],[b("strict","РЎС‚СЂРѕРіРёР№")],[InlineKeyboardButton(text="в—ЂпёЏ РђРІС‚РѕРјР°С‚РёР·Р°С†РёСЏ", callback_data=f"automation:{gid}")]])
+D:\Projects\Mimoru\app\keyboards\panel.py:655|        [InlineKeyboardButton(text="рџ©є Р”РёР°РіРЅРѕСЃС‚РёРєР° Рё РїСЂР°РІР°", callback_data=f"ops_diag:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:656|        [InlineKeyboardButton(text="рџ“‹ Р•РґРёРЅС‹Р№ Р¶СѓСЂРЅР°Р»", callback_data=f"ops_logs:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:657|        [InlineKeyboardButton(text="рџ“¦ Р РµР·РµСЂРІРЅС‹Рµ РєРѕРїРёРё", callback_data=f"ops_backup:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:658|        [InlineKeyboardButton(text="в­ђ РЎРѕСЃС‚РѕСЏРЅРёРµ РіСЂСѓРїРїС‹", callback_data=f"health:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:659|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ Рє РіСЂСѓРїРїРµ", callback_data=f"group:{group_id}")],
+D:\Projects\Mimoru\app\keyboards\panel.py:666|        rows.append([InlineKeyboardButton(text=f"рџЏ  {group.title[:38]}{suffix}", callback_data=f"ops_snapshot_confirm:{snapshot_id}:{group.id}")])
+D:\Projects\Mimoru\app\keyboards\panel.py:667|    rows.append([InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=f"ops_snapshot:{snapshot_id}")])
+D:\Projects\Mimoru\app\game_friendly_history.py:47|        row.append(InlineKeyboardButton(text="в¬…пёЏ РќР°Р·Р°Рґ", callback_data=f"fshfriendly:{owner_id}:{kind}:{page - 1}"))
+D:\Projects\Mimoru\app\game_friendly_history.py:49|        row.append(InlineKeyboardButton(text="Р’РїРµСЂС‘Рґ вћЎпёЏ", callback_data=f"fshfriendly:{owner_id}:{kind}:{page + 1}"))
+D:\Projects\Mimoru\app\game_friendly_results.py:165|    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="вњ… РџСЂРёРЅСЏС‚СЊ", callback_data=f"fsfriendly:{kind}:{group_id}:{actor_id}:{target_id}:yes"), InlineKeyboardButton(text="вќЊ РћС‚РєР°Р·Р°С‚СЊ", callback_data=f"fsfriendly:{kind}:{group_id}:{actor_id}:{target_id}:no")]])
+D:\Projects\Mimoru\app\game_friendly_results.py:220|        InlineKeyboardButton(text="вњ… РџРѕРґС‚РІРµСЂРґРёС‚СЊ", callback_data=f"fsrel:{slug}:{group_id}:{actor_id}:{target_id}:yes"),
+D:\Projects\Mimoru\app\game_friendly_results.py:221|        InlineKeyboardButton(text="вќЊ РћС‚РєР»РѕРЅРёС‚СЊ", callback_data=f"fsrel:{slug}:{group_id}:{actor_id}:{target_id}:no"),
+D:\Projects\Mimoru\app\group_help_full.py:236|        [InlineKeyboardButton(text="рџ‘¤ РЈС‡Р°СЃС‚РЅРёРєР°Рј", callback_data=_cb(owner_id, "members")), InlineKeyboardButton(text="рџ—Ј Р’СЃРµ С„СЂР°Р·С‹", callback_data=_cb(owner_id, "member_aliases"))],
+D:\Projects\Mimoru\app\group_help_full.py:237|        [InlineKeyboardButton(text="рџЋ® РРіСЂС‹", callback_data=_cb(owner_id, "games")), InlineKeyboardButton(text="рџ›Ў РђРґРјРёРЅР°Рј", callback_data=_cb(owner_id, "admin"))],
+D:\Projects\Mimoru\app\group_help_full.py:238|        [InlineKeyboardButton(text="рџ‘‘ Р РѕР»Рё", callback_data=_cb(owner_id, "roles")), InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ", callback_data=_cb(owner_id, "close"))],
+D:\Projects\Mimoru\app\group_help_full.py:244|        [InlineKeyboardButton(text="вљ–пёЏ РњРѕРґРµСЂР°С†РёСЏ", callback_data=_cb(owner_id, "moderation")), InlineKeyboardButton(text="рџ“‹ РЎРїРёСЃРєРё", callback_data=_cb(owner_id, "admin_lists"))],
+D:\Projects\Mimoru\app\group_help_full.py:245|        [InlineKeyboardButton(text="рџ›Ў Р—Р°С‰РёС‚Р°", callback_data=_cb(owner_id, "protection")), InlineKeyboardButton(text="вљ™пёЏ РЈРїСЂР°РІР»РµРЅРёРµ", callback_data=_cb(owner_id, "management"))],
+D:\Projects\Mimoru\app\group_help_full.py:246|        [InlineKeyboardButton(text="рџ”— Р—Р°СЏРІРєРё/СЃСЃС‹Р»РєРё", callback_data=_cb(owner_id, "joins")), InlineKeyboardButton(text="рџ“ќ РљРѕРЅС‚РµРЅС‚", callback_data=_cb(owner_id, "content"))],
+D:\Projects\Mimoru\app\group_help_full.py:247|        [InlineKeyboardButton(text="рџ§° Р•С‰С‘", callback_data=_cb(owner_id, "admin_extra")), InlineKeyboardButton(text="рџ‘‘ Р РѕР»Рё", callback_data=_cb(owner_id, "roles"))],
+D:\Projects\Mimoru\app\group_help_full.py:248|        [InlineKeyboardButton(text="в—ЂпёЏ Р’ СЃРїСЂР°РІРєСѓ", callback_data=_cb(owner_id, "home")), InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ", callback_data=_cb(owner_id, "close"))],
+D:\Projects\Mimoru\app\group_help_full.py:254|        [InlineKeyboardButton(text="в—ЂпёЏ РќР°Р·Р°Рґ", callback_data=_cb(owner_id, "admin" if admin else "home"))],
+D:\Projects\Mimoru\app\group_help_full.py:255|        [InlineKeyboardButton(text="вњ–пёЏ Р—Р°РєСЂС‹С‚СЊ", callback_data=_cb(owner_id, "close"))],
+D:\Projects\Mimoru\app\main.py:178|    callback_data = getattr(button, "callback_data", None)
+D:\Projects\Mimoru\app\tasks_ad_market.py:187|                            text="рџ“ў РњРѕРё СЂРµРєР»Р°РјРЅС‹Рµ РїРѕСЃС‚С‹", callback_data="gpost:mine"
+D:\Projects\Mimoru\app\tasks_ad_market.py:190|                    [InlineKeyboardButton(text="в—ЂпёЏ Р РµРєР»Р°РјР°", callback_data="ads:home")],
