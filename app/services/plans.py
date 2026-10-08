@@ -101,3 +101,49 @@ def subscription_state(group, *, now: datetime | None = None) -> str:
     if code == "trial":
         return "trial"
     return "active"
+
+
+#: За сколько дней до конца пробного периода владельцу группы уже
+#: показывается предупреждение.
+TRIAL_WARNING_DAYS = 3
+
+
+def plan_notice(group, *, now: datetime | None = None) -> str | None:
+    """Предупреждение о тарифе для панели группы.
+
+    Возврат к FREE после истечения пробного периода происходит молча:
+    ежедневные отчёты перестают приходить, а лимиты падают до
+    свободных значений. Со стороны это выглядит как поломка бота после
+    деплоя, поэтому причина объясняется прямо. Для осознанно выбранного
+    FREE и для активного платного тарифа возвращается None.
+    """
+    now = now or datetime.now(timezone.utc)
+    state = subscription_state(group, now=now)
+    expires_at = getattr(group, "plan_expires_at", None)
+    if state == "expired":
+        expired_on = f"{expires_at:%d.%m.%Y}" if expires_at else "неизвестно"
+        free_limits = PLAN_CATALOG["free"]["limits"]
+        return (
+            f"⚠️ Пробный период истёк {expired_on}. Группа работает на тарифе FREE.\n"
+            "Отключены ежедневные отчёты, лимиты снижены до "
+            f"{free_limits['words']} запрещённых слов и "
+            f"{free_limits['reasons']} причин наказаний.\n"
+            "Отчёты и полные лимиты возвращаются на тарифах STANDARD и PRO."
+        )
+    if state == "trial" and expires_at is not None:
+        if (expires_at - now).days <= TRIAL_WARNING_DAYS:
+            return (
+                f"⏳ Пробный период истекает {expires_at:%d.%m.%Y}. После этого группа "
+                "перейдёт на FREE: ежедневные отчёты отключатся, лимиты снизятся."
+            )
+    return None
+
+
+def plan_limit_hint(group) -> str:
+    """Дополнение к отказу по лимиту, если причина — истёкший триал."""
+    if subscription_state(group) == "expired":
+        return (
+            " Пробный период истёк, действует тариф FREE: прежний лимит вернётся "
+            "на тарифах STANDARD и PRO."
+        )
+    return ""
