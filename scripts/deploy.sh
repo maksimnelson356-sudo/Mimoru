@@ -37,7 +37,14 @@ else
   if [[ -z "$CI_JSON" ]]; then
     echo "ВНИМАНИЕ: не удалось получить статус CI (сеть или лимит API). Проверка пропущена."
   else
-    CI_CONCLUSIONS="$(printf '%s' "$CI_JSON" | grep -o '"conclusion": *"[^"]*"' | sed 's/.*: *"//; s/"$//' | sort -u)"
+    # set -e + pipefail: если grep ничего не нашёл, конвейер вернёт 1 и
+    # скрипт молча прервётся прямо здесь, не дойдя до проверок ниже.
+    # Поэтому отсутствие совпадений — допустимый результат, а не ошибка.
+    CI_CONCLUSIONS="$(printf '%s' "$CI_JSON" | grep -o '"conclusion": *"[^"]*"' | sed 's/.*: *"//; s/"$//' | sort -u || true)"
+    if [[ -z "$CI_CONCLUSIONS" ]]; then
+      echo "ВНИМАНИЕ: в ответе GitHub API нет поля conclusion. Проверка CI пропущена."
+      CI_CONCLUSIONS="нет данных"
+    fi
     FAILED_CONCLUSIONS="failure cancelled timed_out action_required startup_failure stale"
     BLOCKING=""
     for candidate in $FAILED_CONCLUSIONS; do
