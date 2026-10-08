@@ -19,8 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Complaint
 
-#: Ответ на повторную жалобу на уже сообщённое сообщение.
-COMPLAINT_DUPLICATE_TEXT = "✅ Жалоба отправлена."
+#: Ответ на повторную жалобу. Формулировка обязана отличаться от принятой
+#: жалобы («✅ Жалоба принята …»), иначе повтор читается как новая жалоба.
+COMPLAINT_DUPLICATE_TEXT = "⚠️ На это сообщение жалоба уже отправлена."
 
 
 async def complaint_exists_for_message(
