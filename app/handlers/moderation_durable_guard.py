@@ -290,6 +290,55 @@ async def durable_reason_action(
         await reason_admin.moderation_reason_selected(callback, bot, session, redis)
         return
 
+    # Для бана — показать диалог выбора (обычный бан / бан с очисткой)
+    if action == "ban":
+        if callback.message is None:
+            await callback.answer("Сообщение недоступно.", show_alert=True)
+            return
+        target_name = str(data.get("target_name") or public_user_token(target_id))
+        text = (
+            "🛑 Подтверждение бана\n\n"
+            f"👤 Нарушитель: {target_name}\n\n"
+            "Выберите обычный бан или бан с очисткой сохранённых сообщений."
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🔴 Бан",
+                        callback_data=f"modreason:confirm:{token}:{raw_reason_id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🔴🗑 Бан + очистка",
+                        callback_data=f"modreason:clean:{token}:{raw_reason_id}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="❌ Отмена",
+                        callback_data=f"modreason:cancel:{token}:{raw_reason_id}",
+                    )
+                ],
+            ]
+        )
+        try:
+            await callback.message.edit_text(text, reply_markup=keyboard)
+        except TelegramBadRequest as exc:
+            import structlog
+            structlog.get_logger().warning("modban_prompt_edit_failed", error=str(exc))
+        else:
+            await schedule_message_deletion(
+                redis,
+                callback.message.chat.id,
+                callback.message.message_id,
+                delay_seconds=PROMPT_TTL_SECONDS,
+                allow_private=True,
+            )
+        await callback.answer()
+        return
+
     intent_id = await _create_guard_intent(
         session,
         group=group,
