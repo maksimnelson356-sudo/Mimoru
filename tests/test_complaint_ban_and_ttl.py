@@ -1,0 +1,174 @@
+"""Жалобы: прямой бан без карточки и снятие сообщений через 45 секунд.
+
+Раньше админ получал уведомление с одной кнопкой «🚫 Забанить», которая
+открывала вторую карточку «Подтверждение бана» — два нажатия и лишнее
+сообщение в личке. Теперь обе кнопки бана стоят в самом уведомлении.
+
+Ответы о жалобах в группе снимаются через COMPLAINT_MESSAGE_TTL_SECONDS.
+Уведомление в личке админа TTL не получает: там кнопки, и без срока
+модератор может не успеть нажать.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from app.handlers import complaint_actions, group_commands
+from app.services.message_ttl import COMPLAINT_MESSAGE_TTL_SECONDS
+
+
+def _group() -> SimpleNamespace:
+    return SimpleNamespace(
+        id=3,
+        telegram_chat_id=-1003,
+        title="Тестовая группа",
+        owner_telegram_id=1,
+        is_active=True,
+    )
+
+
+def _complaint() -> SimpleNamespace:
+    return SimpleNamespace(id=7, message_text="плохое сообщение")
+
+
+def _callback(data: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        data=data,
+        from_user=SimpleNamespace(id=1),
+        message=SimpleNamespace(chat=SimpleNamespace(id=1), message_id=100),
+        answer=AsyncMock(),
+    )
+
+
+def _buttons(markup) -> list[tuple[str, str]]:
+    return [
+        (button.text, button.callback_data)
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+
+
+async def _notification_markup() -> list[tuple[str, str]]:
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
+    session = SimpleNamespace(add=Mock(), commit=AsyncMock(), scalars=AsyncMock())
+    session.scalars.return_value = SimpleNamespace(all=lambda: [])
+    group = _group()
+
+    await group_commands._notify_complaint_recipients(
+        bot,
+        session,
+        group,
+        42,
+        "Жалобщик",
+        99,
+        "Нарушитель",
+        555,
+        "плохое сообщение",
+        _complaint(),
+    )
+
+    assert bot.send_message.await_count == 1
+    return _buttons(bot.send_message.await_args.kwargs["reply_markup"])
+
+
+# --- кнопки бана -------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_notification_offers_both_bans_directly(monkeypatch) -> None:
+    monkeypatch.setattr(group_commands, "get_assignment", AsyncMock(return_value=None))
+
+    buttons = await _notification_markup()
+    payloads = {data for _text, data in buttons}
+
+    assert ("🚫 Забанить", "complaint:ban:confirm:7") in buttons
+    assert ("🚫🗑 Бан + очистка", "complaint:ban:clean:7") in buttons
+    assert "complaint:ban:7" not in payloads
+
+
+@pytest.mark.asyncio
+async def test_notification_keeps_the_other_complaint_actions(monkeypatch) -> None:
+    monkeypatch.setattr(group_commands, "get_assignment", AsyncMock(return_value=None))
+
+    payloads = {data for _text, data in await _notification_markup()}
+
+    assert {"complaint:ack:7", "complaint:warn:7", "complaint:mute_reporter:7"} <= payloads
+
+
+@pytest.mark.asyncio
+async def test_legacy_ban_button_bans_without_showing_a_prompt(monkeypatch) -> None:
+    """Кнопка «🚫 Забанить» из истории не должна открывать карточку."""
+    confirm = AsyncMock()
+    monkeypatch.setattr(complaint_actions, "complaint_ban_confirm", confirm)
+    callback = _callback("complaint:ban:7")
+
+    await complaint_actions.complaint_ban_prompt(
+        callback, SimpleNamespace(), SimpleNamespace()
+    )
+
+    confirm.assert_awaited_once()
+    redirected = confirm.await_args.args[0]
+    assert redirected.data == "complaint:ban:confirm:7"
+
+
+def test_ban_confirmation_prompt_is_gone() -> None:
+    from pathlib import Path
+
+    source = Path("app/handlers/complaint_actions.py").read_text(encoding="utf-8")
+    assert "Подтверждение бана" not in source
+
+
+# --- снятие сообщений через 45 секунд ----------------------------------
+
+
+def test_complaint_ttl_is_45_seconds() -> None:
+    assert COMPLAINT_MESSAGE_TTL_SECONDS == 45
+
+
+@pytest.mark.asyncio
+async def test_group_complaint_reply_is_queued_for_removal(monkeypatch) -> None:
+    schedule = AsyncMock(return_value=True)
+    monkeypatch.setattr(group_commands, "schedule_message_deletion", schedule)
+    monkeypatch.setattr(group_commands, "bound_redis", lambda: "redis")
+
+    sent = SimpleNamespace(chat=SimpleNamespace(id=-1003), message_id=777)
+    message = SimpleNamespace(reply=AsyncMock(return_value=sent))
+
+    await group_commands._reply_complaint_notice(message, "✅ Жалоба принята.")
+
+    message.reply.assert_awaited_once_with("✅ Жалоба принята.")
+    schedule.assert_awaited_once()
+    assert schedule.await_args.args == ("redis", -1003, 777)
+    assert schedule.await_args.kwargs["delay_seconds"] == COMPLAINT_MESSAGE_TTL_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_report_word_reply_is_queued_for_removal(monkeypatch) -> None:
+    from app.handlers import features
+
+    schedule = AsyncMock(return_value=True)
+    monkeypatch.setattr(features, "schedule_message_deletion", schedule)
+    monkeypatch.setattr(features, "bound_redis", lambda: "redis")
+
+    sent = SimpleNamespace(chat=SimpleNamespace(id=-1003), message_id=778)
+    message = SimpleNamespace(reply=AsyncMock(return_value=sent))
+
+    await features._reply_complaint_notice(message, "✅ Жалоба принята.")
+
+    schedule.assert_awaited_once()
+    assert schedule.await_args.kwargs["delay_seconds"] == COMPLAINT_MESSAGE_TTL_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_admin_notification_gets_no_ttl(monkeypatch) -> None:
+    """Кнопки в личке админа должны пережить 45 секунд."""
+    monkeypatch.setattr(group_commands, "get_assignment", AsyncMock(return_value=None))
+    schedule = AsyncMock(return_value=True)
+    monkeypatch.setattr(group_commands, "schedule_message_deletion", schedule)
+
+    await _notification_markup()
+
+    schedule.assert_not_awaited()

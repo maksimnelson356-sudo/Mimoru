@@ -12,9 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Complaint, ComplaintNotification, Group, UserMessage
 from app.services.access import can_moderate
 from app.services.message_ttl import (
-    PROMPT_TTL_SECONDS,
-    bound_redis,
-    schedule_message_deletion,
+    COMPLAINT_MESSAGE_TTL_SECONDS,
     send_group_notice,
 )
 from app.services.moderation import execute
@@ -226,9 +224,11 @@ async def complaint_ack(
 
     actor = public_user_token(callback.from_user.id)
     try:
-        await bot.send_message(
+        await send_group_notice(
+            bot,
             group.telegram_chat_id,
             f"✅ Жалоба обработана.\nМодератор: {actor}",
+            delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning(
@@ -293,9 +293,11 @@ async def complaint_warn(
     actor = public_user_token(callback.from_user.id)
     target = public_user_token(complaint.target_telegram_id)
     try:
-        await bot.send_message(
+        await send_group_notice(
+            bot,
             group.telegram_chat_id,
             f"⚠ {target} получил предупреждение.\nМодератор: {actor}",
+            delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning(
@@ -313,65 +315,10 @@ async def complaint_warn(
 async def complaint_ban_prompt(
     callback: CallbackQuery, bot: Bot, session: AsyncSession
 ) -> None:
+    """Кнопка «🚫 Забанить» из истории сообщений — бан сразу, без карточки."""
     cid = int((callback.data or "").rsplit(":", 1)[1])
-    context = await _load_complaint_context(
-        bot,
-        session,
-        callback,
-        cid,
-        action="ban",
-    )
-    if context is None:
-        return
-    complaint, _ = context
-    if callback.message is None:
-        await callback.answer("Сообщение недоступно.", show_alert=True)
-        return
-
-    target = public_user_token(complaint.target_telegram_id)
-    text = (
-        "🛑 Подтверждение бана\n\n"
-        f"👤 Нарушитель: {target}\n\n"
-        "Выберите обычный бан или бан с очисткой сохранённых "
-        "сообщений пользователя."
-    )
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🔴 Бан",
-                    callback_data=f"complaint:ban:confirm:{cid}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔴🗑 Бан + очистка",
-                    callback_data=f"complaint:ban:clean:{cid}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="❌ Отмена",
-                    callback_data=f"complaint:ban:cancel:{cid}",
-                )
-            ],
-        ]
-    )
-    try:
-        await callback.message.edit_text(text, reply_markup=keyboard)
-    except TelegramBadRequest as exc:
-        log.warning(
-            "complaint_ban_prompt_edit_failed", complaint_id=cid, error=str(exc)
-        )
-    else:
-        await schedule_message_deletion(
-            bound_redis(),
-            callback.message.chat.id,
-            callback.message.message_id,
-            delay_seconds=PROMPT_TTL_SECONDS,
-            allow_private=True,
-        )
-    await callback.answer()
+    callback.data = f"complaint:ban:confirm:{cid}"
+    await complaint_ban_confirm(callback, bot, session)
 
 
 @router.callback_query(F.data.regexp(r"^complaint:ban:confirm:\d+$"))
@@ -434,9 +381,11 @@ async def complaint_ban_confirm(
     actor = public_user_token(callback.from_user.id)
     target = public_user_token(complaint.target_telegram_id)
     try:
-        await bot.send_message(
+        await send_group_notice(
+            bot,
             group.telegram_chat_id,
             f"🚫 {target} забанен.\nМодератор: {actor}",
+            delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
@@ -552,7 +501,12 @@ async def complaint_ban_clean(
             f"Модератор: {actor}."
         )
     try:
-        await send_group_notice(bot, group.telegram_chat_id, msg)
+        await send_group_notice(
+            bot,
+            group.telegram_chat_id,
+            msg,
+            delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
+        )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
 
@@ -677,9 +631,11 @@ async def complaint_mute_reporter_confirm(
     actor = public_user_token(callback.from_user.id)
     reporter = public_user_token(complaint.reporter_telegram_id)
     try:
-        await bot.send_message(
+        await send_group_notice(
+            bot,
             group.telegram_chat_id,
-            f"🤐 {reporter} замучен на 1 минуту за флуд жалобами.\nМодератор: {actor}",
+            f"🤐 {reporter} заглушён на 1 минуту.\nМодератор: {actor}",
+            delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         log.warning("complaint_notify_failed", complaint_id=cid, error=str(exc))
