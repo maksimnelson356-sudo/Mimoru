@@ -667,7 +667,7 @@ async def _durable_ban_execute(
 
         if result.public_notice:
             try:
-                await send_group_notice(bot, group.telegram_chat_id, str(result))
+                await send_group_notice(bot, group.telegram_chat_id, str(result), redis=redis)
             except (TelegramBadRequest, TelegramForbiddenError) as exc:
                 log.warning("modban_notify_failed", error=str(exc))
 
