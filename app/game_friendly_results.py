@@ -15,6 +15,7 @@ from app.db.models import Group, User
 from app.entertainment_contracts import ENTERTAINMENT_ACTIONS, RELATIONSHIP_ACTIONS
 from app.game_contracts import PROPOSALS, PROPOSAL_ACTIONS
 from app.action_templates import ACTION_TEMPLATES, DEFAULT_ACTION_TEMPLATES
+from app.services.waifu_api import fetch_waifu_url
 from app.russian_inflect import (
     CASE_ABLT,
     CASE_ACCS,
@@ -204,6 +205,20 @@ async def friendly_fun_action(message: Message, session: AsyncSession, redis: Re
     }
 
     text, entities = _render(variant, mentions)
+
+    gif_url = await fetch_waifu_url(action)
+    if gif_url is not None:
+        try:
+            await message.reply_animation(animation=gif_url, caption=text, caption_entities=entities)
+            group = await _active_group(session, message.chat.id)
+            if group is not None:
+                event_type = "relationship_action" if action in RELATIONSHIP_ACTIONS else "entertainment_action"
+                session.add(GameEvent(group_id=group.id, event_type=event_type, action=action, actor_telegram_id=actor.id, target_telegram_id=target.id, actor_name=actor_name, target_name=target_name, outcome="done"))
+                await session.commit()
+            return
+        except Exception as exc:
+            import structlog as _log
+            _log.get_logger().warning("waifu_animation_send_failed", action=action, error=str(exc))
 
     await message.reply(text, entities=entities)
     group = await _active_group(session, message.chat.id)
