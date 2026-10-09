@@ -70,9 +70,16 @@ async def _owner_group(
     group = await _group(session, group_id, for_update=for_update)
     if group is None:
         return None
-    if group.owner_telegram_id != user_id and not is_service_owner(user_id):
-        return None
-    return group
+    if is_service_owner(user_id):
+        return group
+    if group.owner_telegram_id == user_id:
+        return group
+    from app.services.ranks import DEPUTY_OWNER, get_assignment
+
+    assignment = await get_assignment(session, group.id, user_id)
+    if assignment is not None and assignment.active and assignment.rank_code == DEPUTY_OWNER:
+        return group
+    return None
 
 
 async def _telegram_provisioning_ready(bot: Bot, group: Group) -> tuple[bool, str]:

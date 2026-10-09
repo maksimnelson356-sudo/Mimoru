@@ -77,7 +77,15 @@ async def rank_policy_permission_fixed(callback: CallbackQuery, session: AsyncSe
     if group is None:
         await callback.answer("Группа не найдена.", show_alert=True)
         return
-    if not (group.owner_telegram_id == callback.from_user.id or is_service_owner(callback.from_user.id)):
+    from app.services.ranks import DEPUTY_OWNER, get_assignment
+
+    assignment = await get_assignment(session, group.id, callback.from_user.id)
+    has_access = (
+        is_service_owner(callback.from_user.id)
+        or group.owner_telegram_id == callback.from_user.id
+        or (assignment is not None and assignment.active and assignment.rank_code == DEPUTY_OWNER)
+    )
+    if not has_access:
         await callback.answer("Настраивать права рангов может только владелец группы.", show_alert=True)
         return
     if (
