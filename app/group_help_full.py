@@ -281,8 +281,13 @@ async def slash_help(message: Message) -> None:
     await _open(message)
 
 
-@router.message(F.chat.type.in_(GROUP_TYPES), Command(commands=["comands", "commands"]))
+@router.message(F.chat.type.in_(GROUP_TYPES), Command(commands=["commands"]))
 async def slash_commands(message: Message) -> None:
+    await _open(message)
+
+
+@router.message(F.chat.type.in_(GROUP_TYPES), Command("comands"))  # legacy alias, keep for old clients
+async def slash_commands_legacy_alias(message: Message) -> None:
     await _open(message)
 
 
