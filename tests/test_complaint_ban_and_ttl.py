@@ -135,14 +135,22 @@ async def test_group_complaint_reply_is_queued_for_removal(monkeypatch) -> None:
     monkeypatch.setattr(group_commands, "bound_redis", lambda: "redis")
 
     sent = SimpleNamespace(chat=SimpleNamespace(id=-1003), message_id=777)
-    message = SimpleNamespace(reply=AsyncMock(return_value=sent))
+    message = SimpleNamespace(
+        reply=AsyncMock(return_value=sent),
+        chat=SimpleNamespace(id=-1003),
+        message_id=555,
+    )
 
     await group_commands._reply_complaint_notice(message, "✅ Жалоба принята.")
 
     message.reply.assert_awaited_once_with("✅ Жалоба принята.")
-    schedule.assert_awaited_once()
-    assert schedule.await_args.args == ("redis", -1003, 777)
-    assert schedule.await_args.kwargs["delay_seconds"] == COMPLAINT_MESSAGE_TTL_SECONDS
+    assert schedule.await_count == 2
+    # First call: bot's reply
+    assert schedule.await_args_list[0].args == ("redis", -1003, 777)
+    # Second call: user's original message
+    assert schedule.await_args_list[1].args == ("redis", -1003, 555)
+    for call in schedule.await_args_list:
+        assert call.kwargs["delay_seconds"] == COMPLAINT_MESSAGE_TTL_SECONDS
 
 
 @pytest.mark.asyncio
@@ -212,6 +220,7 @@ def _complaint_command(monkeypatch, delivered: int, attempted: int) -> SimpleNam
             message_id=555, text="плохое сообщение", caption=None
         ),
         reply=AsyncMock(return_value=replied),
+        message_id=555,
     )
     return message
 

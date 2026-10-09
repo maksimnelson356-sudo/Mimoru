@@ -234,10 +234,18 @@ async def _notify_complaint_recipients(
 async def _reply_complaint_notice(message: Message, text: str) -> None:
     """Ответ о жалобе в группе: показываем и снимаем через 45 секунд."""
     sent = await message.reply(text)
+    redis = bound_redis()
     await schedule_message_deletion(
-        bound_redis(),
+        redis,
         sent.chat.id,
         sent.message_id,
+        delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
+    )
+    # Удаляем и исходное сообщение пользователя со словом "жалоба".
+    await schedule_message_deletion(
+        redis,
+        message.chat.id,
+        message.message_id,
         delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
     )
 
