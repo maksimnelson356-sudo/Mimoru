@@ -297,11 +297,7 @@ async def durable_reason_action(
             await callback.answer("Сообщение недоступно.", show_alert=True)
             return
         target_name = str(data.get("target_name") or public_user_token(target_id))
-        text = (
-            "🛑 Подтверждение бана\n\n"
-            f"👤 Нарушитель: {target_name}\n\n"
-            "Выберите обычный бан или бан с очисткой сохранённых сообщений."
-        )
+        text = f"👤 {target_name}"
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
