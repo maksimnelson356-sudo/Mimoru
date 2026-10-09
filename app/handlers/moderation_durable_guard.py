@@ -290,20 +290,14 @@ async def durable_reason_action(
         await reason_admin.moderation_reason_selected(callback, bot, session, redis)
         return
 
-    # Для бана — показать диалог подтверждения (вместо немедленного execute)
-    if action == "ban":
+    # Для бана из панели — показать диалог выбора
+    # Бан через команду в группе выполняется сразу
+    if action == "ban" and origin != "group":
         if callback.message is None:
             await callback.answer("Сообщение недоступно.", show_alert=True)
             return
-        # Old callbacks from history may carry no stored name: fall back to the
-        # public token, never to a raw numeric id.
         target_name = str(data.get("target_name") or public_user_token(target_id))
-        text = (
-            "🛑 Подтверждение бана\n\n"
-            f"👤 Нарушитель: {target_name}\n\n"
-            "Выберите обычный бан или бан с очисткой сохранённых "
-            "сообщений пользователя."
-        )
+        text = f"👤 {target_name}"
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -330,7 +324,6 @@ async def durable_reason_action(
             await callback.message.edit_text(text, reply_markup=keyboard)
         except TelegramBadRequest as exc:
             import structlog
-
             structlog.get_logger().warning("modban_prompt_edit_failed", error=str(exc))
         else:
             await schedule_message_deletion(
@@ -674,7 +667,7 @@ async def _durable_ban_execute(
 
         if result.public_notice:
             try:
-                await send_group_notice(bot, group.telegram_chat_id, str(result))
+                await send_group_notice(bot, group.telegram_chat_id, str(result), redis=redis)
             except (TelegramBadRequest, TelegramForbiddenError) as exc:
                 log.warning("modban_notify_failed", error=str(exc))
 

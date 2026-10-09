@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.russian_inflect import (
     CASE_ABLT,
     CASE_ACCS,

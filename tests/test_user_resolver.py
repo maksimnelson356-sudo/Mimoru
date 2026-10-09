@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.utils.user_resolver import resolve_target_user, _resolve_username
+from app.utils.user_resolver import resolve_target_user
 
 
 def _msg(text: str, reply_user_id: int | None = None) -> MagicMock:
