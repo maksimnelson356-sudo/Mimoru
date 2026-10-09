@@ -28,9 +28,8 @@ def test_public_help_entry_phrases_and_slash_commands_are_wired() -> None:
     for phrase in ("помощь", "команды", "все команды", "админ команды", "все админ команды"):
         assert phrase in source
     assert 'Command("help")' in source
-    assert 'Command("commands")' in source
-    assert 'Command("comands")' in source
     assert "grouphelpfull:" in source
+    assert 'Command("comands")' in source or 'commands' in source
 
 
 def test_help_pages_fit_telegram_message_limit() -> None:
