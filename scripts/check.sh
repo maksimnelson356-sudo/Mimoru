@@ -19,3 +19,8 @@ python scripts/audit_all_buttons.py
 python scripts/audit_fsm_states.py
 python scripts/check_codebase_integrity.py
 python scripts/audit_handler_contracts.py
+python scripts/audit_spelling.py
+python scripts/audit_owner_vs_deputy.py
+python scripts/audit_ttl_leaks.py
+python scripts/audit_banner_text.py
+python scripts/audit_unused_routers.py
