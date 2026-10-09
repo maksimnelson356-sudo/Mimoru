@@ -47,16 +47,19 @@ def _message(text: str = "жалоба") -> SimpleNamespace:
         text="плохое сообщение",
         caption=None,
     )
-    return SimpleNamespace(
+    sent = SimpleNamespace(chat=SimpleNamespace(id=-1003), message_id=1)
+    replied_msg = SimpleNamespace(
         text=text,
         chat=SimpleNamespace(id=-1003),
         from_user=SimpleNamespace(
             id=42, full_name="Жалобщик", username="reporter"
         ),
         reply_to_message=replied,
-        reply=AsyncMock(),
+        reply=AsyncMock(return_value=sent),
         bot=SimpleNamespace(send_message=AsyncMock()),
+        message_id=555,
     )
+    return replied_msg
 
 
 def _replies(message: SimpleNamespace) -> list[str]:
