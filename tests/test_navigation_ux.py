@@ -22,7 +22,8 @@ def test_home_menu_is_self_explanatory_and_has_no_global_stats():
     assert "📊 Моя статистика" not in texts
     assert "💎 Тарифы и подписка" in texts
     assert "💬 Поддержка" in texts
-    assert "❓ Как пользоваться Mimoru" in texts
+    assert "ℹ️ О боте Mimoru" in texts
+    assert "❓ Как пользоваться" in texts
 
 
 def test_group_menu_has_statistics_ads_direct_diagnostics_and_disconnect():

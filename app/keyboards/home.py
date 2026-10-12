@@ -19,7 +19,10 @@ def home_menu(is_service_owner: bool = False) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📢 Реклама", callback_data="ads:home"),
                 InlineKeyboardButton(text="💬 Поддержка", callback_data="panel:support"),
             ],
-            [InlineKeyboardButton(text="❓ Как пользоваться Mimoru", callback_data="panel:commands")],
+            [
+                InlineKeyboardButton(text="ℹ️ О боте Mimoru", callback_data="panel:about"),
+                InlineKeyboardButton(text="❓ Как пользоваться", callback_data="panel:commands"),
+            ],
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
