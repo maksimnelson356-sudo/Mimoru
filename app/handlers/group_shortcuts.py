@@ -55,7 +55,7 @@ async def group_help_command(message: Message) -> None:
     )
 
 
-@router.message(Command("comands", "commands"), F.chat.type.in_(GROUP_TYPES))
+@router.message(Command("commands"), F.chat.type.in_(GROUP_TYPES))
 async def commands_command(message: Message) -> None:
     await message.reply(
         "📋 Команды Mimoru в группе\n\n"
@@ -129,7 +129,7 @@ async def public_role_roster(message: Message, session: AsyncSession) -> None:
 
     lines += [
         "",
-        "В Telegram-списке администраторов могут отображаться Зам. владельца, Глав. админ, Администратор чата и Мажёр. Администратор войска, Помощник и Недотрога работают только через Mimoru.",
+        "В Telegram-списке администраторов могут отображаться Зам. владельца, Глав. админ, Администратор чата и Администратор голосовых чатов. Модератор, Помощник и Недотрога работают только через Mimoru.",
     ]
     await message.reply("\n".join(lines))
 

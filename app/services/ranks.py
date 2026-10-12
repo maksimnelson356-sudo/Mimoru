@@ -33,9 +33,9 @@ RANK_LABELS = {
     DEPUTY_OWNER: "Зам. владельца",
     CHIEF_ADMIN: "Глав. админ",
     CHAT_ADMIN: "Администратор чата",
-    VOICE_ADMIN: "Администратор войска",
+    VOICE_ADMIN: "Администратор голосовых чатов",
     HELPER: "Помощник",
-    MAJOR: "Мажёр",
+    MAJOR: "Мажор",
     UNTOUCHABLE: "Недотрога",
 }
 RANK_LEVELS = {

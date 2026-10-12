@@ -1,0 +1,53 @@
+# SQLAlchemy terms
+selectin
+selectinload
+joinedload
+subqueryload
+raiseload
+noload
+immediateload
+
+# Project-specific
+untouchable
+trial
+webhook
+
+# Common technical terms
+asyncio
+sqlalchemy
+pydantic
+aiogram
+redis
+alembic
+pytest
+ruff
+uvloop
+gunicorn
+uvicorn
+
+# Abbreviations
+api
+cli
+gui
+ui
+id
+ids
+url
+urls
+http
+https
+tcp
+udp
+ssh
+ssl
+tls
+json
+xml
+yaml
+toml
+csv
+regex
+uuid
+cron
+cronjob
+cronjobs

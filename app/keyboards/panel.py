@@ -20,6 +20,9 @@ def main_menu(is_service_owner: bool = False) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="💬 Поддержка", callback_data="panel:support"),
+            InlineKeyboardButton(text="ℹ️ О боте", callback_data="panel:about"),
+        ],
+        [
             InlineKeyboardButton(text="⚙️ Помощь", callback_data="panel:commands"),
         ],
     ]
