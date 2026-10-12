@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import structlog
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
@@ -9,7 +10,7 @@ from aiogram.types import ChatPermissions
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Group, ModerationLog, Punishment, Warning
+from app.db.models import Group, ModerationLog, Punishment, UserMessage, Warning
 from app.services.access import can_moderate
 from app.services.ranks import (
     ADMIN_RANKS,
@@ -21,6 +22,8 @@ from app.services.ranks import (
 )
 from app.services.repositories import active_warnings_count
 from app.services.ui import manual_action_notice
+
+log = structlog.get_logger()
 
 MUTED = ChatPermissions(can_send_messages=False)
 UNMUTED = ChatPermissions(
@@ -165,6 +168,7 @@ async def execute(
     target_name: str,
     moderator_name: str,
     actor_role: str = "admin",
+    cleanup: bool = False,
 ) -> ModerationOutcome:
     group = await session.scalar(
         select(Group).where(Group.id == group_id).with_for_update()
@@ -253,6 +257,41 @@ async def execute(
             safe_reason,
             {"duration": duration},
         )
+        if cleanup:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=47)
+            rows = (
+                await session.scalars(
+                    select(UserMessage.message_id).where(
+                        UserMessage.group_id == group_id,
+                        UserMessage.user_telegram_id == target_id,
+                        UserMessage.created_at > cutoff,
+                    )
+                )
+            ).all()
+            deleted = 0
+            for i in range(0, len(rows), 100):
+                batch = list(rows[i : i + 100])
+                try:
+                    await bot.delete_messages(
+                        chat_id=chat_id,
+                        message_ids=batch,
+                    )
+                    deleted += len(batch)
+                except (TelegramBadRequest, TelegramForbiddenError) as exc:
+                    log.warning(
+                        "delete_messages_batch_failed",
+                        group_id=group_id,
+                        user_telegram_id=target_id,
+                        batch_size=len(batch),
+                        error=str(exc),
+                    )
+            if deleted:
+                log.info(
+                    "ban_cleanup_deleted",
+                    group_id=group_id,
+                    user_telegram_id=target_id,
+                    deleted=deleted,
+                )
         return _success(
             manual_action_notice(
                 action="ban",

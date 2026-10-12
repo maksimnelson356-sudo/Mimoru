@@ -277,6 +277,7 @@ async def complaint_warn(
         default_mute=group.settings.default_mute_seconds,
         target_name=public_user_token(complaint.target_telegram_id),
         moderator_name=public_user_token(callback.from_user.id),
+        cleanup=False,
     )
     if result.commit:
         await session.commit()
@@ -352,26 +353,13 @@ async def complaint_ban_confirm(
         default_mute=group.settings.default_mute_seconds,
         target_name=public_user_token(complaint.target_telegram_id),
         moderator_name=public_user_token(callback.from_user.id),
+        cleanup=True,
     )
     if result.commit:
         await session.commit()
     if not result.success:
         await callback.answer(result or "Не удалось забанить.", show_alert=True)
         return
-
-    deleted = await _delete_user_messages(
-        bot,
-        session,
-        group.id,
-        complaint.target_telegram_id,
-        group.telegram_chat_id,
-    )
-    log.info(
-        "user_messages_deleted",
-        complaint_id=cid,
-        user_telegram_id=complaint.target_telegram_id,
-        deleted=deleted,
-    )
 
     complaint.status = "processed"
     complaint.reviewed_by_telegram_id = callback.from_user.id
@@ -430,6 +418,7 @@ async def complaint_ban_clean(
         default_mute=group.settings.default_mute_seconds,
         target_name=public_user_token(complaint.target_telegram_id),
         moderator_name=public_user_token(callback.from_user.id),
+        cleanup=True,
     )
     if result.commit:
         await session.commit()
@@ -437,22 +426,7 @@ async def complaint_ban_clean(
         await callback.answer(result or "Не удалось забанить.", show_alert=True)
         return
 
-    deleted = await _delete_user_messages(
-        bot,
-        session,
-        group.id,
-        complaint.target_telegram_id,
-        group.telegram_chat_id,
-    )
-    log.info(
-        "user_messages_deleted",
-        complaint_id=cid,
-        user_telegram_id=complaint.target_telegram_id,
-        deleted=deleted,
-    )
-
-    # После успешного execute() очистка безопасна: авторизация уже проверена,
-    # а повторный ban выполняется только для уже разрешённого действия.
+    # Telegram-side cleanup: unban + ban with revoke_messages=True
     cleanup_ok = False
     try:
         await bot.unban_chat_member(

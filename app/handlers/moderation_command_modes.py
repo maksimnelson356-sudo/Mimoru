@@ -79,7 +79,7 @@ class ModerationCommandModeFilter(BaseFilter):
         if not text:
             return False
         first_token = text.split(maxsplit=1)[0].casefold()
-        return first_token in {"пред", "мут", "бан"}
+        return first_token in {"пред", "мут", "бан", "банчистка"}
 
 
 async def _active_group(session: AsyncSession, chat_id: int) -> Group | None:
@@ -389,6 +389,7 @@ async def _open_buttons(
     action: str,
     target_id: int,
     duration: int | None,
+    cleanup: bool = False,
 ) -> None:
     token = secrets.token_hex(5)
     payload = {
@@ -407,6 +408,7 @@ async def _open_buttons(
         "actor_role": (
             "owner" if message.from_user.id == group.owner_telegram_id else "admin"
         ),
+        "cleanup": cleanup,
     }
     await redis.setex(
         f"mimoru:modpending:{token}", 600, json.dumps(payload, ensure_ascii=False)
@@ -445,7 +447,9 @@ async def moderation_command_mode(
         return
 
     command_word, raw_args, second_line_reason = _split_command(message.text or "")
-    action = {"пред": "warn", "мут": "mute", "бан": "ban"}.get(command_word)
+    action_map = {"пред": "warn", "мут": "mute", "бан": "ban", "банчистка": "ban"}
+    action = action_map.get(command_word)
+    cleanup_requested = command_word == "банчистка"
     if action is None:
         return
     if not await can_moderate(bot, session, group, message.from_user.id, action):
@@ -504,6 +508,7 @@ async def moderation_command_mode(
                     if message.from_user.id == group.owner_telegram_id
                     else "admin"
                 ),
+                cleanup=cleanup_requested,
             )
             await session.commit()
             await send_group_notice(bot, message.chat.id, result, redis=redis)
@@ -521,4 +526,5 @@ async def moderation_command_mode(
         action=action,
         target_id=target_id,
         duration=duration,
+        cleanup=cleanup_requested,
     )

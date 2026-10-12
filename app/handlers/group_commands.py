@@ -352,6 +352,7 @@ async def _do_unmute(
         default_mute=group.settings.default_mute_seconds,
         target_name=public_user_token(target_id),
         moderator_name=public_user_token(message.from_user.id),
+        cleanup=False,
     )
     await session.commit()
     await send_group_notice(bot, message.chat.id, notice)
@@ -381,6 +382,7 @@ async def _do_unban(
         default_mute=group.settings.default_mute_seconds,
         target_name=public_user_token(target_id),
         moderator_name=public_user_token(message.from_user.id),
+        cleanup=False,
     )
     await session.commit()
     await send_group_notice(bot, message.chat.id, notice)

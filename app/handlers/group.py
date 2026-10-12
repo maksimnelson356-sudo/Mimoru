@@ -581,6 +581,7 @@ async def moderation_command(
             actor_role=(
                 "owner" if message.from_user.id == group.owner_telegram_id else "admin"
             ),
+            cleanup=False,
         )
         await session.commit()
         await send_group_notice(bot, message.chat.id, result, redis=redis)

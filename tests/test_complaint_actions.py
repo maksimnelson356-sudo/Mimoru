@@ -114,15 +114,11 @@ async def test_ban_confirm_authorizes_before_deleting_messages(
     bot = SimpleNamespace(send_message=AsyncMock())
     session = AsyncMock()
     complaint, group = _context()
-    order: list[str] = []
+    execute_kwargs = {}
 
     async def fake_execute(**kwargs):
-        order.append("execute")
+        execute_kwargs.update(kwargs)
         return SimpleNamespace(success=True, commit=True)
-
-    async def fake_delete(*args, **kwargs):
-        order.append("delete")
-        return 2
 
     monkeypatch.setattr(
         complaint_actions,
@@ -130,7 +126,6 @@ async def test_ban_confirm_authorizes_before_deleting_messages(
         AsyncMock(return_value=(complaint, group)),
     )
     monkeypatch.setattr(complaint_actions, "execute", fake_execute)
-    monkeypatch.setattr(complaint_actions, "_delete_user_messages", fake_delete)
     monkeypatch.setattr(
         complaint_actions,
         "_clear_complaint_buttons",
@@ -139,6 +134,6 @@ async def test_ban_confirm_authorizes_before_deleting_messages(
 
     await complaint_actions.complaint_ban_confirm(callback, bot, session)
 
-    assert order == ["execute", "delete"]
+    assert execute_kwargs.get("cleanup") is True
     assert complaint.resolution == "ban"
     session.commit.assert_awaited()

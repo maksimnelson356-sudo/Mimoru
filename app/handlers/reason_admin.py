@@ -340,6 +340,7 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
             target_name=data["target_name"],
             moderator_name=data["moderator_name"],
             actor_role=data.get("actor_role", "admin"),
+            cleanup=False,
         )
         if result.commit:
             await session.commit()

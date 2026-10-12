@@ -585,6 +585,8 @@ async def _durable_ban_execute(
         await callback.answer("Причина больше не активна.", show_alert=True)
         return
 
+    cleanup = bool(data.get("cleanup"))
+
     intent_id = await _create_guard_intent(
         session,
         group=group,
@@ -607,21 +609,6 @@ async def _durable_ban_execute(
         return
 
     try:
-        if cleanup:
-            deleted = await _delete_user_messages(
-                bot,
-                session,
-                group.id,
-                target_id,
-                group.telegram_chat_id,
-            )
-            log.info(
-                "user_messages_deleted",
-                target_id=target_id,
-                deleted=deleted,
-                source="moderation_durable_guard",
-            )
-
         result = await execute(
             bot=bot,
             session=session,
@@ -641,27 +628,10 @@ async def _durable_ban_execute(
             target_name=str(data.get("target_name") or public_user_token(target_id)),
             moderator_name=str(data.get("moderator_name", callback.from_user.id)),
             actor_role=data.get("actor_role", "admin"),
+            cleanup=cleanup,
         )
         if result.commit:
             await session.commit()
-
-        if cleanup:
-            try:
-                await bot.unban_chat_member(
-                    chat_id=group.telegram_chat_id,
-                    user_id=target_id,
-                    only_if_banned=True,
-                )
-            except (TelegramBadRequest, TelegramForbiddenError) as exc:
-                log.warning("modban_unban_failed", error=str(exc))
-            try:
-                await bot.ban_chat_member(
-                    chat_id=group.telegram_chat_id,
-                    user_id=target_id,
-                    revoke_messages=True,
-                )
-            except (TelegramBadRequest, TelegramForbiddenError) as exc:
-                log.warning("modban_clean_failed", error=str(exc))
 
         await drop_moderation_intent(session, intent_id)
 

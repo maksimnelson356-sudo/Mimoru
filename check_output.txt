@@ -38,4 +38,4 @@ E        +  where False = feature_available(namespace(plan_code='trial', plan_ex
 tests\test_plan_expiry_visibility.py:45: AssertionError
 =========================== short test summary info ===========================
 FAILED tests/test_plan_expiry_visibility.py::test_fresh_trial_keeps_reports_and_limits
-1 failed, 1770 passed, 19 deselected in 15.85s
+1 failed, 1770 passed, 19 deselected in 14.97s
