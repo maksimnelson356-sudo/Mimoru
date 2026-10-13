@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from app.services.ui import is_chat_unavailable, is_target_gone
+
 
 ROOT = Path(__file__).resolve().parents[1]
 # This contract intentionally covers the production scheduler wiring as well as
@@ -94,3 +96,59 @@ def test_telegram_failure_rolls_back_expiry_for_retry() -> None:
     rollback = body.index("await session.rollback()")
     retry_exit = body.index("continue", rollback)
     assert rollback < retry_exit
+
+
+# --- участник покинул группу: наказание закрывается, а не крутится вечно ----
+
+
+def _bad_request(message: str):
+    from aiogram.exceptions import TelegramBadRequest
+    from aiogram.methods import RestrictChatMember
+    from aiogram.types import ChatPermissions
+
+    return TelegramBadRequest(
+        method=RestrictChatMember(
+            chat_id=-100123, user_id=1, permissions=ChatPermissions()
+        ),
+        message=message,
+    )
+
+
+def test_target_gone_is_classified_as_a_chat_state_not_a_bot_failure() -> None:
+    """Telegram отклонил разжалование, потому что человека нет в чате."""
+    error = _bad_request("Bad Request: PARTICIPANT_ID_INVALID")
+    assert is_target_gone(error) is True
+    # Это состояние группы, а не потеря прав ботом: повторять бессмысленно.
+    assert is_chat_unavailable(error) is False
+
+
+def test_unrelated_bad_request_is_not_mistaken_for_a_departed_member() -> None:
+    for message in (
+        "Bad Request: CHAT_ADMIN_REQUIRED",
+        "Bad Request: not enough rights",
+    ):
+        assert is_target_gone(_bad_request(message)) is False
+
+
+def test_expiry_closes_a_departed_member_instead_of_retrying_forever() -> None:
+    """Корень проблемы: запись оставалась активной, и воркер опрашивал
+    её каждые пять секунд, попутно сыпя warning в логи."""
+    source = (ROOT / "app/services/punishment_expiry.py").read_text(encoding="utf-8")
+    body = source.split("except (TelegramBadRequest, TelegramForbiddenError) as error:", 1)[1]
+
+    gone_branch = body.index("if is_target_gone(error):")
+    deactivate = body.index("punishment.active = False", gone_branch)
+    commit = body.index("await session.commit()", deactivate)
+    retry_exit = body.index("continue", commit)
+
+    assert gone_branch < deactivate < commit < retry_exit
+    # Ветка ушедшего участника обязана быть до rollback: откат вернул бы
+    # наказание в активное состояние и вернул бесконечный цикл.
+    assert gone_branch < body.index("await session.rollback()")
+
+
+def test_expiry_imports_the_target_gone_classifier() -> None:
+    source = (ROOT / "app/services/punishment_expiry.py").read_text(encoding="utf-8")
+    assert (
+        "from app.services.ui import is_chat_unavailable, is_target_gone" in source
+    )

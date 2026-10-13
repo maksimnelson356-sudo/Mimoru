@@ -138,6 +138,20 @@ _CHAT_UNAVAILABLE_MARKERS = (
     "have no rights to send a message",
 )
 
+#: Ошибки вида «участника нет в чате». Это не сбой бота и не проблема прав:
+#: человек вышел или был удалён, и Telegram уже снял с него ограничения сам.
+#: Повторять попытку разжалования бессмысленно — она будет отклоняться вечно.
+_TARGET_GONE_MARKERS = (
+    "participant_id_invalid",
+    "user_not_participant",
+)
+
+
+def is_target_gone(error: BaseException) -> bool:
+    """True, если Telegram отклонил действие, потому что участника нет в чате."""
+    message = str(error).casefold()
+    return any(marker in message for marker in _TARGET_GONE_MARKERS)
+
 
 def is_chat_unavailable(error: BaseException) -> bool:
     """True, если ошибка означает, что бот не может работать с чатом

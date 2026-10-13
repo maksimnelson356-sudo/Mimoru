@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.db.models import Group, Punishment
 from app.db.session import SessionFactory
-from app.services.ui import is_chat_unavailable
+from app.services.ui import is_chat_unavailable, is_target_gone
 
 UNMUTED = ChatPermissions(
     can_send_messages=True,
@@ -113,6 +113,21 @@ async def expire_punishments(bot: Bot, redis: Redis) -> None:
                         only_if_banned=True,
                     )
             except (TelegramBadRequest, TelegramForbiddenError) as error:
+                if is_target_gone(error):
+                    # Участник вышел из группы: Telegram уже снял с него
+                    # ограничения, поэтому повторная попытка разжалования
+                    # будет отклоняться бесконечно. Наказание закрываем
+                    # и коммитим, иначе запись остаётся активной и воркер
+                    # опрашивает её каждые пять секунд до бесконечности.
+                    punishment.active = False
+                    await session.commit()
+                    log.debug(
+                        "punishment_expiry_target_gone",
+                        punishment_id=punishment_id,
+                        kind=punishment.kind,
+                    )
+                    continue
+
                 await session.rollback()
                 if is_chat_unavailable(error):
                     log.debug(
