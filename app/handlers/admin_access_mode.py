@@ -5,6 +5,7 @@ from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.methods import SetChatAdministratorCustomTitle
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +23,7 @@ from app.services.ranks import (
     demote_telegram_admin,
     get_assignment,
     is_service_owner,
-    promote_with_title,
+    promote_admin,
 )
 from app.services.public_identity import stored_visible_name
 from app.services.telegram_admins import TELEGRAM_ADMIN, sync_telegram_administrators
@@ -140,9 +141,15 @@ async def _apply_assignment(
 
     if access_mode == TELEGRAM_MODE:
         try:
-            await promote_with_title(
-                bot, group.telegram_chat_id, target_id, rank_code, custom_title
-            )
+            await promote_admin(bot, group.telegram_chat_id, target_id, rank_code)
+            if custom_title:
+                await bot(
+                    SetChatAdministratorCustomTitle(
+                        chat_id=group.telegram_chat_id,
+                        user_id=target_id,
+                        custom_title=custom_title,
+                    )
+                )
         except (TelegramBadRequest, TelegramForbiddenError):
             return False, (
                 "Telegram не позволил привести права администратора к выбранному рангу. "

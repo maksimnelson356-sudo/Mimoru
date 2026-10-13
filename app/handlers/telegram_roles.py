@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import structlog
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.methods import SetChatAdministratorCustomTitle
 from aiogram.types import CallbackQuery, ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, User
 from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEvent
+from app.services.rank_provisioning import BOT_ONLY_MODE, TELEGRAM_MODE
 from app.services.public_identity import _utf16_len, public_user_token, stored_visible_name
 from app.services.ranks import (
     ADMIN_RANKS,
@@ -33,13 +36,15 @@ from app.services.ranks import (
     get_actor_rank,
     get_assignment,
     is_service_owner,
-    promote_with_title,
+    apply_admin_title,
+    promote_admin,
 )
 from app.services.telegram_admins import TELEGRAM_OWNER, sync_telegram_administrators
 from app.services.ui import panel_header
 
 
 router = Router(name=__name__)
+log = structlog.get_logger(__name__)
 
 
 class RankForm(StatesGroup):
@@ -273,9 +278,15 @@ async def _set_assignment(
     if rank_code in ADMIN_RANKS:
         if old_managed and member.status == ChatMemberStatus.ADMINISTRATOR:
             try:
-                await promote_with_title(
-                    bot, group.telegram_chat_id, target_id, rank_code, custom_title
-                )
+                await promote_admin(bot, group.telegram_chat_id, target_id, rank_code)
+                if custom_title:
+                    await bot(
+                        SetChatAdministratorCustomTitle(
+                            chat_id=group.telegram_chat_id,
+                            user_id=target_id,
+                            custom_title=custom_title,
+                        )
+                    )
                 managed = True
             except (TelegramBadRequest, TelegramForbiddenError):
                 return False, "Не удалось обновить Telegram-права администратора.", None
@@ -469,20 +480,38 @@ async def rank_title_save(message: Message, bot: Bot, session: AsyncSession, sta
         await message.answer("Отправьте тег текстом или «-», чтобы убрать его.")
         return
 
-    if assignment.telegram_admin_managed:
+    # Флаг telegram_admin_managed означает «Mimoru сама выдала эти права», но у
+    # рангов, привязанных к уже существующему администратору Telegram, он
+    # остаётся false. Раньше обращение к Telegram было завязано только на этот
+    # флаг, поэтому тег молча сохранялся в базу и никогда не доходил до группы:
+    # пользователь видел «Тег сохранён» и никаких изменений. Режим доступа —
+    # источник истины: тег уместен там, где человек работает администратором.
+    if title is not None and getattr(
+        assignment, "access_mode", BOT_ONLY_MODE
+    ) == TELEGRAM_MODE:
         try:
-            await promote_with_title(
+            await apply_admin_title(
                 bot,
                 group.telegram_chat_id,
                 assignment.user_telegram_id,
                 assignment.rank_code,
                 title,
             )
-        except (TelegramBadRequest, TelegramForbiddenError):
-            await message.answer(
-                "Не удалось применить тег в Telegram. Проверьте, что Mimoru остаётся "
-                "администратором группы с правом назначать администраторов."
+        except (TelegramBadRequest, TelegramForbiddenError) as error:
+            log.warning(
+                "admin_title_not_applied",
+                group_id=group.id,
+                target_id=assignment.user_telegram_id,
+                error=str(error),
             )
+            await message.answer(
+                "Telegram не принял тег. Обычно это значит, что у Mimoru нет права "
+                "«Добавлять администраторов» в группе. Тег сохранён в панели, "
+                "но в группе не изменился."
+            )
+            assignment.custom_title = title
+            await session.commit()
+            await state.clear()
             return
 
     assignment.custom_title = title

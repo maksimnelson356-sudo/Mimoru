@@ -49,7 +49,7 @@ def test_assignment_authorization_precedes_telegram_admin_effects() -> None:
     source = _source()
     helper = source.split("async def _apply_assignment(", 1)[1].split("def _mode_markup", 1)[0]
     auth = helper.index("await can_assign_rank(")
-    promote = helper.index("await promote_with_title(")
+    promote = helper.index("await promote_admin(")
     demote = helper.index("await demote_telegram_admin(")
     flush = helper.index("await session.flush()")
     assert auth < promote < flush

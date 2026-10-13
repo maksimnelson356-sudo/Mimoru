@@ -122,19 +122,31 @@ async def test_demote_still_reports_success_for_a_live_admin() -> None:
     bot.promote_chat_member.assert_awaited_once()
 
 
+class _CallableBot:
+    """Простейший callable-объект: aiogram вызывает бот как bot(method)."""
+
+    def __init__(self) -> None:
+        self.sent: list[object] = []
+        self.promote_chat_member = AsyncMock()
+
+    async def __call__(self, method) -> None:
+        self.sent.append(method)
+
+
 def test_custom_admin_title_reaches_telegram_rights() -> None:
     # The tag is never a privilege, so it must stay out of the rights mapping.
     assert "custom_title" not in telegram_rights_for_rank(CHIEF_ADMIN)
 
 
 @pytest.mark.asyncio
-async def test_promote_never_passes_custom_title_as_a_keyword() -> None:
-    """Регрессия: aiogram 3.31 не имеет custom_title в сигнатуре
-    Bot.promote_chat_member, поэтому **kwargs роняют обработчик TypeError'ом
-    без ответа пользователю. Тег обязан уходить через объект метода."""
+async def test_admin_title_uses_the_dedicated_telegram_method() -> None:
+    """У promoteChatMember в Bot API НЕТ параметра custom_title: Telegram
+    молча игнорирует неизвестные параметры и отвечает ok=true. Поэтому тег
+    «сохранялся», но в группе ничего не менялось. Правильный метод —
+    setChatAdministratorCustomTitle."""
     import inspect
 
-    from app.services.ranks import promote_with_title
+    from app.services.ranks import apply_admin_title
 
     signature = inspect.signature(Bot.promote_chat_member)
     assert "custom_title" not in signature.parameters
@@ -144,32 +156,35 @@ async def test_promote_never_passes_custom_title_as_a_keyword() -> None:
     async def call(method):
         sent.append(method)
 
-    await promote_with_title(call, -100123, 555, CHAT_ADMIN, "Модератор")
+    bot = _CallableBot()
+    await apply_admin_title(bot, -100123, 555, CHAT_ADMIN, "Модератор")
 
-    assert len(sent) == 1
-    method = sent[0]
-    payload = method.model_dump(exclude_none=True, warnings=False)
+    # Сначала права ранга через promote: только назначенный ботом админ
+    # может получить тег.
+    bot.promote_chat_member.assert_awaited_once()
+    kwargs = bot.promote_chat_member.await_args.kwargs
+    assert "custom_title" not in kwargs
+    assert kwargs["can_manage_chat"] is True
+
+    assert len(bot.sent) == 1
+    title_method = bot.sent[0]
+    payload = title_method.model_dump(exclude_none=True, warnings=False)
     assert payload["custom_title"] == "Модератор"
     assert payload["user_id"] == 555
-    # Права ранга не должны потеряться при сборке метода вручную.
-    assert payload["can_manage_chat"] is True
-    assert payload["can_restrict_members"] is True
+    assert payload["chat_id"] == -100123
 
 
 @pytest.mark.asyncio
-async def test_promote_omits_the_title_when_none() -> None:
-    """Без тега Telegram не должен получать пустую строку: это сбросит
-    метку, заданную вручную через настройки группы."""
-    from app.services.ranks import promote_with_title
+async def test_empty_title_is_sent_as_an_empty_string_to_clear_it() -> None:
+    """Telegram снимает метку только на пустой строке, а не на отсутствии
+    параметра, поэтому None обязан превращаться в ""."""
+    from app.services.ranks import apply_admin_title
 
-    sent: list[object] = []
+    bot = _CallableBot()
+    await apply_admin_title(bot, -100123, 555, CHAT_ADMIN, None)
 
-    async def call(method):
-        sent.append(method)
-
-    await promote_with_title(call, -100123, 555, CHAT_ADMIN)
-    payload = sent[0].model_dump(exclude_none=True, warnings=False)
-    assert "custom_title" not in payload
+    payload = bot.sent[0].model_dump(exclude_none=True, warnings=False)
+    assert payload["custom_title"] == ""
 
 
 @pytest.mark.asyncio
@@ -191,6 +206,24 @@ def test_admin_title_is_stored_and_cleared_with_the_rank() -> None:
     assert "assignment.custom_title = custom_title if rank_code in ADMIN_RANKS else None" in roles
     assert "assignment.custom_title = title" in roles
     assert "assignment.custom_title = None" in roles
+
+
+def test_admin_title_is_applied_regardless_of_the_managed_flag() -> None:
+    """Регрессия: обращение к Telegram было завязано на
+    telegram_admin_managed, который у рангов, привязанных к уже
+    существующему администратору Telegram, остаётся false. Тег молча
+    сохранялся в базу и никогда не доходил до группы.
+    """
+    body = open("app/handlers/telegram_roles.py", encoding="utf-8").read()
+    save = body.split("async def rank_title_save", 1)[1].split("\n\n\n", 1)[0]
+
+    assert "assignment.telegram_admin_managed" not in save
+    assert "TELEGRAM_MODE" in save
+    assert "apply_admin_title" in save
+    # Отказ Telegram обязан быть виден пользователю, а не замаскирован
+    # сообщением об успешном сохранении.
+    assert "admin_title_not_applied" in save
+    assert "в группе не изменился" in save
 
 
 def test_admin_title_is_owner_and_deputy_only() -> None:

@@ -4,6 +4,7 @@ import structlog
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.methods import SetChatAdministratorCustomTitle
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,7 @@ from app.services.ranks import (
     can_remove_assignment,
     demote_telegram_admin,
     get_assignment,
-    promote_with_title,
+    promote_admin,
     telegram_rights_for_rank,
 )
 
@@ -234,9 +235,17 @@ async def _execute_live_intent(
             await _drop_intent(session, intent)
             return False, "Владельцу Telegram-группы внутренний ранг не назначается.", None
         try:
-            await promote_with_title(
-                bot, group.telegram_chat_id, intent.user_telegram_id, rank_code, custom_title
+            await promote_admin(
+                bot, group.telegram_chat_id, intent.user_telegram_id, rank_code
             )
+            if custom_title:
+                await bot(
+                    SetChatAdministratorCustomTitle(
+                        chat_id=group.telegram_chat_id,
+                        user_id=intent.user_telegram_id,
+                        custom_title=custom_title,
+                    )
+                )
         except (TelegramBadRequest, TelegramForbiddenError):
             await _drop_intent(session, intent)
             return False, "Telegram не позволил применить права выбранного ранга.", None

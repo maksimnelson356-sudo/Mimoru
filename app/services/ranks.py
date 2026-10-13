@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.methods import PromoteChatMember
+from aiogram.methods import SetChatAdministratorCustomTitle
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -398,7 +398,15 @@ async def ensure_telegram_rank(
     if member.status not in {ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED}:
         return False, False, "Пользователь должен состоять в группе."
     try:
-        await promote_with_title(bot, group.telegram_chat_id, user_id, rank_code, custom_title)
+        await promote_admin(bot, group.telegram_chat_id, user_id, rank_code)
+        if custom_title:
+            await bot(
+                SetChatAdministratorCustomTitle(
+                    chat_id=group.telegram_chat_id,
+                    user_id=user_id,
+                    custom_title=custom_title,
+                )
+            )
     except (TelegramBadRequest, TelegramForbiddenError):
         return (
             False,
@@ -417,9 +425,9 @@ def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
     for the user to appear in the administrator list, so can_manage_chat is the
     unavoidable minimum. All actionable moderation privileges stay disabled.
 
-    The administrator tag (custom_title) is deliberately NOT part of this
-    mapping: it is not a privilege, and the aiogram helper below is the only
-    place allowed to pass it.
+    The administrator tag is deliberately NOT part of this mapping: it is a
+    label rather than a privilege, and Telegram applies it through a separate
+    method (see apply_admin_title).
     """
     base: dict[str, bool] = {
         "can_manage_chat": True,
@@ -452,28 +460,46 @@ def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
     return base
 
 
-async def promote_with_title(
+async def promote_admin(
     bot: Bot,
     chat_id: int,
     user_id: int,
     rank_code: str,
-    custom_title: str | None = None,
 ) -> None:
-    """Единственная точка, где Mimoru назначает права администратора в Telegram.
-
-    aiogram 3.31 не отдаёт custom_title в сигнатуре Bot.promote_chat_member,
-    хотя объект метода его принимает и укладывает в payload. Передавать его
-    через **kwargs нельзя: это TypeError, который роняет обработчик без
-    ответа пользователю. Поэтому собираем PromoteChatMember явно.
-    """
-    method = PromoteChatMember(
-        chat_id=chat_id,
-        user_id=user_id,
+    """Единственная точка, где Mimoru выдаёт права администратора в Telegram."""
+    await bot.promote_chat_member(
+        chat_id,
+        user_id,
         **telegram_rights_for_rank(rank_code),
     )
-    if custom_title:
-        method = method.model_copy(update={"custom_title": custom_title})
-    await bot(method)
+
+
+async def apply_admin_title(
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    rank_code: str,
+    title: str | None,
+) -> None:
+    """Задать или снять тег (custom title) администратора.
+
+    Отдельная функция, потому что у promoteChatMember параметра custom_title в
+    Bot API нет вообще: Telegram молча игнорирует неизвестные параметры и
+    отвечает ok=true, поэтому тег «сохранялся» и при этом ничего не менял.
+
+    setChatAdministratorCustomTitle работает только для администраторов,
+    которых выставил сам бот. Поэтому права ранга сначала переприменяются
+    через promoteChatMember — это делает Mimoru назначившим админа, — а затем
+    ставится сам тег. Пустая строка снимает тег.
+    """
+    await promote_admin(bot, chat_id, user_id, rank_code)
+    await bot(
+        SetChatAdministratorCustomTitle(
+            chat_id=chat_id,
+            user_id=user_id,
+            custom_title=title or "",
+        )
+    )
 
 
 async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
@@ -523,13 +549,17 @@ async def restore_telegram_rank(
     if assignment.rank_code not in ADMIN_RANKS or not assignment.active:
         return False
     try:
-        await promote_with_title(
-            bot,
-            group.telegram_chat_id,
-            assignment.user_telegram_id,
-            assignment.rank_code,
-            assignment.custom_title,
+        await promote_admin(
+            bot, group.telegram_chat_id, assignment.user_telegram_id, assignment.rank_code
         )
+        if assignment.custom_title:
+            await bot(
+                SetChatAdministratorCustomTitle(
+                    chat_id=group.telegram_chat_id,
+                    user_id=assignment.user_telegram_id,
+                    custom_title=assignment.custom_title,
+                )
+            )
         return True
     except (TelegramBadRequest, TelegramForbiddenError):
         return False
