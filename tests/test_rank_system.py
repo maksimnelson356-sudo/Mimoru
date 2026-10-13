@@ -111,6 +111,45 @@ def _group() -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
+async def test_demote_clears_the_custom_admin_title() -> None:
+    """A removed admin must not keep the Mimoru tag in the Telegram admin list."""
+    admin = SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR)
+    bot = SimpleNamespace(
+        get_chat_member=AsyncMock(return_value=admin),
+        promote_chat_member=AsyncMock(),
+    )
+    assert await demote_telegram_admin(bot, _group(), 123) is True
+    kwargs = bot.promote_chat_member.await_args.kwargs
+    assert kwargs["custom_title"] == ""
+
+
+def test_custom_admin_title_reaches_telegram_rights() -> None:
+    # Without a stored tag the key is absent, so promote_chat_member never resets
+    # a title Telegram set outside Mimoru.
+    assert telegram_rights_for_rank(CHIEF_ADMIN).get("custom_title") is None
+    assert telegram_rights_for_rank(CHAT_ADMIN, "Модератор")["custom_title"] == "Модератор"
+
+
+def test_admin_title_is_stored_and_cleared_with_the_rank() -> None:
+    model = open("app/db/rank_models.py", encoding="utf-8").read()
+    assert 'custom_title: Mapped[str | None] = mapped_column(String(16), nullable=True)' in model
+
+    roles = open("app/handlers/telegram_roles.py", encoding="utf-8").read()
+    assert "assignment.custom_title = custom_title if rank_code in ADMIN_RANKS else None" in roles
+    assert "assignment.custom_title = title" in roles
+    assert "assignment.custom_title = None" in roles
+
+
+def test_admin_title_is_owner_and_deputy_only() -> None:
+    body = open("app/handlers/telegram_roles.py", encoding="utf-8").read()
+    guard = body.split("async def can_set_admin_title(", 1)[1].split("\n\n\n", 1)[0]
+    assert "is_service_owner(actor_id)" in guard
+    assert "group.owner_telegram_id == actor_id" in guard
+    assert "actor.code == DEPUTY_OWNER" in guard
+    assert "assignment.rank_code not in ADMIN_RANKS" in guard
+
+
+@pytest.mark.asyncio
 async def test_demote_accepts_when_there_is_nothing_to_demote() -> None:
     """Regression guard: removal used to fail with «Не удалось снять
     Telegram-права администратора» when the person had already lost their admin

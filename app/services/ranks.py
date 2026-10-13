@@ -381,6 +381,8 @@ async def ensure_telegram_rank(
     group: Group,
     user_id: int,
     rank_code: str,
+    *,
+    custom_title: str | None = None,
 ) -> tuple[bool, bool, str]:
     if rank_code not in ADMIN_RANKS:
         return True, False, ""
@@ -398,7 +400,7 @@ async def ensure_telegram_rank(
         await bot.promote_chat_member(
             group.telegram_chat_id,
             user_id,
-            **telegram_rights_for_rank(rank_code),
+            **telegram_rights_for_rank(rank_code, custom_title),
         )
     except (TelegramBadRequest, TelegramForbiddenError):
         return (
@@ -411,14 +413,14 @@ async def ensure_telegram_rank(
     return True, True, ""
 
 
-def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
+def telegram_rights_for_rank(rank_code: str, custom_title: str | None = None) -> dict[str, bool | str]:
     """Telegram privileges actually required by a Mimoru rank.
 
     Major is a display-only rank: Telegram still requires administrator status
     for the user to appear in the administrator list, so can_manage_chat is the
     unavoidable minimum. All actionable moderation privileges stay disabled.
     """
-    base = {
+    base: dict[str, bool | str] = {
         "can_manage_chat": True,
         "can_change_info": False,
         "can_delete_messages": False,
@@ -432,6 +434,8 @@ def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
         "can_edit_stories": False,
         "can_delete_stories": False,
     }
+    if custom_title:
+        base["custom_title"] = custom_title
     if rank_code == MAJOR:
         base["can_invite_users"] = False
     elif rank_code in {DEPUTY_OWNER, CHIEF_ADMIN}:
@@ -472,6 +476,7 @@ async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
         await bot.promote_chat_member(
             group.telegram_chat_id,
             user_id,
+            custom_title="",
             can_manage_chat=False,
             can_change_info=False,
             can_delete_messages=False,
@@ -499,17 +504,23 @@ async def restore_telegram_rank(
         await bot.promote_chat_member(
             group.telegram_chat_id,
             assignment.user_telegram_id,
-            **telegram_rights_for_rank(assignment.rank_code),
+            **telegram_rights_for_rank(
+                assignment.rank_code, assignment.custom_title
+            ),
         )
         return True
     except (TelegramBadRequest, TelegramForbiddenError):
         return False
 
 
-async def demote_if_managed(bot: Bot, group: Group, assignment: RankAssignment) -> None:
+async def demote_if_managed(bot: Bot, group: Group, assignment: RankAssignment) -> bool:
+    """Demote a Telegram admin if the assignment was bot-managed.
+
+    Returns True if demotion succeeded or wasn't needed, False if demotion failed.
+    """
     if not assignment.telegram_admin_managed:
-        return
-    await demote_telegram_admin(bot, group, assignment.user_telegram_id)
+        return True
+    return await demote_telegram_admin(bot, group, assignment.user_telegram_id)
 
 
 def add_rank_event(

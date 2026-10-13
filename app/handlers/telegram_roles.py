@@ -15,6 +15,7 @@ from app.services.public_identity import _utf16_len, public_user_token, stored_v
 from app.services.ranks import (
     ADMIN_RANKS,
     CHAT_ADMIN,
+    DEPUTY_OWNER,
     HELPER,
     PERMISSION_LABELS,
     RANK_CODES,
@@ -45,6 +46,7 @@ router = Router(name=__name__)
 
 class RankForm(StatesGroup):
     add_user = State()
+    set_title = State()
 
 
 MEDIA_BLOCKED = ChatPermissions(
@@ -170,10 +172,11 @@ async def _render_roles(target: Message, bot: Bot, session: AsyncSession, group:
             if item.assigned_by_telegram_id
             else "Mimoru"
         )
+        title = f" · 🏷 {item.custom_title}" if item.custom_title else ""
         rank_lines.append(
             f"• {_rank_label(item.rank_code)}"
             f" · {await stored_visible_name(item.user_telegram_id)}"
-            f" · назначил {assigner}"
+            f" · назначил {assigner}{title}"
         )
     text = panel_header(
         "Ранги и администрация",
@@ -267,6 +270,7 @@ async def _set_assignment(
     existing = await get_assignment(session, group.id, target_id, active_only=False)
     old_rank = existing.rank_code if existing and existing.active else None
     old_managed = bool(existing and existing.telegram_admin_managed)
+    custom_title = existing.custom_title if existing else None
 
     if rank_code in ADMIN_RANKS:
         if old_managed and member.status == ChatMemberStatus.ADMINISTRATOR:
@@ -274,13 +278,13 @@ async def _set_assignment(
                 await bot.promote_chat_member(
                     group.telegram_chat_id,
                     target_id,
-                    **telegram_rights_for_rank(rank_code),
+                    **telegram_rights_for_rank(rank_code, custom_title),
                 )
                 managed = True
             except (TelegramBadRequest, TelegramForbiddenError):
                 return False, "Не удалось обновить Telegram-права администратора.", None
         else:
-            ok, newly_managed, error = await ensure_telegram_rank(bot, group, target_id, rank_code)
+            ok, newly_managed, error = await ensure_telegram_rank(bot, group, target_id, rank_code, custom_title=custom_title)
             if not ok:
                 return False, error, None
             managed = old_managed or newly_managed
@@ -300,6 +304,7 @@ async def _set_assignment(
             assigned_by_telegram_id=actor_id,
             helper_for_telegram_id=helper_for,
             telegram_admin_managed=managed,
+            custom_title=custom_title if rank_code in ADMIN_RANKS else None,
         )
         session.add(assignment)
     else:
@@ -310,6 +315,7 @@ async def _set_assignment(
         assignment.assigned_by_telegram_id = actor_id
         assignment.helper_for_telegram_id = helper_for
         assignment.telegram_admin_managed = managed
+        assignment.custom_title = custom_title if rank_code in ADMIN_RANKS else None
 
     add_rank_event(
         session,
@@ -388,8 +394,116 @@ async def _rank_detail_markup(
     can_remove, _ = await can_remove_assignment(session, group, actor_id, assignment)
     if can_remove:
         rows.append([InlineKeyboardButton(text="🗑 Снять ранг", callback_data=f"rank_remove_confirm:{group.id}:{assignment.id}")])
+    if await can_set_admin_title(session, group, actor_id, assignment):
+        current = (assignment.custom_title or "").strip()
+        rows.append([InlineKeyboardButton(
+            text=f"🏷 Тег: {current}" if current else "🏷 Задать тег",
+            callback_data=f"rank_title:{group.id}:{assignment.id}",
+        )])
     rows.append([InlineKeyboardButton(text="◀️ К рангам", callback_data=f"roles:{group.id}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def can_set_admin_title(
+    session: AsyncSession,
+    group: Group,
+    actor_id: int,
+    assignment: RankAssignment,
+) -> bool:
+    """Только Владелец группы и Зам. владельца задают тег администратора."""
+    if assignment.rank_code not in ADMIN_RANKS or not assignment.active:
+        return False
+    if is_service_owner(actor_id) or group.owner_telegram_id == actor_id:
+        return True
+    actor = await get_actor_rank(session, group, actor_id)
+    return bool(actor and actor.code == DEPUTY_OWNER)
+
+
+@router.callback_query(F.data.regexp(r"^rank_title:\d+:\d+$"))
+async def rank_title_ask(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
+    _, raw_group, raw_id = callback.data.split(":")
+    group = await _group(session, int(raw_group))
+    assignment = await session.get(RankAssignment, int(raw_id))
+    if group is None or assignment is None or assignment.group_id != group.id:
+        await callback.answer("Ранг не найден.", show_alert=True)
+        return
+    if not await can_set_admin_title(session, group, callback.from_user.id, assignment):
+        await callback.answer(
+            "Задавать тег администратора может только владелец группы или Зам. владельца.",
+            show_alert=True,
+        )
+        return
+    current = (assignment.custom_title or "").strip()
+    await state.set_state(RankForm.set_title)
+    await state.update_data(
+        group_id=group.id,
+        assignment_id=assignment.id,
+        _cancel_callback=f"rank_edit:{group.id}:{assignment.id}",
+    )
+    await callback.message.edit_text(
+        panel_header(
+            "🏷 Тег администратора",
+            "Этот текст Telegram показывает рядом с именем администратора.\n"
+            f"До 16 символов. Сейчас: {current or 'не задан'}\n\n"
+            "Отправьте новый тег одним сообщением или «-», чтобы убрать его.",
+        )
+    )
+    await callback.answer()
+
+
+@router.message(RankForm.set_title, F.chat.type == "private")
+async def rank_title_save(message: Message, bot: Bot, session: AsyncSession, state: FSMContext) -> None:
+    data = await state.get_data()
+    group = await _group(session, int(data["group_id"]))
+    assignment = await session.get(RankAssignment, int(data["assignment_id"]))
+    if group is None or assignment is None or assignment.group_id != group.id or not assignment.active:
+        await state.clear()
+        await message.answer("Ранг больше не найден.")
+        return
+    if not await can_set_admin_title(session, group, message.from_user.id, assignment):
+        await state.clear()
+        await message.answer("Задавать тег администратора может только владелец группы или Зам. владельца.")
+        return
+
+    raw = (message.text or "").strip()
+    title = None if raw == "-" else " ".join(raw.split())[:16]
+    if title is not None and not title:
+        await message.answer("Отправьте тег текстом или «-», чтобы убрать его.")
+        return
+
+    if assignment.telegram_admin_managed:
+        try:
+            await bot.promote_chat_member(
+                group.telegram_chat_id,
+                assignment.user_telegram_id,
+                **telegram_rights_for_rank(assignment.rank_code, title),
+            )
+        except (TelegramBadRequest, TelegramForbiddenError):
+            await message.answer(
+                "Не удалось применить тег в Telegram. Проверьте, что Mimoru остаётся "
+                "администратором группы с правом назначать администраторов."
+            )
+            return
+
+    assignment.custom_title = title
+    add_rank_event(
+        session,
+        group_id=group.id,
+        actor_id=message.from_user.id,
+        target_id=assignment.user_telegram_id,
+        action="title",
+        old_rank=assignment.rank_code,
+        new_rank=assignment.rank_code,
+        details={"custom_title": title},
+    )
+    await session.commit()
+    await state.clear()
+    await message.answer(
+        panel_header("🏷 Тег сохранён", f"Новый тег: {title}" if title else "Тег удалён."),
+        reply_markup=await _rank_detail_markup(
+            session, group, message.from_user.id, assignment
+        ),
+    )
 
 
 @router.callback_query(F.data.regexp(r"^rank_edit:\d+:\d+$"))
@@ -408,9 +522,10 @@ async def rank_edit(callback: CallbackQuery, session: AsyncSession) -> None:
     permissions = await effective_permissions(session, group.id, assignment)
     enabled = [PERMISSION_LABELS.get(name, name) for name, value in permissions.items() if value]
     helper = f"\nПомогает администратору: {assignment.helper_for_telegram_id}" if assignment.helper_for_telegram_id else ""
+    title = f"\n🏷 Тег: {assignment.custom_title}" if assignment.custom_title else ""
     text = panel_header(
         _rank_label(assignment.rank_code),
-        f"Telegram ID: {assignment.user_telegram_id}\nНазначил: {assignment.assigned_by_telegram_id}{helper}",
+        f"Telegram ID: {assignment.user_telegram_id}\nНазначил: {assignment.assigned_by_telegram_id}{helper}{title}",
     )
     text += "\n\nАктивные права: " + (", ".join(enabled) if enabled else "командных прав нет")
     await callback.message.edit_text(
@@ -538,11 +653,20 @@ async def rank_remove(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
         await callback.answer(reason, show_alert=True)
         return
     old_rank = assignment.rank_code
-    await demote_if_managed(bot, group, assignment)
+    old_title = assignment.custom_title
+    demoted = await demote_if_managed(bot, group, assignment)
+    if not demoted:
+        await callback.answer(
+            "Не удалось снять Telegram-права администратора. "
+            "Проверьте, что у Mimoru есть право назначать администраторов в группе.",
+            show_alert=True,
+        )
+        return
     assignment.active = False
     assignment.permissions = {}
     assignment.helper_for_telegram_id = None
     assignment.telegram_admin_managed = False
+    assignment.custom_title = None
     add_rank_event(
         session,
         group_id=group.id,
@@ -551,6 +675,7 @@ async def rank_remove(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
         action="remove",
         old_rank=old_rank,
         new_rank=None,
+        details={"custom_title": old_title},
     )
     await session.commit()
     await _render_roles(callback.message, bot, session, group, callback.from_user.id)

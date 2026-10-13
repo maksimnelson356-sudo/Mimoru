@@ -31,6 +31,7 @@ class RankAssignment(Base):
     access_mode: Mapped[str] = mapped_column(String(16), server_default="bot_only", index=True)
     telegram_admin_managed: Mapped[bool] = mapped_column(Boolean, default=False)
     restore_after_mute: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    custom_title: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

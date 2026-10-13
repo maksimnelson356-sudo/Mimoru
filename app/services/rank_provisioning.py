@@ -90,6 +90,7 @@ async def _finalize_intent(
             assignment.permissions = {}
             assignment.helper_for_telegram_id = None
             assignment.telegram_admin_managed = False
+            assignment.custom_title = None
         add_rank_event(
             session,
             group_id=intent.group_id,
@@ -109,6 +110,7 @@ async def _finalize_intent(
     if rank_code is None or access_mode not in {TELEGRAM_MODE, BOT_ONLY_MODE}:
         raise RuntimeError("Invalid rank provisioning intent")
 
+    custom_title = payload.get("custom_title") or None
     if assignment is None:
         assignment = RankAssignment(
             group_id=intent.group_id,
@@ -120,6 +122,7 @@ async def _finalize_intent(
             helper_for_telegram_id=intent.actor_telegram_id if rank_code == HELPER else None,
             access_mode=access_mode,
             telegram_admin_managed=bool(payload.get("managed", access_mode == TELEGRAM_MODE)),
+            custom_title=custom_title,
         )
         session.add(assignment)
     else:
@@ -130,6 +133,7 @@ async def _finalize_intent(
         assignment.helper_for_telegram_id = intent.actor_telegram_id if rank_code == HELPER else None
         assignment.access_mode = access_mode
         assignment.telegram_admin_managed = bool(payload.get("managed", access_mode == TELEGRAM_MODE))
+        assignment.custom_title = custom_title
 
     add_rank_event(
         session,
@@ -216,6 +220,7 @@ async def _execute_live_intent(
         if rank_code is None:
             await _drop_intent(session, intent)
             return False, "Не указан ранг для Telegram-администратора.", None
+        custom_title = (intent.payload or {}).get("custom_title")
         try:
             member = await bot.get_chat_member(group.telegram_chat_id, intent.user_telegram_id)
         except (TelegramBadRequest, TelegramForbiddenError):
@@ -231,7 +236,7 @@ async def _execute_live_intent(
             await bot.promote_chat_member(
                 group.telegram_chat_id,
                 intent.user_telegram_id,
-                **telegram_rights_for_rank(rank_code),
+                **telegram_rights_for_rank(rank_code, custom_title),
             )
         except (TelegramBadRequest, TelegramForbiddenError):
             await _drop_intent(session, intent)
@@ -261,6 +266,7 @@ async def provision_assignment(
     access_mode: str,
     *,
     force_bot_only_demotion: bool,
+    custom_title: str | None = None,
 ) -> tuple[bool, str, RankAssignment | None]:
     allowed, reason = await can_assign_rank(session, group, actor_id, rank_code, target_id=target_id)
     if not allowed:
@@ -309,6 +315,7 @@ async def provision_assignment(
             "old_rank": old_rank,
             "old_access_mode": old_mode,
             "managed": managed,
+            "custom_title": custom_title if access_mode == TELEGRAM_MODE else None,
         },
     )
     if intent is None:
@@ -347,11 +354,19 @@ async def remove_assignment(
     return ok, error
 
 
-def _telegram_rights_match(member: object, rank_code: str) -> bool:
+def _telegram_rights_match(
+    member: object, rank_code: str, custom_title: str | None = None
+) -> bool:
     if getattr(member, "status", None) != ChatMemberStatus.ADMINISTRATOR:
         return False
     for name, expected in telegram_rights_for_rank(rank_code).items():
         if bool(getattr(member, name, False)) != bool(expected):
+            return False
+    if custom_title:
+        # Telegram falls back to the generic label when no custom title is set,
+        # so an empty stored title must never block recovery of a live admin.
+        current = getattr(member, "custom_title", "") or ""
+        if current != custom_title:
             return False
     return True
 
@@ -455,7 +470,11 @@ async def recover_rank_provisioning_intents(bot: Bot) -> None:
                 continue
 
             if intent.telegram_action == "promote":
-                if intent.desired_rank_code and _telegram_rights_match(member, intent.desired_rank_code):
+                recovery_payload = dict(intent.payload or {})
+                recovery_title = recovery_payload.get("custom_title") or None
+                if intent.desired_rank_code and _telegram_rights_match(
+                    member, intent.desired_rank_code, recovery_title
+                ):
                     payload = dict(intent.payload or {})
                     payload["recovery"] = True
                     intent.payload = payload

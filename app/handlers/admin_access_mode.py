@@ -138,13 +138,14 @@ async def _apply_assignment(
     existing = await get_assignment(session, group.id, target_id, active_only=False)
     old_rank = existing.rank_code if existing and existing.active else None
     old_mode = getattr(existing, "access_mode", BOT_ONLY_MODE) if existing else None
+    custom_title = getattr(existing, "custom_title", None) if existing else None
 
     if access_mode == TELEGRAM_MODE:
         try:
             await bot.promote_chat_member(
                 group.telegram_chat_id,
                 target_id,
-                **telegram_rights_for_rank(rank_code),
+                **telegram_rights_for_rank(rank_code, custom_title),
             )
         except (TelegramBadRequest, TelegramForbiddenError):
             return False, (
@@ -173,6 +174,7 @@ async def _apply_assignment(
             helper_for_telegram_id=helper_for,
             access_mode=access_mode,
             telegram_admin_managed=managed,
+            custom_title=custom_title if access_mode == TELEGRAM_MODE else None,
         )
         session.add(assignment)
     else:
@@ -184,6 +186,7 @@ async def _apply_assignment(
         assignment.helper_for_telegram_id = helper_for
         assignment.access_mode = access_mode
         assignment.telegram_admin_managed = managed
+        assignment.custom_title = custom_title if access_mode == TELEGRAM_MODE else None
 
     add_rank_event(
         session,
