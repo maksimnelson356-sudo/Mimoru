@@ -14,14 +14,12 @@ from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEv
 from app.services.public_identity import _utf16_len, public_user_token, stored_visible_name
 from app.services.ranks import (
     ADMIN_RANKS,
-    CHAT_ADMIN,
     DEPUTY_OWNER,
     HELPER,
     PERMISSION_LABELS,
     RANK_CODES,
     RANK_LABELS,
     ROLE_CEILINGS,
-    UNTOUCHABLE,
     actor_has_permission,
     add_rank_event,
     assignable_ranks,
@@ -35,7 +33,7 @@ from app.services.ranks import (
     get_actor_rank,
     get_assignment,
     is_service_owner,
-    telegram_rights_for_rank,
+    promote_with_title,
 )
 from app.services.telegram_admins import TELEGRAM_OWNER, sync_telegram_administrators
 from app.services.ui import panel_header
@@ -275,16 +273,16 @@ async def _set_assignment(
     if rank_code in ADMIN_RANKS:
         if old_managed and member.status == ChatMemberStatus.ADMINISTRATOR:
             try:
-                await bot.promote_chat_member(
-                    group.telegram_chat_id,
-                    target_id,
-                    **telegram_rights_for_rank(rank_code, custom_title),
+                await promote_with_title(
+                    bot, group.telegram_chat_id, target_id, rank_code, custom_title
                 )
                 managed = True
             except (TelegramBadRequest, TelegramForbiddenError):
                 return False, "Не удалось обновить Telegram-права администратора.", None
         else:
-            ok, newly_managed, error = await ensure_telegram_rank(bot, group, target_id, rank_code, custom_title=custom_title)
+            ok, newly_managed, error = await ensure_telegram_rank(
+                bot, group, target_id, rank_code, custom_title=custom_title
+            )
             if not ok:
                 return False, error, None
             managed = old_managed or newly_managed
@@ -473,10 +471,12 @@ async def rank_title_save(message: Message, bot: Bot, session: AsyncSession, sta
 
     if assignment.telegram_admin_managed:
         try:
-            await bot.promote_chat_member(
+            await promote_with_title(
+                bot,
                 group.telegram_chat_id,
                 assignment.user_telegram_id,
-                **telegram_rights_for_rank(assignment.rank_code, title),
+                assignment.rank_code,
+                title,
             )
         except (TelegramBadRequest, TelegramForbiddenError):
             await message.answer(

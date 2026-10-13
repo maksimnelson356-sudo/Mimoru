@@ -20,6 +20,7 @@ from app.services.ranks import (
     can_remove_assignment,
     demote_telegram_admin,
     get_assignment,
+    promote_with_title,
     telegram_rights_for_rank,
 )
 
@@ -233,10 +234,8 @@ async def _execute_live_intent(
             await _drop_intent(session, intent)
             return False, "Владельцу Telegram-группы внутренний ранг не назначается.", None
         try:
-            await bot.promote_chat_member(
-                group.telegram_chat_id,
-                intent.user_telegram_id,
-                **telegram_rights_for_rank(rank_code, custom_title),
+            await promote_with_title(
+                bot, group.telegram_chat_id, intent.user_telegram_id, rank_code, custom_title
             )
         except (TelegramBadRequest, TelegramForbiddenError):
             await _drop_intent(session, intent)

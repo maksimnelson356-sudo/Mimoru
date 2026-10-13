@@ -4,6 +4,7 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,8 @@ from app.services.ui import panel_header
 
 router = Router(name=__name__)
 router.callback_query.middleware(RankAccessModeMiddleware())
+
+logger = structlog.get_logger(__name__)
 
 
 def _rank_label(code: str) -> str:
@@ -211,7 +214,22 @@ async def safe_rank_remove(callback: CallbackQuery, bot: Bot, session: AsyncSess
     if group is None or assignment is None or assignment.group_id != group.id or not assignment.active:
         await callback.answer("Ранг не найден.", show_alert=True)
         return
-    ok, error = await remove_assignment(bot, session, group, callback.from_user.id, assignment)
+    # remove_assignment держит сетевой вызов к Telegram внутри транзакции с
+    # FOR UPDATE на Group. Любое непредвиденное исключение раньше уходило в
+    # middleware, и пользователь видел вечный спиннер без ответа. Ошибку
+    # показываем явно: молчание хуже явной ошибки.
+    try:
+        ok, error = await remove_assignment(
+            bot, session, group, callback.from_user.id, assignment
+        )
+    except Exception:
+        await session.rollback()
+        logger.exception("rank_remove_failed", group_id=group.id)
+        await callback.answer(
+            "Не удалось снять ранг. Попробуйте ещё раз.",
+            show_alert=True,
+        )
+        return
     if not ok:
         await callback.answer(error, show_alert=True)
         return

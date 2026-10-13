@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramForbiddenError
 from aiogram.methods import GetChatMember, PromoteChatMember
@@ -111,23 +112,75 @@ def _group() -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
-async def test_demote_clears_the_custom_admin_title() -> None:
-    """A removed admin must not keep the Mimoru tag in the Telegram admin list."""
+async def test_demote_still_reports_success_for_a_live_admin() -> None:
     admin = SimpleNamespace(status=ChatMemberStatus.ADMINISTRATOR)
     bot = SimpleNamespace(
         get_chat_member=AsyncMock(return_value=admin),
         promote_chat_member=AsyncMock(),
     )
     assert await demote_telegram_admin(bot, _group(), 123) is True
-    kwargs = bot.promote_chat_member.await_args.kwargs
-    assert kwargs["custom_title"] == ""
+    bot.promote_chat_member.assert_awaited_once()
 
 
 def test_custom_admin_title_reaches_telegram_rights() -> None:
-    # Without a stored tag the key is absent, so promote_chat_member never resets
-    # a title Telegram set outside Mimoru.
-    assert telegram_rights_for_rank(CHIEF_ADMIN).get("custom_title") is None
-    assert telegram_rights_for_rank(CHAT_ADMIN, "Модератор")["custom_title"] == "Модератор"
+    # The tag is never a privilege, so it must stay out of the rights mapping.
+    assert "custom_title" not in telegram_rights_for_rank(CHIEF_ADMIN)
+
+
+@pytest.mark.asyncio
+async def test_promote_never_passes_custom_title_as_a_keyword() -> None:
+    """Регрессия: aiogram 3.31 не имеет custom_title в сигнатуре
+    Bot.promote_chat_member, поэтому **kwargs роняют обработчик TypeError'ом
+    без ответа пользователю. Тег обязан уходить через объект метода."""
+    import inspect
+
+    from app.services.ranks import promote_with_title
+
+    signature = inspect.signature(Bot.promote_chat_member)
+    assert "custom_title" not in signature.parameters
+
+    sent: list[object] = []
+
+    async def call(method):
+        sent.append(method)
+
+    await promote_with_title(call, -100123, 555, CHAT_ADMIN, "Модератор")
+
+    assert len(sent) == 1
+    method = sent[0]
+    payload = method.model_dump(exclude_none=True, warnings=False)
+    assert payload["custom_title"] == "Модератор"
+    assert payload["user_id"] == 555
+    # Права ранга не должны потеряться при сборке метода вручную.
+    assert payload["can_manage_chat"] is True
+    assert payload["can_restrict_members"] is True
+
+
+@pytest.mark.asyncio
+async def test_promote_omits_the_title_when_none() -> None:
+    """Без тега Telegram не должен получать пустую строку: это сбросит
+    метку, заданную вручную через настройки группы."""
+    from app.services.ranks import promote_with_title
+
+    sent: list[object] = []
+
+    async def call(method):
+        sent.append(method)
+
+    await promote_with_title(call, -100123, 555, CHAT_ADMIN)
+    payload = sent[0].model_dump(exclude_none=True, warnings=False)
+    assert "custom_title" not in payload
+
+
+@pytest.mark.asyncio
+async def test_demote_does_not_mention_custom_title() -> None:
+    """Снятие админа обязано работать на любой версии aiogram."""
+    import inspect
+
+    from app.services.ranks import demote_telegram_admin as _demote
+
+    source = inspect.getsource(_demote)
+    assert "custom_title" not in source
 
 
 def test_admin_title_is_stored_and_cleared_with_the_rank() -> None:

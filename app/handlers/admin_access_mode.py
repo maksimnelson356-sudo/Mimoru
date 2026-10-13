@@ -17,14 +17,12 @@ from app.services.ranks import (
     HELPER,
     RANK_CODES,
     RANK_LABELS,
-    UNTOUCHABLE,
     add_rank_event,
     can_assign_rank,
     demote_telegram_admin,
-    get_actor_rank,
     get_assignment,
     is_service_owner,
-    telegram_rights_for_rank,
+    promote_with_title,
 )
 from app.services.public_identity import stored_visible_name
 from app.services.telegram_admins import TELEGRAM_ADMIN, sync_telegram_administrators
@@ -142,10 +140,8 @@ async def _apply_assignment(
 
     if access_mode == TELEGRAM_MODE:
         try:
-            await bot.promote_chat_member(
-                group.telegram_chat_id,
-                target_id,
-                **telegram_rights_for_rank(rank_code, custom_title),
+            await promote_with_title(
+                bot, group.telegram_chat_id, target_id, rank_code, custom_title
             )
         except (TelegramBadRequest, TelegramForbiddenError):
             return False, (

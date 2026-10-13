@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.methods import PromoteChatMember
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -397,11 +398,7 @@ async def ensure_telegram_rank(
     if member.status not in {ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED}:
         return False, False, "Пользователь должен состоять в группе."
     try:
-        await bot.promote_chat_member(
-            group.telegram_chat_id,
-            user_id,
-            **telegram_rights_for_rank(rank_code, custom_title),
-        )
+        await promote_with_title(bot, group.telegram_chat_id, user_id, rank_code, custom_title)
     except (TelegramBadRequest, TelegramForbiddenError):
         return (
             False,
@@ -413,14 +410,18 @@ async def ensure_telegram_rank(
     return True, True, ""
 
 
-def telegram_rights_for_rank(rank_code: str, custom_title: str | None = None) -> dict[str, bool | str]:
+def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
     """Telegram privileges actually required by a Mimoru rank.
 
     Major is a display-only rank: Telegram still requires administrator status
     for the user to appear in the administrator list, so can_manage_chat is the
     unavoidable minimum. All actionable moderation privileges stay disabled.
+
+    The administrator tag (custom_title) is deliberately NOT part of this
+    mapping: it is not a privilege, and the aiogram helper below is the only
+    place allowed to pass it.
     """
-    base: dict[str, bool | str] = {
+    base: dict[str, bool] = {
         "can_manage_chat": True,
         "can_change_info": False,
         "can_delete_messages": False,
@@ -434,8 +435,6 @@ def telegram_rights_for_rank(rank_code: str, custom_title: str | None = None) ->
         "can_edit_stories": False,
         "can_delete_stories": False,
     }
-    if custom_title:
-        base["custom_title"] = custom_title
     if rank_code == MAJOR:
         base["can_invite_users"] = False
     elif rank_code in {DEPUTY_OWNER, CHIEF_ADMIN}:
@@ -451,6 +450,30 @@ def telegram_rights_for_rank(rank_code: str, custom_title: str | None = None) ->
             can_restrict_members=True,
         )
     return base
+
+
+async def promote_with_title(
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    rank_code: str,
+    custom_title: str | None = None,
+) -> None:
+    """Единственная точка, где Mimoru назначает права администратора в Telegram.
+
+    aiogram 3.31 не отдаёт custom_title в сигнатуре Bot.promote_chat_member,
+    хотя объект метода его принимает и укладывает в payload. Передавать его
+    через **kwargs нельзя: это TypeError, который роняет обработчик без
+    ответа пользователю. Поэтому собираем PromoteChatMember явно.
+    """
+    method = PromoteChatMember(
+        chat_id=chat_id,
+        user_id=user_id,
+        **telegram_rights_for_rank(rank_code),
+    )
+    if custom_title:
+        method = method.model_copy(update={"custom_title": custom_title})
+    await bot(method)
 
 
 async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
@@ -476,7 +499,6 @@ async def demote_telegram_admin(bot: Bot, group: Group, user_id: int) -> bool:
         await bot.promote_chat_member(
             group.telegram_chat_id,
             user_id,
-            custom_title="",
             can_manage_chat=False,
             can_change_info=False,
             can_delete_messages=False,
@@ -501,12 +523,12 @@ async def restore_telegram_rank(
     if assignment.rank_code not in ADMIN_RANKS or not assignment.active:
         return False
     try:
-        await bot.promote_chat_member(
+        await promote_with_title(
+            bot,
             group.telegram_chat_id,
             assignment.user_telegram_id,
-            **telegram_rights_for_rank(
-                assignment.rank_code, assignment.custom_title
-            ),
+            assignment.rank_code,
+            assignment.custom_title,
         )
         return True
     except (TelegramBadRequest, TelegramForbiddenError):

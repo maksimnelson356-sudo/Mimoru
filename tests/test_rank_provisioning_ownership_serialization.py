@@ -19,7 +19,7 @@ def test_live_rank_intent_locks_group_then_intent_before_authorization() -> None
     remove_auth = body.index("await can_remove_assignment(")
     assign_auth = body.index("await can_assign_rank(")
     first_mutation = min(
-        body.index("await bot.promote_chat_member("),
+        body.index("await promote_with_title("),
         body.index("await demote_telegram_admin("),
         body.index("assignment = await _finalize_intent("),
     )

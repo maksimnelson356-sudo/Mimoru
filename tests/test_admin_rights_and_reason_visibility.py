@@ -23,7 +23,7 @@ def test_telegram_rank_assignment_preflights_can_promote_members() -> None:
     assert "нет права назначать администраторов" in helper
     assert "Добавлять администраторов" in helper
     assert "ready, readiness_error = await _telegram_provisioning_ready(bot, group)" in apply
-    assert apply.index("_telegram_provisioning_ready") < apply.index("bot.promote_chat_member")
+    assert apply.index("_telegram_provisioning_ready") < apply.index("promote_with_title")
 
 
 def test_selected_reason_is_forwarded_through_durable_callback_chain() -> None:

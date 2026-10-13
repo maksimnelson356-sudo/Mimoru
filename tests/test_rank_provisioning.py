@@ -21,7 +21,7 @@ def test_rank_provisioning_intent_commits_before_telegram_side_effect() -> None:
     assert provision.index("intent = await _create_intent") < provision.index(
         "return await _execute_live_intent(bot, session, intent_id=intent.id)"
     )
-    assert "await bot.promote_chat_member" in execute
+    assert "await promote_with_title(" in execute
     assert "await demote_telegram_admin" in execute
 
 
@@ -42,6 +42,7 @@ def test_rank_removal_claims_before_demoting_telegram_admin() -> None:
 def test_recovery_never_grants_or_revokes_telegram_privileges() -> None:
     source = (ROOT / "app/services/rank_provisioning.py").read_text(encoding="utf-8")
     body = source.split("async def recover_rank_provisioning_intents", 1)[1]
+    assert "promote_with_title" not in body
     assert "promote_chat_member" not in body
     assert "demote_telegram_admin" not in body
     assert "get_chat_member" in body
