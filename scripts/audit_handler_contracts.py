@@ -19,6 +19,7 @@ fsm_state_handlers = 0
 # dependency into an explicit tested contract. New duplicates or a changed
 # winner fail CI instead of silently changing user-visible behavior.
 EXPECTED_DUPLICATE_WINNERS = {
+    "F.data == 'panel:about'": "home_panel.guided_about",
     "F.data == 'panel:commands'": "home_panel.guided_help",
     "F.data == 'panel:groups'": "group_directory.user_groups",
     "F.data == 'panel:home'": "home_panel.guided_home",
