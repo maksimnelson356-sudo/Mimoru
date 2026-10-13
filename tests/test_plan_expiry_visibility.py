@@ -17,7 +17,10 @@ from app.services.plans import (
     plan_notice,
 )
 
-NOW = datetime(2026, 10, 8, 12, 0, tzinfo=UTC)
+# Отсчёт ведётся от текущего момента: иначе фиксированная дата однажды
+# оказывается в прошлом, и «свежий» пробный период начинает считаться
+# истёкшим по-настоящему, ломая тест без всякой правки кода.
+NOW = datetime.now(UTC).replace(microsecond=0)
 
 
 def _group(plan_code: str = "trial", *, expires_in_days: int | None = 7):
@@ -34,16 +37,16 @@ def test_expired_trial_silently_becomes_free():
     group = _group("trial", expires_in_days=-1)
 
     assert effective_plan(group, now=NOW) == "free"
-    assert feature_available(group, "daily_reports") is False
-    assert plan_limit(group, "words") == 10
+    assert feature_available(group, "daily_reports", now=NOW) is False
+    assert plan_limit(group, "words", now=NOW) == 10
 
 
 def test_fresh_trial_keeps_reports_and_limits():
     group = _group("trial", expires_in_days=3)
 
     assert effective_plan(group, now=NOW) == "trial"
-    assert feature_available(group, "daily_reports") is True
-    assert plan_limit(group, "words") == 100
+    assert feature_available(group, "daily_reports", now=NOW) is True
+    assert plan_limit(group, "words", now=NOW) == 100
 
 
 # --- видимое предупреждение --------------------------------------------
@@ -86,15 +89,15 @@ def test_active_paid_plan_has_no_warning():
 
 
 def test_limit_hint_explains_expired_trial():
-    hint = plan_limit_hint(_group("trial", expires_in_days=-3))
+    hint = plan_limit_hint(_group("trial", expires_in_days=-3), now=NOW)
 
     assert "Пробный период истёк" in hint
     assert "STANDARD" in hint
 
 
 def test_limit_hint_is_empty_without_expired_trial():
-    assert plan_limit_hint(_group("trial", expires_in_days=5)) == ""
-    assert plan_limit_hint(_group("free", expires_in_days=None)) == ""
+    assert plan_limit_hint(_group("trial", expires_in_days=5), now=NOW) == ""
+    assert plan_limit_hint(_group("free", expires_in_days=None), now=NOW) == ""
 
 
 # --- панель группы ------------------------------------------------------

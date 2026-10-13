@@ -61,15 +61,15 @@ def effective_plan(group, *, now: datetime | None = None) -> str:
     return code if code in PLAN_CATALOG else "free"
 
 
-def plan_limit(group, feature: str) -> int:
-    plan = PLAN_CATALOG[effective_plan(group)]
+def plan_limit(group, feature: str, *, now: datetime | None = None) -> int:
+    plan = PLAN_CATALOG[effective_plan(group, now=now)]
     if feature not in plan["limits"]:
         raise KeyError(f"Unknown plan limit: {feature}")
     return int(plan["limits"][feature])
 
 
-def feature_available(group, feature: str) -> bool:
-    return feature in PLAN_CATALOG[effective_plan(group)]["features"]
+def feature_available(group, feature: str, *, now: datetime | None = None) -> bool:
+    return feature in PLAN_CATALOG[effective_plan(group, now=now)]["features"]
 
 
 def paid_plan(code: str) -> dict:
@@ -139,9 +139,9 @@ def plan_notice(group, *, now: datetime | None = None) -> str | None:
     return None
 
 
-def plan_limit_hint(group) -> str:
+def plan_limit_hint(group, *, now: datetime | None = None) -> str:
     """Дополнение к отказу по лимиту, если причина — истёкший триал."""
-    if subscription_state(group) == "expired":
+    if subscription_state(group, now=now) == "expired":
         return (
             " Пробный период истёк, действует тариф FREE: прежний лимит вернётся "
             "на тарифах STANDARD и PRO."
