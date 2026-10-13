@@ -39,6 +39,56 @@ def test_rank_removal_claims_before_demoting_telegram_admin() -> None:
     assert "assignment = await _finalize_intent(session, intent)" in execute
 
 
+def test_rank_removal_decides_demotion_from_access_mode_not_just_the_flag() -> None:
+    """Регрессия к исходному багу.
+
+    Назначение через «Telegram + Mimoru» поверх уже существующего
+    Telegram-администратора идёт через привязку, где
+    telegram_admin_managed остаётся false. Снятие ранга опиралось только на
+    этот флаг, поэтому telegram_action становился "none", Mimoru писала
+    «Ранг снят», а человек оставался администратором группы.
+    """
+    source = (ROOT / "app/services/rank_provisioning.py").read_text(encoding="utf-8")
+    remove = _function(source, "remove_assignment", "_telegram_rights_match")
+
+    decision = remove.index("was_telegram_admin = (")
+    flag = remove.index("assignment.telegram_admin_managed", decision)
+    mode = remove.index("access_mode", decision)
+    action = remove.index('telegram_action = "demote" if was_telegram_admin else "none"', decision)
+
+    assert decision < flag < action
+    assert decision < mode < action
+    assert "TELEGRAM_MODE" in remove[decision:action]
+
+
+def test_rank_removal_still_leaves_bot_only_assignments_alone() -> None:
+    """Ранг «Только внутри Mimoru» не должен трогать права Telegram."""
+    source = (ROOT / "app/services/rank_provisioning.py").read_text(encoding="utf-8")
+    remove = _function(source, "remove_assignment", "_telegram_rights_match")
+
+    decision = remove.index("was_telegram_admin = (")
+    action = remove.index("telegram_action =", decision)
+    expression = remove[decision:action]
+    assert "telegram_admin_managed" in expression
+    assert "TELEGRAM_MODE" in expression
+    assert 'else "none"' in remove[action:action + 120]
+
+
+def test_failed_demotion_never_reports_success() -> None:
+    """Telegram отказал в снятии прав — ранг обязан остаться в базе."""
+    source = (ROOT / "app/services/rank_provisioning.py").read_text(encoding="utf-8")
+    execute = _function(source, "_execute_live_intent", "provision_assignment")
+
+    branch = execute.index('elif intent.telegram_action == "demote":')
+    demote = execute.index("if not await demote_telegram_admin", branch)
+    drop = execute.index("await _drop_intent(session, intent)", demote)
+    return_error = execute.index("return False,", demote)
+    finalize = execute.index("await _finalize_intent(session, intent)", drop)
+
+    assert branch < demote < drop < return_error < finalize
+    assert "Не удалось снять Telegram-права администратора" in execute[demote:finalize]
+
+
 def test_recovery_never_grants_or_revokes_telegram_privileges() -> None:
     source = (ROOT / "app/services/rank_provisioning.py").read_text(encoding="utf-8")
     body = source.split("async def recover_rank_provisioning_intents", 1)[1]

@@ -334,7 +334,19 @@ async def remove_assignment(
     if not allowed:
         return False, reason
 
-    telegram_action = "demote" if assignment.telegram_admin_managed else "none"
+    # Флаг telegram_admin_managed означает «Mimoru сама выдала эти права» и
+    # нужен для восстановления. Но решать по нему, идти ли в Telegram при
+    # СНЯТИИ, нельзя: назначение в режиме «Telegram + Mimoru» может идти
+    # через привязку уже существующего администратора, где флаг остаётся
+    # false. Тогда действие становилось "none", Mimoru сообщала «Ранг снят»,
+    # а человек оставался администратором группы. Режим доступа — источник
+    # истины: если человек работал как Telegram-администратор, снятие ранга
+    # обязано вернуть его в обычные участники.
+    was_telegram_admin = (
+        assignment.telegram_admin_managed
+        or getattr(assignment, "access_mode", BOT_ONLY_MODE) == TELEGRAM_MODE
+    )
+    telegram_action = "demote" if was_telegram_admin else "none"
     intent = await _create_intent(
         session,
         group=group,
@@ -344,7 +356,11 @@ async def remove_assignment(
         telegram_action=telegram_action,
         desired_rank_code=None,
         desired_access_mode=None,
-        payload={"old_rank": assignment.rank_code, "old_access_mode": assignment.access_mode},
+        payload={
+            "old_rank": assignment.rank_code,
+            "old_access_mode": assignment.access_mode,
+            "demoted_telegram_admin": was_telegram_admin,
+        },
     )
     if intent is None:
         return False, "Для этого участника уже выполняется изменение ранга. Повторите позже."
