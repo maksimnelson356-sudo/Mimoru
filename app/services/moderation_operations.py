@@ -14,7 +14,11 @@ from app.db.models import Group, ModerationLog, Punishment, Warning
 from app.db.moderation_operation_models import ModerationOperationIntent
 from app.db.rank_models import RankAssignment
 from app.db.session import SessionFactory
-from app.services.moderation import deactivate_punishments, log_action
+from app.services.moderation import (
+    deactivate_punishments,
+    log_action,
+    purge_user_messages,
+)
 from app.services.ranks import ADMIN_RANKS, add_rank_event, restore_telegram_rank
 
 
@@ -233,6 +237,7 @@ async def _restore_orphan_rank(
 
 
 async def _finalize_applied_intent(
+    bot: Bot,
     session: AsyncSession,
     group: Group,
     intent: ModerationOperationIntent,
@@ -284,6 +289,42 @@ async def _finalize_applied_intent(
             reason,
             {"duration": payload.get("duration"), "moderation_intent_recovered": True},
         )
+        # Модератор просил «бан + очистку»: без этого шага восстановление
+        # оставило бы сообщения навсегда и не оставило бы следов в логах.
+        if payload.get("cleanup"):
+            try:
+                total, deleted, failed_batches = await purge_user_messages(
+                    bot,
+                    session,
+                    chat_id=group.telegram_chat_id,
+                    group_id=group.id,
+                    target_id=intent.target_telegram_id,
+                )
+            except (TelegramBadRequest, TelegramForbiddenError) as error:
+                log.warning(
+                    "moderation_intent_cleanup_failed",
+                    group_id=group.id,
+                    user_telegram_id=intent.target_telegram_id,
+                    error=str(error),
+                )
+            else:
+                if deleted:
+                    log.info(
+                        "moderation_intent_cleanup_deleted",
+                        group_id=group.id,
+                        user_telegram_id=intent.target_telegram_id,
+                        deleted=deleted,
+                        attempted=total,
+                    )
+                if failed_batches or deleted < total:
+                    log.warning(
+                        "moderation_intent_cleanup_incomplete",
+                        group_id=group.id,
+                        user_telegram_id=intent.target_telegram_id,
+                        attempted=total,
+                        deleted=deleted,
+                        failed_batches=failed_batches,
+                    )
 
     elif action == "mute":
         ends_at = _payload_time(payload, "ends_at") or (
@@ -448,7 +489,7 @@ async def recover_moderation_operation_intents(bot: Bot, *, limit: int = 100) ->
 
             payload = dict(intent.payload or {})
             if _state_transition_proves_applied(intent, member, payload):
-                await _finalize_applied_intent(session, group, intent)
+                await _finalize_applied_intent(bot, session, group, intent)
                 continue
 
             if intent.action in {"ban", "mute"}:

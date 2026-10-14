@@ -7,7 +7,7 @@ from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import ChatPermissions
-from sqlalchemy import select
+from sqlalchemy import delete as sql_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Group, ModerationLog, Punishment, UserMessage, Warning
@@ -24,6 +24,69 @@ from app.services.repositories import active_warnings_count
 from app.services.ui import manual_action_notice
 
 log = structlog.get_logger()
+
+# Telegram не удаляет сообщения старше 48 часов. Берём 47 часов с запасом на
+# задержку фоновой уборки user_messages (background_leader чистит по 49 часов),
+# иначе очистка при бане молча пропускала бы часть сообщений.
+CLEANUP_WINDOW_HOURS = 47
+CLEANUP_BATCH_SIZE = 100
+
+
+async def purge_user_messages(
+    bot: Bot,
+    session: AsyncSession,
+    *,
+    chat_id: int,
+    group_id: int,
+    target_id: int,
+) -> tuple[int, int, int]:
+    """Delete the recorded messages of one user. Returns (total, deleted, failed batches).
+
+    Successfully deleted rows leave ``user_messages``: keeping them would make a
+    second ban inside the window report a false "cleanup incomplete" for messages
+    that are already gone. Rows of a failed batch stay, so a later ban retries them.
+
+    The caller owns the transaction: this function never commits.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=CLEANUP_WINDOW_HOURS)
+    rows = (
+        await session.scalars(
+            select(UserMessage.message_id).where(
+                UserMessage.group_id == group_id,
+                UserMessage.user_telegram_id == target_id,
+                UserMessage.created_at > cutoff,
+            )
+        )
+    ).all()
+    total = len(rows)
+    deleted = 0
+    failed_batches = 0
+    for i in range(0, total, CLEANUP_BATCH_SIZE):
+        batch = list(rows[i : i + CLEANUP_BATCH_SIZE])
+        try:
+            await bot.delete_messages(chat_id=chat_id, message_ids=batch)
+        except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            # Telegram rejects the whole batch at once, so a single stale id
+            # inside it costs every message of that batch.
+            failed_batches += 1
+            log.warning(
+                "delete_messages_batch_failed",
+                group_id=group_id,
+                user_telegram_id=target_id,
+                batch_size=len(batch),
+                error=str(exc),
+            )
+            continue
+        deleted += len(batch)
+        await session.execute(
+            sql_delete(UserMessage).where(
+                UserMessage.group_id == group_id,
+                UserMessage.user_telegram_id == target_id,
+                UserMessage.message_id.in_(batch),
+            )
+        )
+    return total, deleted, failed_batches
+
 
 MUTED = ChatPermissions(can_send_messages=False)
 UNMUTED = ChatPermissions(
@@ -50,6 +113,7 @@ class ModerationOutcome(str):
     cleanup_requested: bool
     cleanup_deleted: int
     cleanup_incomplete: bool
+    cleanup_notice: str
 
     def __new__(
         cls,
@@ -61,6 +125,7 @@ class ModerationOutcome(str):
         cleanup_requested: bool = False,
         cleanup_deleted: int = 0,
         cleanup_incomplete: bool = False,
+        cleanup_notice: str = "",
     ) -> "ModerationOutcome":
         obj = super().__new__(cls, text)
         obj.success = success
@@ -69,6 +134,7 @@ class ModerationOutcome(str):
         obj.cleanup_requested = cleanup_requested
         obj.cleanup_deleted = cleanup_deleted
         obj.cleanup_incomplete = cleanup_incomplete
+        obj.cleanup_notice = cleanup_notice
         return obj
 
 
@@ -80,6 +146,7 @@ def _success(
     cleanup_requested: bool = False,
     cleanup_deleted: int = 0,
     cleanup_incomplete: bool = False,
+    cleanup_notice: str = "",
 ) -> ModerationOutcome:
     return ModerationOutcome(
         text,
@@ -89,6 +156,7 @@ def _success(
         cleanup_requested=cleanup_requested,
         cleanup_deleted=cleanup_deleted,
         cleanup_incomplete=cleanup_incomplete,
+        cleanup_notice=cleanup_notice,
     )
 
 
@@ -282,34 +350,15 @@ async def execute(
         cleanup_deleted = 0
         cleanup_failed_batches = 0
         if cleanup:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=47)
-            rows = (
-                await session.scalars(
-                    select(UserMessage.message_id).where(
-                        UserMessage.group_id == group_id,
-                        UserMessage.user_telegram_id == target_id,
-                        UserMessage.created_at > cutoff,
-                    )
+            cleanup_total, cleanup_deleted, cleanup_failed_batches = (
+                await purge_user_messages(
+                    bot,
+                    session,
+                    chat_id=chat_id,
+                    group_id=group_id,
+                    target_id=target_id,
                 )
-            ).all()
-            cleanup_total = len(rows)
-            for i in range(0, cleanup_total, 100):
-                batch = list(rows[i : i + 100])
-                try:
-                    await bot.delete_messages(
-                        chat_id=chat_id,
-                        message_ids=batch,
-                    )
-                    cleanup_deleted += len(batch)
-                except (TelegramBadRequest, TelegramForbiddenError) as exc:
-                    cleanup_failed_batches += 1
-                    log.warning(
-                        "delete_messages_batch_failed",
-                        group_id=group_id,
-                        user_telegram_id=target_id,
-                        batch_size=len(batch),
-                        error=str(exc),
-                    )
+            )
             if cleanup_deleted:
                 log.info(
                     "ban_cleanup_deleted",
@@ -342,16 +391,19 @@ async def execute(
             duration_seconds=duration,
             actor_role=actor_role,
         )
+        cleanup_notice = ""
         if cleanup_incomplete:
-            notice = (
-                f"{notice}\n\n⚠️ Очистка сообщений выполнена не полностью: "
+            cleanup_notice = (
+                "⚠️ Очистка сообщений выполнена не полностью: "
                 f"удалено {cleanup_deleted} из {cleanup_total}."
             )
+            notice = f"{notice}\n\n{cleanup_notice}"
         return _success(
             notice,
             cleanup_requested=bool(cleanup),
             cleanup_deleted=cleanup_deleted,
             cleanup_incomplete=cleanup_incomplete,
+            cleanup_notice=cleanup_notice,
         )
 
     if action == "unban":

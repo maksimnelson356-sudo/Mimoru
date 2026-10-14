@@ -3,19 +3,30 @@
 Диапазон: `431b910~1..7abe19a`, 14 файлов, +313/−34. Проверено вручную по исходникам;
 локальный `check.sh` зелёный, CI `38526504927` (`test` + `test-db`) зелёный.
 
-## Вердикт
+## Статус: исправлено
 
-Изменения корректны по основному сценарию: флаг очистки теперь доходит до `execute()` из
-обоих источников, частичная очистка видна модератору, бан при этом не откатывается, новый
-ранг не ломает иерархию. Найдено 1 критичное и 6 находок среднего и низкого уровня —
-ни одна не ломает happy path, но четыре из них воспроизводят ровно тот класс тихих
-поломок, который фикс `431b910` и устранял.
+- **H1 — ОПРОВЕРГНУТ, дефекта нет.** Первоначальный вывод был неверным: я принял
+  обработчик пикера *срока* (`moderation_duration_selected`, `reason_admin.py:267`,
+  жёстко зашитый на `active_reasons(..., "mute")`) за путь выбора причины. На деле пикер
+  причины для бана берётся в `moderation_command_modes.py:422` через `active_reasons(action)`,
+  то есть причины с `ban` в `actions`, и проверка `reason_admin.py:319` проходит.
+  Живой путь: `_open_buttons(cleanup=True)` → payload с `cleanup` → пикер причины →
+  `durable_reason_action` → для `origin == "group"` диалог пропускается → интент →
+  `moderation_reason_selected` → `execute(cleanup=bool(data.get("cleanup")))`.
+  `банчистка` в кнопочном режиме работает, правка `431b910` достигает цели.
+- **M1–M4, L1–L4 — исправлены** коммитом `fix(moderation): track deleted messages and replay cleanup on recovery`.
+- **Дополнительно найдено при исправлении:** ранг в справке назывался «Мажёр» при
+  каноническом лейбле «Мажор» (`group_help_full.py`, `ranks.py:313`). Исправлено;
+  теперь расхождение текста и лейбла ловит тест.
 
 ---
 
 ## HIGH
 
-### H1. Ветка `if action == "ban"` в `reason_admin.moderation_reason_selected` недостижима — очистка из жалоб и групповых команд молча теряется
+### H1. ~~Ветка `if action == "ban"` недостижима~~ — ОПРОВЕРГНУТО, см. «Статус»
+
+Первоначальная формулировка и предложенные варианты правки приведены ниже как есть
+для истории; исправление не требуется.
 
 `app/handlers/reason_admin.py:328-344`
 
@@ -188,6 +199,20 @@ result = await execute(
 `scripts/audit_rank_matrix.py` в гейт.
 
 ---
+
+## Что изменено при исправлении
+
+| Файл | Изменение |
+|---|---|
+| `app/services/moderation.py` | Очистка вынесена в `purge_user_messages()` с константами `CLEANUP_WINDOW_HOURS = 47` и `CLEANUP_BATCH_SIZE = 100`. Успешно удалённые строки `user_messages` удаляются из таблицы в том же коммите; строки проваленного батча остаются для повторного бана. `ModerationOutcome` получил `cleanup_notice` — предупреждение больше не нужно вытаскивать разбором строки |
+| `app/handlers/complaint_actions.py` | `_delete_user_messages` делегирует `purge_user_messages`, поэтому учёт одинаков с баном. `complaint_ban_confirm` показывает `cleanup_notice` в уведомлении и в `callback.answer` |
+| `app/handlers/moderation_durable_guard.py` | Интент получает `cleanup`; при отказе по занятости одноразовый Redis-токен восстанавливается с исходным TTL (`PENDING_BAN_TTL_SECONDS = 600`) |
+| `app/services/moderation_operations.py` | Recovery при `payload["cleanup"]` выполняет `purge_user_messages` и логирует `moderation_intent_cleanup_deleted` / `..._incomplete`. `_finalize_applied_intent` теперь принимает `bot` |
+| `app/group_help_full.py`, `app/services/ranks.py` | «Мажёр» → «Мажор» в двух пользовательских текстах |
+| `tests/test_ban_cleanup_contract.py` | 13 тестов: порядок, константы окна, удаление строк, recovery, восстановление токена, жалобный путь, `cleanup_notice` |
+| `tests/test_rank_matrix_consistency.py` | 9 новых тестов на согласованность матрицы рангов: реестры, потолки против `PERMISSION_LABELS`, достижимость каждого права, захардкоженные наборы, иерархия, тексты |
+
+Проверки: `check.sh` зелёный (1814 тестов), CI `test` + `test-db` зелёные.
 
 ## Проверено и признано корректным
 

@@ -15,33 +15,59 @@ def _ban_branch() -> str:
     return source.split('    if action == "ban":', 1)[1].split('    if action == "unban":', 1)[0]
 
 
+def _purge_source() -> str:
+    return _source("app/services/moderation.py").split(
+        "async def purge_user_messages", 1
+    )[1].split("MUTED = ChatPermissions", 1)[0]
+
+
 def test_ban_cleanup_runs_after_ban_and_never_before() -> None:
     branch = _ban_branch()
 
     ban = branch.index("await bot.ban_chat_member")
     cleanup = branch.index("if cleanup:", ban)
-    delete = branch.index("await bot.delete_messages", cleanup)
-    outcome = branch.index("return _success(", delete)
+    purge = branch.index("await purge_user_messages(", cleanup)
+    outcome = branch.index("return _success(", purge)
 
-    assert ban < cleanup < delete < outcome
+    assert ban < cleanup < purge < outcome
 
 
 def test_ban_cleanup_is_batched_and_keeps_telegram_window_margin() -> None:
-    branch = _ban_branch()
+    purge = _purge_source()
+    moderation = _source("app/services/moderation.py")
 
-    assert "timedelta(hours=47)" in branch
-    assert "for i in range(0, cleanup_total, 100):" in branch
-    assert "UserMessage.created_at > cutoff" in branch
+    # Окно и размер батча обязаны быть константами, иначе правка одной цифры
+    # в фоновой уборке user_messages молча ломает очистку.
+    assert "CLEANUP_WINDOW_HOURS = 47" in moderation
+    assert "CLEANUP_BATCH_SIZE = 100" in moderation
+    assert "timedelta(hours=CLEANUP_WINDOW_HOURS)" in purge
+    assert "for i in range(0, total, CLEANUP_BATCH_SIZE):" in purge
+    assert "UserMessage.created_at > cutoff" in purge
+    # Фоновая уборка должна быть не агрессивнее окна очистки.
+    assert "timedelta(hours=49)" in _source("app/services/background_leader.py")
+
+
+def test_deleted_message_rows_leave_the_table_but_failed_ones_stay() -> None:
+    purge = _purge_source()
+
+    try_except = purge.index("except (TelegramBadRequest, TelegramForbiddenError)")
+    continue_stmt = purge.index("continue", try_except)
+    delete_rows = purge.index("sql_delete(UserMessage)", continue_stmt)
+
+    # Провал батча идёт через continue: его строки остаются для повторного бана.
+    assert "failed_batches += 1" in purge[:delete_rows]
+    assert continue_stmt < delete_rows
+    assert "UserMessage.message_id.in_(batch)" in purge
+    assert "deleted += len(batch)" in purge[continue_stmt:delete_rows]
 
 
 def test_failed_cleanup_batch_is_logged_and_marked_incomplete() -> None:
     branch = _ban_branch()
 
-    failed = branch.index("cleanup_failed_batches += 1")
-    incomplete = branch.index("cleanup_incomplete = bool(", failed)
+    incomplete = branch.index("cleanup_incomplete = bool(")
     warning = branch.index('"ban_cleanup_incomplete"', incomplete)
 
-    assert failed < incomplete < warning
+    assert incomplete < warning
     assert "Очистка сообщений выполнена не полностью" in branch
 
 
@@ -67,10 +93,14 @@ def test_incomplete_cleanup_keeps_ban_successful_and_surfaces_it() -> None:
         cleanup_requested=True,
         cleanup_deleted=3,
         cleanup_incomplete=True,
+        cleanup_notice="⚠️ Очистка сообщений выполнена не полностью: удалено 3 из 5.",
     )
     assert partial.success is True
     assert partial.commit is True
     assert partial.cleanup_incomplete is True
+    # Текст предупреждения доступен отдельно, чтобы вызывающий код не разбирал
+    # уведомление по строкам.
+    assert partial.cleanup_notice.startswith("⚠️")
 
 
 def test_durable_ban_keeps_both_cleanup_sources() -> None:
@@ -118,6 +148,54 @@ def test_pending_payloads_declare_cleanup_explicitly() -> None:
     )[0]
     assert '"cleanup": cleanup' in buttons_payload
     assert 'cleanup_requested = command_word == "банчистка"' in command_modes
+
+
+def test_recovery_replays_cleanup_and_keeps_intent_payload() -> None:
+    guard = _source("app/handlers/moderation_durable_guard.py")
+    operations = _source("app/services/moderation_operations.py")
+
+    payload = guard.split("payload: dict = {", 1)[1].split("}", 1)[0]
+    assert '"cleanup": bool(cleanup)' in payload
+
+    ban_branch = operations.split('if action == "ban":', 1)[1].split(
+        'elif action == "mute":', 1
+    )[0]
+    condition = ban_branch.index('if payload.get("cleanup")')
+    purge = ban_branch.index("await purge_user_messages(", condition)
+    deleted = ban_branch.index('"moderation_intent_cleanup_deleted"', purge)
+    incomplete = ban_branch.index('"moderation_intent_cleanup_incomplete"', deleted)
+
+    assert condition < purge < deleted < incomplete
+
+
+def test_intent_is_created_before_the_pending_token_is_consumed() -> None:
+    """Отказ по занятости не должен сжигать одноразовый токен."""
+    guard = _source("app/handlers/moderation_durable_guard.py")
+    body = guard.split("async def _durable_ban_execute", 1)[1]
+
+    consume = body.index('await redis.delete(f"mimoru:modpending:{token}")')
+    intent = body.index("intent_id = await _create_guard_intent(", consume)
+    refused = body.index("if intent_id is None:", intent)
+    restore = body.index("PENDING_BAN_TTL_SECONDS, raw", refused)
+
+    assert consume < intent < refused < restore
+    assert "PENDING_BAN_TTL_SECONDS = 600" in guard
+
+
+def test_complaint_ban_surfaces_partial_cleanup() -> None:
+    complaints = _source("app/handlers/complaint_actions.py")
+    ban_body = complaints.split("async def complaint_ban_confirm(", 1)[1].split(
+        "@router.callback_query(F.data.regexp(r\"^complaint:ban:clean", 1
+    )[0]
+
+    detect = ban_body.index('getattr(result, "cleanup_incomplete", False)')
+    notice = ban_body.index("result.cleanup_notice", detect)
+    answer = ban_body.index("очистка выполнена не полностью", notice)
+
+    assert detect < notice < answer
+    # Жалобная очистка должна использовать ту же реализацию, что и бан,
+    # иначе расхождение вернётся в учёте удалённых сообщений.
+    assert "purge_user_messages" in complaints
 
 
 def test_durable_ban_answers_partial_cleanup_to_moderator() -> None:

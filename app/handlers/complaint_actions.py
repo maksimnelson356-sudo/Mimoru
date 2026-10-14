@@ -15,7 +15,7 @@ from app.services.message_ttl import (
     COMPLAINT_MESSAGE_TTL_SECONDS,
     send_group_notice,
 )
-from app.services.moderation import execute
+from app.services.moderation import execute, purge_user_messages
 from app.services.public_identity import public_user_token
 from app.services.rank_access import get_actor_rank_with_access
 from app.services.ranks import can_moderate_target
@@ -62,37 +62,18 @@ async def _delete_user_messages(
     chat_id: int,
 ) -> int:
     """Удаляет сообщения пользователя через deleteMessages.
-    Только сообщения < 47 часов (Telegram не даёт удалять старые).
-    Возвращает количество удалённых.
-    """
-    cutoff = datetime.now(UTC) - timedelta(hours=47)
-    rows = (
-        await session.scalars(
-            select(UserMessage.message_id).where(
-                UserMessage.group_id == group_id,
-                UserMessage.user_telegram_id == user_telegram_id,
-                UserMessage.created_at > cutoff,
-            )
-        )
-    ).all()
 
-    deleted = 0
-    for i in range(0, len(rows), 100):
-        batch = list(rows[i : i + 100])
-        try:
-            await bot.delete_messages(
-                chat_id=chat_id,
-                message_ids=batch,
-            )
-            deleted += len(batch)
-        except (TelegramBadRequest, TelegramForbiddenError) as exc:
-            log.warning(
-                "delete_messages_batch_failed",
-                group_id=group_id,
-                user_telegram_id=user_telegram_id,
-                batch_size=len(batch),
-                error=str(exc),
-            )
+    Единая реализация вместе с баном: purge_user_messages сама убирает
+    удалённые строки из user_messages, поэтому повторная жалоба не сочтёт
+    уже удалённые сообщения неудачей. Возвращает количество удалённых.
+    """
+    _, deleted, _ = await purge_user_messages(
+        bot,
+        session,
+        chat_id=chat_id,
+        group_id=group_id,
+        target_id=user_telegram_id,
+    )
     return deleted
 
 
@@ -368,11 +349,18 @@ async def complaint_ban_confirm(
 
     actor = public_user_token(callback.from_user.id)
     target = public_user_token(complaint.target_telegram_id)
+    # execute() уже сообщает о частичной очистке в тексте результата. Раньше
+    # этот текст здесь игнорировался, и жалоба с очисткой выглядела для
+    # модератора успешнее, чем жалоба с той же очисткой через ban_clean.
+    notice = f"🚫 {target} забанен.\nМодератор: {actor}"
+    cleanup_incomplete = bool(getattr(result, "cleanup_incomplete", False))
+    if cleanup_incomplete and getattr(result, "cleanup_notice", ""):
+        notice += f"\n{result.cleanup_notice}"
     try:
         await send_group_notice(
             bot,
             group.telegram_chat_id,
-            f"🚫 {target} забанен.\nМодератор: {actor}",
+            notice,
             delay_seconds=COMPLAINT_MESSAGE_TTL_SECONDS,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
@@ -384,7 +372,11 @@ async def complaint_ban_confirm(
             await callback.message.edit_reply_markup(reply_markup=None)
         except TelegramBadRequest:
             pass  # уже снято хелпером
-    await callback.answer("Пользователь забанен.")
+    await callback.answer(
+        "Пользователь забанен, очистка выполнена не полностью."
+        if cleanup_incomplete
+        else "Пользователь забанен."
+    )
 
 
 @router.callback_query(F.data.regexp(r"^complaint:ban:clean:\d+$"))

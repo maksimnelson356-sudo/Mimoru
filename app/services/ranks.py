@@ -310,7 +310,7 @@ async def can_edit_assignment(
         if target.rank_code not in {HELPER, MAJOR}:
             return (
                 False,
-                "Администратор чата может управлять только своим помощником или назначенным Мажёром.",
+                "Администратор чата может управлять только своим помощником или назначенным Мажором.",
             )
         if target.assigned_by_telegram_id != actor_id:
             return False, "Эту должность назначил другой администратор."

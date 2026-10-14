@@ -38,6 +38,9 @@ from app.services.repositories import active_warnings_count
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
+# Тот же TTL, что и при создании modpending-токена в moderation_command_modes:
+# восстановление токена после отказа по занятости не должно продлевать его жизнь.
+PENDING_BAN_TTL_SECONDS = 600
 
 
 async def _locked_active_group_by_id(
@@ -155,6 +158,7 @@ async def _create_guard_intent(
     duration: int | None = None,
     warnings_limit: int | None = None,
     default_mute: int | None = None,
+    cleanup: bool = False,
 ) -> int | None:
     now = datetime.now(UTC)
     admin_rank, managed_admin = await _target_rank_state(
@@ -166,6 +170,7 @@ async def _create_guard_intent(
         "chat_id": group.telegram_chat_id,
         "reason": reason,
         "duration": duration,
+        "cleanup": bool(cleanup),
         "target_admin_rank": admin_rank,
         "target_managed_admin": managed_admin,
         **telegram_snapshot,
@@ -603,8 +608,16 @@ async def _durable_ban_execute(
         default_mute=int(
             data.get("default_mute") or group.settings.default_mute_seconds
         ),
+        # Очистка обязана пережить восстановление после сбоя, иначе модератор
+        # запросил «бан + очистку», получил бан, а сообщения остались бы навсегда.
+        cleanup=bool(cleanup),
     )
     if intent_id is None:
+        # Одноразовый токен уже сожжён выше, поэтому вернуть его с остатком TTL:
+        # иначе отказ по занятости необратим и кнопка диалога останется висеть.
+        await redis.setex(
+            f"mimoru:modpending:{token}", PENDING_BAN_TTL_SECONDS, raw
+        )
         await callback.answer(
             "Для этого участника уже выполняется действие.", show_alert=True
         )
