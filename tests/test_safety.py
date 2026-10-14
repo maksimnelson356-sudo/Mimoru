@@ -12,4 +12,5 @@ def test_antiraid_threshold_is_strictly_above_limit():
 def test_warning_expiry_cutoff():
     now = datetime(2026, 8, 2, tzinfo=timezone.utc)
     assert warning_expiry_cutoff(0, now) is None
-    assert warning_expiry_cutoff(30, now).date().isoformat() == "2026-07-03"
+    assert warning_expiry_cutoff(24, now).date().isoformat() == "2026-08-01"
+    assert warning_expiry_cutoff(168, now).date().isoformat() == "2026-07-26"

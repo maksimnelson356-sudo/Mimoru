@@ -149,34 +149,34 @@ async def warnings_screen(callback: CallbackQuery, session: AsyncSession) -> Non
             "По истечении выбранного срока старое активное предупреждение автоматически перестаёт учитываться.",
         ),
         reply_markup=automation_warning_menu(
-            group.id, group.settings.warning_expire_days
+            group.id, group.settings.warning_expire_hours
         ),
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.regexp(r"^automation_warning_set:\d+:(0|1|7|30|90)$"))
+@router.callback_query(F.data.regexp(r"^automation_warning_set:\d+:(0|24|168|720|2160)$"))
 async def warnings_set(callback: CallbackQuery, session: AsyncSession) -> None:
-    _, raw_group_id, raw_days = callback.data.split(":")
+    _, raw_group_id, raw_hours = callback.data.split(":")
     group = await owned_group(
         session, int(raw_group_id), callback.from_user.id, for_update=True
     )
     if group is None:
         await callback.answer("Нет доступа.", show_alert=True)
         return
-    days = int(raw_days)
-    group.settings.warning_expire_days = days
+    hours = int(raw_hours)
+    group.settings.warning_expire_hours = hours
     session.add(
         AutomationLog(
             group_id=group.id,
             rule_code="warning_expiry",
             status="changed",
-            details={"days": days, "actor": callback.from_user.id},
+            details={"hours": hours, "actor": callback.from_user.id},
         )
     )
     await session.commit()
     await callback.message.edit_reply_markup(
-        reply_markup=automation_warning_menu(group.id, days)
+        reply_markup=automation_warning_menu(group.id, hours)
     )
     await callback.answer("Срок сохранён.")
 

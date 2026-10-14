@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Group, TrustedUser
 from app.services.owner_management import managed_group_for_message
 from app.services.public_identity import public_user_token
+from app.services.safety import warning_expiry_label
 
 router = Router(name=__name__)
 router.message.filter(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
@@ -109,16 +110,31 @@ async def configure_antiraid(message: Message, bot: Bot, session: AsyncSession) 
     await message.reply(f"✅ Антирейд: более {limit} входов за {window} сек. включает усиленную проверку.")
 
 
-@router.message(F.text.regexp(r"(?i)^преды срок (никогда|\d+д)$"))
+@router.message(F.text.regexp(r"(?i)^преды срок (никогда|\d+(ч|ч\.|д))?$"))
 async def warning_expiry(message: Message, bot: Bot, session: AsyncSession) -> None:
     group = await managed(message, bot, session, for_update=True)
     if not group:
         return
     value = message.text.casefold().split()[-1]
-    days = 0 if value == "никогда" else int(value[:-1])
-    if days != 0 and not 1 <= days <= 3650:
-        await message.reply("Укажите срок от 1 до 3650 дней либо «никогда».")
+    if value == "никогда":
+        hours = 0
+    else:
+        digits = "".join(ch for ch in value if ch.isdigit())
+        amount = int(digits or 0)
+        # Единица измерения обязательна: без неё «преды срок 24» неоднозначно —
+        # это сутки или месяц. Числа без единицы не принимаем.
+        unit = value[len(digits):].strip()
+        if amount <= 0 or unit not in {"ч", "ч.", "д", "д."}:
+            await message.reply("Укажите срок в часах или днях: например «преды срок 24ч».")
+            return
+        hours = amount if unit in {"ч", "ч."} else amount * 24
+    if hours != 0 and not 1 <= hours <= 87600:
+        await message.reply("Укажите срок от 1 часа до 10 лет либо «никогда».")
         return
-    group.settings.warning_expire_days = days
+    group.settings.warning_expire_hours = hours
     await session.commit()
-    await message.reply("✅ Предупреждения не будут истекать." if days == 0 else f"✅ Предупреждения действуют {days} дн.")
+    await message.reply(
+        "✅ Предупреждения не будут истекать."
+        if hours == 0
+        else f"✅ {warning_expiry_label(hours)} — столько действуют предупреждения."
+    )

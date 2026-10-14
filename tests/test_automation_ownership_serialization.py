@@ -36,7 +36,7 @@ def test_mutating_automation_callbacks_lock_group_through_commit() -> None:
     mutations = {
         "automation_toggle": "group.settings.automation_enabled =",
         "cleanup_set": "group.settings.deleted_cleanup_schedule =",
-        "warnings_set": "group.settings.warning_expire_days =",
+        "warnings_set": "group.settings.warning_expire_hours =",
         "newcomer_set": "s = group.settings",
     }
 

@@ -137,7 +137,7 @@ async def expire_warnings() -> None:
         for group in groups:
             if not group.settings.automation_enabled:
                 continue
-            cutoff = warning_expiry_cutoff(group.settings.warning_expire_days)
+            cutoff = warning_expiry_cutoff(group.settings.warning_expire_hours)
             if cutoff is None:
                 continue
             rows = (
@@ -159,7 +159,7 @@ async def expire_warnings() -> None:
                         status="ok",
                         details={
                             "expired": len(rows),
-                            "days": group.settings.warning_expire_days,
+                            "hours": group.settings.warning_expire_hours,
                         },
                     )
                 )

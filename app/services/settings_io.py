@@ -11,7 +11,7 @@ EXPORTABLE_FIELDS = (
     "welcome_enabled",
     "welcome_text",
     "warnings_limit",
-    "warning_expire_days",
+    "warning_expire_hours",
     "automation_enabled",
     "deleted_cleanup_schedule",
     "default_mute_seconds",
@@ -58,7 +58,7 @@ EXPORTABLE_FIELDS = (
 
 INT_RANGES: dict[str, tuple[int, int]] = {
     "warnings_limit": (1, 20),
-    "warning_expire_days": (0, 3650),
+    "warning_expire_hours": (0, 87_600),
     "default_mute_seconds": (30, 31_536_000),
     "antiflood_limit": (2, 100),
     "antiflood_window_seconds": (1, 3600),

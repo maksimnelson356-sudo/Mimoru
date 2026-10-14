@@ -12,13 +12,13 @@ def test_warning_expiry_rechecks_live_settings_under_group_lock() -> None:
     group_lock = body.index("select(Group)", candidates + 1)
     for_update = body.index(".with_for_update()", group_lock)
     automation = body.index("group.settings.automation_enabled")
-    days = body.index("group.settings.warning_expire_days")
-    cutoff = body.index("warning_expiry_cutoff(days)")
+    hours = body.index("group.settings.warning_expire_hours")
+    cutoff = body.index("warning_expiry_cutoff(hours)")
     warnings = body.index("select(Warning)", cutoff)
     warning_lock = body.index(".with_for_update()", warnings)
     mutate = body.index("row.active = False", warning_lock)
 
-    assert candidates < group_lock < for_update < automation < days < cutoff < warnings < warning_lock < mutate
+    assert candidates < group_lock < for_update < automation < hours < cutoff < warnings < warning_lock < mutate
 
 
 def test_warning_expiry_zero_or_disabled_settings_stop_before_warning_mutation() -> None:
@@ -26,7 +26,7 @@ def test_warning_expiry_zero_or_disabled_settings_stop_before_warning_mutation()
     body = source.split("async def expire_warnings", 1)[1]
 
     disabled = body.index("not group.settings.automation_enabled")
-    cutoff = body.index("warning_expiry_cutoff(days)")
+    cutoff = body.index("warning_expiry_cutoff(hours)")
     no_cutoff = body.index("if cutoff is None:", cutoff)
     warnings = body.index("select(Warning)", no_cutoff)
     mutate = body.index("row.active = False", warnings)

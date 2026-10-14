@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.services.safety import warning_expiry_label
+
 
 def _status(enabled: bool) -> str:
     return "✅" if enabled else "❌"
@@ -203,7 +205,7 @@ def automation_menu(group) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"{_status(s.automation_enabled)} Автоматизация", callback_data=f"automation_toggle:{gid}")],
         [InlineKeyboardButton(text=f"🪦 Очистка аккаунтов: {schedule_names.get(s.deleted_cleanup_schedule, 'выкл')}", callback_data=f"automation_cleanup:{gid}")],
-        [InlineKeyboardButton(text=f"⚠️ Срок предупреждений: {s.warning_expire_days if s.warning_expire_days else 'не удалять'}", callback_data=f"automation_warnings:{gid}")],
+        [InlineKeyboardButton(text=f"⚠️ Срок предупреждений: {warning_expiry_label(s.warning_expire_hours)}", callback_data=f"automation_warnings:{gid}")],
         [InlineKeyboardButton(text=f"⚠️ Лимит предупреждений: {s.warnings_limit}", callback_data=f"automation_warning_limit:{gid}")],
         [InlineKeyboardButton(text="👋 Сценарий новичка", callback_data=f"automation_newcomer:{gid}")],
         [InlineKeyboardButton(text="📋 Журнал автоматизации", callback_data=f"automation_logs:{gid}")],

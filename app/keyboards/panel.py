@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app.services.public_identity import stored_visible_name
+from app.services.safety import warning_expiry_label
 
 
 def _status(enabled: bool) -> str:
@@ -658,7 +659,7 @@ def automation_menu(group) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"{_status(s.automation_enabled)} Автоматизация", callback_data=f"automation_toggle:{gid}")],
         [InlineKeyboardButton(text=f"🪦 Очистка аккаунтов: {schedule_names.get(s.deleted_cleanup_schedule, 'выкл')}", callback_data=f"automation_cleanup:{gid}")],
-        [InlineKeyboardButton(text=f"⚠️ Срок предупреждений: {s.warning_expire_days if s.warning_expire_days else 'не удалять'}", callback_data=f"automation_warnings:{gid}")],
+        [InlineKeyboardButton(text=f"⚠️ Срок предупреждений: {warning_expiry_label(s.warning_expire_hours)}", callback_data=f"automation_warnings:{gid}")],
         [InlineKeyboardButton(text=f"⚠️ {s.warnings_limit}/{s.warnings_limit} предупреждений → мут", callback_data=f"setting_num:{gid}:warnings")],
         [InlineKeyboardButton(text="👋 Сценарий новичка", callback_data=f"automation_newcomer:{gid}")],
         [InlineKeyboardButton(text="📋 Журнал автоматизации", callback_data=f"automation_logs:{gid}")],
@@ -671,7 +672,7 @@ def automation_cleanup_menu(group_id: int, current: str) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(inline_keyboard=[[b("off","Выкл")],[b("weekly","Раз в неделю")],[b("monthly","Раз в месяц")],[InlineKeyboardButton(text="◀️ Автоматизация", callback_data=f"automation:{group_id}")]])
 
 def automation_warning_menu(group_id: int, current: int) -> InlineKeyboardMarkup:
-    vals=[(0,"Не удалять"),(1,"1 день"),(7,"7 дней"),(30,"30 дней"),(90,"90 дней")]
+    vals=[(0,"Не удалять"),(24,"24 часа"),(168,"7 дней"),(720,"30 дней"),(2160,"90 дней")]
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=("✅ " if current==v else "")+label, callback_data=f"automation_warning_set:{group_id}:{v}")] for v,label in vals]+[[InlineKeyboardButton(text="◀️ Автоматизация", callback_data=f"automation:{group_id}")]])
 
 def automation_newcomer_menu(group) -> InlineKeyboardMarkup:

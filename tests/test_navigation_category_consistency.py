@@ -39,7 +39,7 @@ def _group():
         anti_raid_enabled=True,
         automation_enabled=True,
         deleted_cleanup_schedule="off",
-        warning_expire_days=30,
+        warning_expire_hours=24,
         warnings_limit=3,
     )
     return SimpleNamespace(id=7, settings=settings)

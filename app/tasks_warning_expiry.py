@@ -24,8 +24,8 @@ async def expire_warnings() -> None:
             if group is None or not group.settings.automation_enabled:
                 continue
 
-            days = group.settings.warning_expire_days
-            cutoff = warning_expiry_cutoff(days)
+            hours = group.settings.warning_expire_hours
+            cutoff = warning_expiry_cutoff(hours)
             if cutoff is None:
                 continue
 
@@ -45,6 +45,6 @@ async def expire_warnings() -> None:
                     group_id=group.id,
                     rule_code="warning_expiry",
                     status="ok",
-                    details={"expired": len(rows), "days": days},
+                    details={"expired": len(rows), "hours": hours},
                 ))
             await session.commit()

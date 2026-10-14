@@ -8,7 +8,7 @@ SAFE_SETTING_FIELDS = {
     "antiflood_mute_seconds","repeats_enabled","repeats_limit","caps_enabled","caps_percent",
     "caps_min_length","voices_allowed","stickers_allowed","forwards_allowed","rules_text",
     "reports_enabled","report_hour_utc","timezone_name","anti_raid_enabled","anti_raid_limit",
-    "anti_raid_window_seconds","warning_expire_days","night_mode_enabled","night_mode_start",
+    "anti_raid_window_seconds","warning_expire_hours","night_mode_enabled","night_mode_start",
     "night_mode_end","join_requests_enabled","join_requests_auto_approve",
     "newcomer_quarantine_enabled","newcomer_quarantine_seconds",
     "newcomer_quarantine_block_links","newcomer_quarantine_block_media",
