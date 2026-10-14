@@ -82,7 +82,7 @@ class GroupSettings(Base):
     anti_raid_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     anti_raid_limit: Mapped[int] = mapped_column(Integer, default=10)
     anti_raid_window_seconds: Mapped[int] = mapped_column(Integer, default=60)
-    warning_expire_days: Mapped[int] = mapped_column(Integer, default=30)
+    warning_expire_days: Mapped[int] = mapped_column(Integer, default=1)
     lockdown_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     lockdown_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lockdown_previous_permissions: Mapped[dict | None] = mapped_column(JSON)

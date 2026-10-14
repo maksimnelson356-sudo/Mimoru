@@ -155,7 +155,7 @@ async def warnings_screen(callback: CallbackQuery, session: AsyncSession) -> Non
     await callback.answer()
 
 
-@router.callback_query(F.data.regexp(r"^automation_warning_set:\d+:(0|7|30|90)$"))
+@router.callback_query(F.data.regexp(r"^automation_warning_set:\d+:(0|1|7|30|90)$"))
 async def warnings_set(callback: CallbackQuery, session: AsyncSession) -> None:
     _, raw_group_id, raw_days = callback.data.split(":")
     group = await owned_group(

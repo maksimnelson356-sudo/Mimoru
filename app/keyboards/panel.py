@@ -671,7 +671,7 @@ def automation_cleanup_menu(group_id: int, current: str) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(inline_keyboard=[[b("off","Выкл")],[b("weekly","Раз в неделю")],[b("monthly","Раз в месяц")],[InlineKeyboardButton(text="◀️ Автоматизация", callback_data=f"automation:{group_id}")]])
 
 def automation_warning_menu(group_id: int, current: int) -> InlineKeyboardMarkup:
-    vals=[(0,"Не удалять"),(7,"7 дней"),(30,"30 дней"),(90,"90 дней")]
+    vals=[(0,"Не удалять"),(1,"1 день"),(7,"7 дней"),(30,"30 дней"),(90,"90 дней")]
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=("✅ " if current==v else "")+label, callback_data=f"automation_warning_set:{group_id}:{v}")] for v,label in vals]+[[InlineKeyboardButton(text="◀️ Автоматизация", callback_data=f"automation:{group_id}")]])
 
 def automation_newcomer_menu(group) -> InlineKeyboardMarkup:
