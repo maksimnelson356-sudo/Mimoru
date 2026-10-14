@@ -147,7 +147,38 @@ def test_pending_payloads_declare_cleanup_explicitly() -> None:
         "await redis.setex", 1
     )[0]
     assert '"cleanup": cleanup' in buttons_payload
-    assert 'cleanup_requested = command_word == "банчистка"' in command_modes
+    # Отдельной команды «банчистка» больше нет: очистку выбирают кнопкой.
+    assert "банчистка" not in command_modes
+
+
+def test_ban_always_reaches_the_three_button_dialog() -> None:
+    """Бан и «Бан + очистка» необратимы, поэтому выбор обязателен везде."""
+    guard = _source("app/handlers/moderation_durable_guard.py")
+    reason_action = guard.split("async def durable_reason_action", 1)[1].split(
+        "@router.message(", 1
+    )[0]
+
+    assert "if action == \"ban\":\n" in reason_action
+    # Диалог не должен зависеть от origin: иначе в группе модератор молча
+    # получает обычный бан вместо явного выбора.
+    assert 'origin != "group"' not in reason_action
+    for label in (
+        'text="🔴 Бан"',
+        'text="🔴🗑 Бан + очистка"',
+        'text="❌ Отмена"',
+    ):
+        assert label in reason_action
+
+
+def test_group_ban_command_cannot_skip_the_dialog() -> None:
+    command_modes = _source("app/handlers/moderation_command_modes.py")
+
+    direct = command_modes.split("use_direct = mode in", 1)[1]
+    # Текстовый режим не должен отправлять бан напрямую в execute().
+    assert 'if action == "ban":\n        use_direct = False' in direct
+    # Ни один путь execute() из команд не выставляет очистку по команде.
+    assert "cleanup=cleanup_requested" not in command_modes
+    assert "cleanup_requested" not in command_modes
 
 
 def test_recovery_replays_cleanup_and_keeps_intent_payload() -> None:

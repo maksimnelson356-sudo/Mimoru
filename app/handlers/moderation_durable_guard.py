@@ -295,9 +295,11 @@ async def durable_reason_action(
         await reason_admin.moderation_reason_selected(callback, bot, session, redis)
         return
 
-    # Для бана из панели — показать диалог выбора
-    # Бан через команду в группе выполняется сразу
-    if action == "ban" and origin != "group":
+    # Бан всегда требует явного выбора: обычный бан или бан с очисткой
+    # сообщений. Одинаково в панели и в группе — иначе в группе выбор
+    # «чистить или нет» зависел бы от того, какое слово вспомнил модератор,
+    # а последствия (пропавшие сообщения) необратимы.
+    if action == "ban":
         if callback.message is None:
             await callback.answer("Сообщение недоступно.", show_alert=True)
             return

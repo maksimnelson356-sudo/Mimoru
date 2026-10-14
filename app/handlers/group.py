@@ -534,8 +534,8 @@ async def moderation_command(
             "actor_role": (
                 "owner" if message.from_user.id == group.owner_telegram_id else "admin"
             ),
-            # Обычная команда «бан» очистку не запускает; «банчистка»
-            # идёт через moderation_command_modes._open_buttons.
+            # Очистка выбирается кнопкой в диалоге бана, а не командой,
+            # поэтому в payload она всегда выключена.
             "cleanup": False,
         }
         await redis.setex(
