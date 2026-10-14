@@ -585,7 +585,9 @@ async def _durable_ban_execute(
         await callback.answer("Причина больше не активна.", show_alert=True)
         return
 
-    cleanup = bool(data.get("cleanup"))
+    # Панельный диалог выбирает очистку этой кнопкой, групповая команда — флагом
+    # в payload. Ни один из источников не должен теряться.
+    cleanup = cleanup or bool(data.get("cleanup"))
 
     intent_id = await _create_guard_intent(
         session,
@@ -646,9 +648,18 @@ async def _durable_ban_execute(
                 await callback.message.edit_reply_markup(reply_markup=None)
             except TelegramBadRequest:
                 pass
+        cleanup_incomplete = bool(getattr(result, "cleanup_incomplete", False))
+        if result.success:
+            answer_text = (
+                "Забанен, очистка сообщений выполнена не полностью."
+                if cleanup_incomplete
+                else "Забанен."
+            )
+        else:
+            answer_text = str(result) or "Не удалось забанить."
         await callback.answer(
-            "Забанен." if result.success else (str(result) or "Не удалось забанить."),
-            show_alert=not result.success,
+            answer_text,
+            show_alert=not result.success or cleanup_incomplete,
         )
     except Exception as exc:
         log.exception("modban_execute_failed", error=str(exc))

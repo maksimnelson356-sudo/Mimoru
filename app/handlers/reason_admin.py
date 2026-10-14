@@ -340,7 +340,7 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
             target_name=data["target_name"],
             moderator_name=data["moderator_name"],
             actor_role=data.get("actor_role", "admin"),
-            cleanup=False,
+            cleanup=bool(data.get("cleanup")),
         )
         if result.commit:
             await session.commit()
@@ -395,13 +395,15 @@ async def moderation_reason_selected(callback: CallbackQuery, bot: Bot, session:
                         "moderation_public_notice_failed",
                         group_id=group.id, target_id=int(data["target_id"]), action=data["action"], error=str(notify_exc),
                     )
-            status = (
-                f"✅ Действие выполнено в группе «{__import__('html').escape(group.title)}».\n\n{result}"
-                if public_delivered
-                else f"⚠️ Действие выполнено в группе «{__import__('html').escape(group.title)}», но уведомление в группу отправить не удалось.\n\n{result}"
-            )
+            cleanup_incomplete = bool(getattr(result, "cleanup_incomplete", False))
+            if public_delivered and not cleanup_incomplete:
+                status = f"✅ Действие выполнено в группе «{__import__('html').escape(group.title)}»."
+            elif cleanup_incomplete:
+                status = f"⚠️ Действие выполнено в группе «{__import__('html').escape(group.title)}», но очистка сообщений выполнена не полностью."
+            else:
+                status = f"⚠️ Действие выполнено в группе «{__import__('html').escape(group.title)}», но уведомление в группу отправить не удалось."
             await callback.message.edit_text(
-                status,
+                f"{status}\n\n{result}",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                     InlineKeyboardButton(text="👤 К карточке", callback_data=f"member_card:{group.id}:{int(data['target_id'])}")
                 ]]),

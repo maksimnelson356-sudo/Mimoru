@@ -409,6 +409,9 @@ async def member_punish(
         "default_mute": group.settings.default_mute_seconds,
         "origin": "panel",
         "actor_role": "owner",
+        # Панельный путь выбирает очистку кнопкой «Бан + очистка»;
+        # флаг из payload по умолчанию выключен.
+        "cleanup": False,
     }
     key = f"mimoru:modpending:{token}"
     await redis.setex(key, 600, json.dumps(payload, ensure_ascii=False))

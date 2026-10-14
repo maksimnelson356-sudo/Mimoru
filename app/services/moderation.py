@@ -47,6 +47,9 @@ class ModerationOutcome(str):
     success: bool
     commit: bool
     public_notice: bool
+    cleanup_requested: bool
+    cleanup_deleted: int
+    cleanup_incomplete: bool
 
     def __new__(
         cls,
@@ -55,19 +58,37 @@ class ModerationOutcome(str):
         success: bool,
         commit: bool,
         public_notice: bool,
+        cleanup_requested: bool = False,
+        cleanup_deleted: int = 0,
+        cleanup_incomplete: bool = False,
     ) -> "ModerationOutcome":
         obj = super().__new__(cls, text)
         obj.success = success
         obj.commit = commit
         obj.public_notice = public_notice
+        obj.cleanup_requested = cleanup_requested
+        obj.cleanup_deleted = cleanup_deleted
+        obj.cleanup_incomplete = cleanup_incomplete
         return obj
 
 
 def _success(
-    text: str, *, commit: bool = True, public_notice: bool = True
+    text: str,
+    *,
+    commit: bool = True,
+    public_notice: bool = True,
+    cleanup_requested: bool = False,
+    cleanup_deleted: int = 0,
+    cleanup_incomplete: bool = False,
 ) -> ModerationOutcome:
     return ModerationOutcome(
-        text, success=True, commit=commit, public_notice=public_notice
+        text,
+        success=True,
+        commit=commit,
+        public_notice=public_notice,
+        cleanup_requested=cleanup_requested,
+        cleanup_deleted=cleanup_deleted,
+        cleanup_incomplete=cleanup_incomplete,
     )
 
 
@@ -257,6 +278,9 @@ async def execute(
             safe_reason,
             {"duration": duration},
         )
+        cleanup_total = 0
+        cleanup_deleted = 0
+        cleanup_failed_batches = 0
         if cleanup:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=47)
             rows = (
@@ -268,16 +292,17 @@ async def execute(
                     )
                 )
             ).all()
-            deleted = 0
-            for i in range(0, len(rows), 100):
+            cleanup_total = len(rows)
+            for i in range(0, cleanup_total, 100):
                 batch = list(rows[i : i + 100])
                 try:
                     await bot.delete_messages(
                         chat_id=chat_id,
                         message_ids=batch,
                     )
-                    deleted += len(batch)
+                    cleanup_deleted += len(batch)
                 except (TelegramBadRequest, TelegramForbiddenError) as exc:
+                    cleanup_failed_batches += 1
                     log.warning(
                         "delete_messages_batch_failed",
                         group_id=group_id,
@@ -285,22 +310,48 @@ async def execute(
                         batch_size=len(batch),
                         error=str(exc),
                     )
-            if deleted:
+            if cleanup_deleted:
                 log.info(
                     "ban_cleanup_deleted",
                     group_id=group_id,
                     user_telegram_id=target_id,
-                    deleted=deleted,
+                    deleted=cleanup_deleted,
+                    attempted=cleanup_total,
                 )
-        return _success(
-            manual_action_notice(
-                action="ban",
-                target=target_name,
-                moderator=moderator_name,
-                reason=safe_reason,
-                duration_seconds=duration,
-                actor_role=actor_role,
+        cleanup_incomplete = bool(
+            cleanup
+            and (
+                cleanup_failed_batches > 0
+                or cleanup_deleted < cleanup_total
             )
+        )
+        if cleanup_incomplete:
+            log.warning(
+                "ban_cleanup_incomplete",
+                group_id=group_id,
+                user_telegram_id=target_id,
+                attempted=cleanup_total,
+                deleted=cleanup_deleted,
+                failed_batches=cleanup_failed_batches,
+            )
+        notice = manual_action_notice(
+            action="ban",
+            target=target_name,
+            moderator=moderator_name,
+            reason=safe_reason,
+            duration_seconds=duration,
+            actor_role=actor_role,
+        )
+        if cleanup_incomplete:
+            notice = (
+                f"{notice}\n\n⚠️ Очистка сообщений выполнена не полностью: "
+                f"удалено {cleanup_deleted} из {cleanup_total}."
+            )
+        return _success(
+            notice,
+            cleanup_requested=bool(cleanup),
+            cleanup_deleted=cleanup_deleted,
+            cleanup_incomplete=cleanup_incomplete,
         )
 
     if action == "unban":

@@ -534,6 +534,9 @@ async def moderation_command(
             "actor_role": (
                 "owner" if message.from_user.id == group.owner_telegram_id else "admin"
             ),
+            # Обычная команда «бан» очистку не запускает; «банчистка»
+            # идёт через moderation_command_modes._open_buttons.
+            "cleanup": False,
         }
         await redis.setex(
             f"mimoru:modpending:{token}", 600, json.dumps(payload, ensure_ascii=False)
