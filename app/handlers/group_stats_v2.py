@@ -16,7 +16,7 @@ from app.services.rank_access import get_actor_rank_with_access
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
 CALLBACK_PREFIX = "group_stats_v2"
-ADMIN_RANKS = {"owner", "service_owner", "deputy_owner", "chief_admin", "chat_admin", "voice_admin"}
+ADMIN_RANKS = {"owner", "service_owner", "deputy_owner", "chief_admin", "chat_admin", "chat_voice_admin", "voice_admin"}
 
 ALIASES = {
     "стата", "статистика", "статистика группы", "стата группы", "чат инфо", "инфа чата",

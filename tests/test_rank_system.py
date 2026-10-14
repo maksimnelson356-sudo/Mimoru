@@ -10,6 +10,7 @@ from aiogram.methods import GetChatMember, PromoteChatMember
 from app.services.ranks import (
     ADMIN_RANKS,
     CHAT_ADMIN,
+    CHAT_VOICE_ADMIN,
     CHIEF_ADMIN,
     DEPUTY_OWNER,
     HELPER,
@@ -28,7 +29,8 @@ from app.services.ranks import (
 def test_rank_hierarchy_is_strict() -> None:
     assert RANK_LEVELS[DEPUTY_OWNER] > RANK_LEVELS[CHIEF_ADMIN]
     assert RANK_LEVELS[CHIEF_ADMIN] > RANK_LEVELS[CHAT_ADMIN]
-    assert RANK_LEVELS[CHAT_ADMIN] > RANK_LEVELS[VOICE_ADMIN]
+    assert RANK_LEVELS[CHAT_ADMIN] > RANK_LEVELS[CHAT_VOICE_ADMIN]
+    assert RANK_LEVELS[CHAT_VOICE_ADMIN] > RANK_LEVELS[VOICE_ADMIN]
     assert RANK_LEVELS[VOICE_ADMIN] > RANK_LEVELS[HELPER]
     assert RANK_LEVELS[HELPER] > RANK_LEVELS[MAJOR]
     assert RANK_LEVELS[MAJOR] > RANK_LEVELS[UNTOUCHABLE]
@@ -44,6 +46,7 @@ def test_assignment_scope_matches_hierarchy() -> None:
     assert CHIEF_ADMIN in assignable_ranks(deputy)
     assert MAJOR in assignable_ranks(deputy)
     assert CHAT_ADMIN in assignable_ranks(chief)
+    assert CHAT_VOICE_ADMIN in assignable_ranks(chief)
     assert MAJOR in assignable_ranks(chief)
     assert CHIEF_ADMIN not in assignable_ranks(chief)
     assert assignable_ranks(chat) == (HELPER, MAJOR)
@@ -57,7 +60,13 @@ def test_deputy_and_chief_cannot_change_group_info() -> None:
 
 
 def test_telegram_visible_and_internal_roles_are_separated() -> None:
-    assert ADMIN_RANKS == {DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN, MAJOR}
+    assert ADMIN_RANKS == {
+        DEPUTY_OWNER,
+        CHIEF_ADMIN,
+        CHAT_ADMIN,
+        CHAT_VOICE_ADMIN,
+        MAJOR,
+    }
     assert VOICE_ADMIN not in ADMIN_RANKS
     assert HELPER not in ADMIN_RANKS
     assert UNTOUCHABLE not in ADMIN_RANKS
@@ -79,12 +88,35 @@ def test_telegram_visible_and_internal_roles_are_separated() -> None:
     assert voice["can_delete_messages"] is False
     assert voice["can_restrict_members"] is False
 
+    chat_voice = telegram_rights_for_rank(CHAT_VOICE_ADMIN)
+    assert chat_voice["can_manage_video_chats"] is True
+    assert chat_voice["can_delete_messages"] is True
+    assert chat_voice["can_restrict_members"] is True
+    assert chat_voice["can_promote_members"] is False
+    assert chat_voice["can_manage_chat"] is True
+
+
+def test_chat_voice_admin_moderates_chats_without_ban_rights() -> None:
+    from app.services.ranks import DEFAULT_ROLE_PERMISSIONS, ROLE_CEILINGS
+
+    ceiling = ROLE_CEILINGS[CHAT_VOICE_ADMIN]
+    assert "voice_warn" in ceiling
+    assert "manage_video_chats" in ceiling
+    assert "delete" in ceiling
+    # Голосовой ранг не выдаёт банов, мутов и киков: это полномочия
+    # ранга выше, иначе он стал бы обходом иерархии.
+    for permission in ("ban", "unban", "mute", "kick", "promote_admins"):
+        assert permission not in ceiling
+    assert set(DEFAULT_ROLE_PERMISSIONS[CHAT_VOICE_ADMIN]) == ceiling
+    assert all(DEFAULT_ROLE_PERMISSIONS[CHAT_VOICE_ADMIN].values())
+
 
 def test_user_facing_rank_labels_exist() -> None:
     assert RANK_LABELS == {
         DEPUTY_OWNER: "Зам. владельца",
         CHIEF_ADMIN: "Глав. админ",
         CHAT_ADMIN: "Администратор чата",
+        CHAT_VOICE_ADMIN: "Администратор чата и войса",
         VOICE_ADMIN: "Администратор голосовых чатов",
         HELPER: "Помощник",
         MAJOR: "Мажор",

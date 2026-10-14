@@ -191,7 +191,8 @@ async def _render_roles(target: Message, bot: Bot, session: AsyncSession, group:
     )
     text += (
         "\n\nИерархия: Зам. владельца → Глав. админ → Администратор чата → "
-        "Администратор войса → Помощник. Недотрога — отдельный статус иммунитета."
+        "Администратор чата и войса → Администратор голосовых чатов → Помощник. "
+        "Недотрога — отдельный статус иммунитета."
     )
     await target.edit_text(text, reply_markup=await _roles_markup(session, group, actor_id, rows))
 

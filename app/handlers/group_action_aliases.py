@@ -219,6 +219,7 @@ ADMIN_INFO_RANKS = {
     "deputy_owner",
     "chief_admin",
     "chat_admin",
+    "chat_voice_admin",
     "voice_admin",
 }
 PROFILE_CALLBACK_PREFIX = "member_profile"

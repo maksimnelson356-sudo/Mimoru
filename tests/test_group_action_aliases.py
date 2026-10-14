@@ -53,7 +53,15 @@ def test_reply_lookup_phrases_are_contextual() -> None:
 
 
 def test_aggregate_information_is_limited_to_real_admin_roles() -> None:
-    assert {"owner", "service_owner", "deputy_owner", "chief_admin", "chat_admin", "voice_admin"} == ADMIN_INFO_RANKS
+    assert {
+        "owner",
+        "service_owner",
+        "deputy_owner",
+        "chief_admin",
+        "chat_admin",
+        "chat_voice_admin",
+        "voice_admin",
+    } == ADMIN_INFO_RANKS
     assert "helper" not in ADMIN_INFO_RANKS
     assert "major" not in ADMIN_INFO_RANKS
     assert "untouchable" not in ADMIN_INFO_RANKS

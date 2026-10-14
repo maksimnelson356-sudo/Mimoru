@@ -16,6 +16,7 @@ from app.db.rank_models import GroupRankPolicy, RankAssignment, RankAssignmentEv
 DEPUTY_OWNER = "deputy_owner"
 CHIEF_ADMIN = "chief_admin"
 CHAT_ADMIN = "chat_admin"
+CHAT_VOICE_ADMIN = "chat_voice_admin"
 VOICE_ADMIN = "voice_admin"
 HELPER = "helper"
 MAJOR = "major"
@@ -25,6 +26,7 @@ RANK_CODES = (
     DEPUTY_OWNER,
     CHIEF_ADMIN,
     CHAT_ADMIN,
+    CHAT_VOICE_ADMIN,
     VOICE_ADMIN,
     HELPER,
     MAJOR,
@@ -34,6 +36,7 @@ RANK_LABELS = {
     DEPUTY_OWNER: "Зам. владельца",
     CHIEF_ADMIN: "Глав. админ",
     CHAT_ADMIN: "Администратор чата",
+    CHAT_VOICE_ADMIN: "Администратор чата и войса",
     VOICE_ADMIN: "Администратор голосовых чатов",
     HELPER: "Помощник",
     MAJOR: "Мажор",
@@ -43,6 +46,9 @@ RANK_LEVELS = {
     DEPUTY_OWNER: 90,
     CHIEF_ADMIN: 80,
     CHAT_ADMIN: 60,
+    # Voice chats plus text cleanup, but no ban/mute: it must stay below the
+    # rank that can ban, and above the internal voice-only role.
+    CHAT_VOICE_ADMIN: 55,
     VOICE_ADMIN: 50,
     HELPER: 20,
     MAJOR: 10,
@@ -106,6 +112,15 @@ ROLE_CEILINGS: dict[str, set[str]] = {
         "history",
         "assign_helper",
     },
+    CHAT_VOICE_ADMIN: {
+        "warn",
+        "delete",
+        "restrict_media",
+        "voice_warn",
+        "manage_video_chats",
+        "info",
+        "history",
+    },
     VOICE_ADMIN: {"voice_warn", "manage_video_chats", "info", "history"},
     HELPER: {"report_violation", "info"},
     MAJOR: set(),
@@ -116,6 +131,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
     DEPUTY_OWNER: {name: True for name in ROLE_CEILINGS[DEPUTY_OWNER]},
     CHIEF_ADMIN: {name: True for name in ROLE_CEILINGS[CHIEF_ADMIN]},
     CHAT_ADMIN: {name: True for name in ROLE_CEILINGS[CHAT_ADMIN]},
+    CHAT_VOICE_ADMIN: {
+        name: True for name in ROLE_CEILINGS[CHAT_VOICE_ADMIN]
+    },
     VOICE_ADMIN: {name: True for name in ROLE_CEILINGS[VOICE_ADMIN]},
     HELPER: {name: True for name in ROLE_CEILINGS[HELPER]},
     MAJOR: {},
@@ -125,7 +143,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
 # Real Telegram administrators managed by Mimoru. Major is deliberately
 # Telegram-visible, but receives no moderation permissions. Voice admin,
 # Helper and Untouchable remain internal bot roles.
-ADMIN_RANKS = {DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN, MAJOR}
+ADMIN_RANKS = {DEPUTY_OWNER, CHIEF_ADMIN, CHAT_ADMIN, CHAT_VOICE_ADMIN, MAJOR}
 
 
 @dataclass(frozen=True)
@@ -225,9 +243,17 @@ def assignable_ranks(actor: ActorRank) -> tuple[str, ...]:
     if actor.level >= 100:
         return RANK_CODES
     if actor.code == DEPUTY_OWNER:
-        return (CHIEF_ADMIN, CHAT_ADMIN, VOICE_ADMIN, HELPER, MAJOR, UNTOUCHABLE)
+        return (
+            CHIEF_ADMIN,
+            CHAT_ADMIN,
+            CHAT_VOICE_ADMIN,
+            VOICE_ADMIN,
+            HELPER,
+            MAJOR,
+            UNTOUCHABLE,
+        )
     if actor.code == CHIEF_ADMIN:
-        return (CHAT_ADMIN, VOICE_ADMIN, HELPER, MAJOR, UNTOUCHABLE)
+        return (CHAT_ADMIN, CHAT_VOICE_ADMIN, VOICE_ADMIN, HELPER, MAJOR, UNTOUCHABLE)
     if actor.code == CHAT_ADMIN:
         return (HELPER, MAJOR)
     return ()
@@ -456,6 +482,14 @@ def telegram_rights_for_rank(rank_code: str) -> dict[str, bool]:
         base.update(
             can_delete_messages=True,
             can_restrict_members=True,
+        )
+    elif rank_code == CHAT_VOICE_ADMIN:
+        # Voice chat moderation plus text cleanup. can_promote_members stays
+        # off: this rank appoints nobody, it only moderates chats.
+        base.update(
+            can_delete_messages=True,
+            can_restrict_members=True,
+            can_manage_video_chats=True,
         )
     return base
 
