@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 
@@ -62,6 +63,26 @@ class TestGameCancelRetiresMessages:
             "@router.callback_query", 1
         )[0]
         assert 'reason="cancelled_by_user"' in block
+
+    def test_cancel_persistence_is_reachable_after_permission_check(self) -> None:
+        tree = ast.parse(_source("app/games/handlers.py"))
+        function = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "game_cancel"
+        )
+        top_level_cancel = [
+            statement
+            for statement in function.body
+            if isinstance(statement, ast.Assign)
+            and any(
+                isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "cancel_game"
+                for call in ast.walk(statement)
+            )
+        ]
+        assert top_level_cancel, "game_cancel must persist the cancelled status"
 
 
 # ── #9b: show_alert=True в permission denied ─────────────────────────────

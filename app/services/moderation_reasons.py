@@ -11,6 +11,7 @@ DEFAULT_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Спам", ("warn", "mute", "ban")),
     ("Реклама", ("warn", "mute", "ban")),
     ("Нецензурная лексика", ("warn", "mute")),
+    ("Без пошлостей", ("warn", "mute")),
     ("Нарушение правил", ("warn", "mute", "ban")),
 )
 

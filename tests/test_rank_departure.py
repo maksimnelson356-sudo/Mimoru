@@ -166,6 +166,7 @@ def test_rank_label_never_shows_a_bare_code():
 # --- wiring contracts -------------------------------------------------------
 
 MEMBERS_SOURCE = Path("app/handlers/members.py").read_text(encoding="utf-8")
+REQUIRED_DIRECT_SOURCE = Path("app/handlers/required_direct.py").read_text(encoding="utf-8")
 DISCONNECT_SOURCE = Path("app/services/group_disconnects.py").read_text(encoding="utf-8")
 ONBOARDING_SOURCE = Path("app/handlers/group_onboarding_flow.py").read_text(encoding="utf-8")
 
@@ -177,6 +178,15 @@ def test_leave_and_return_are_wired_into_chat_member_updates():
     assert "present and not was_present" in MEMBERS_SOURCE
     # A disconnected group has no live staff state and must stay silent.
     assert "if not group.is_active:" in MEMBERS_SOURCE
+
+
+def test_leave_handler_is_not_shadowed_by_required_direct_catch_all():
+    handler = "async def retire_rank_on_member_leave"
+    catch_all = "async def count_direct_required_members"
+    assert handler in REQUIRED_DIRECT_SOURCE
+    assert REQUIRED_DIRECT_SOURCE.index(handler) < REQUIRED_DIRECT_SOURCE.index(catch_all)
+    assert "F.new_chat_member.status.in_" in REQUIRED_DIRECT_SOURCE
+    assert "deactivate_rank_on_leave(" in REQUIRED_DIRECT_SOURCE
 
 
 def test_rank_notices_go_to_the_owner_and_never_print_raw_ids():

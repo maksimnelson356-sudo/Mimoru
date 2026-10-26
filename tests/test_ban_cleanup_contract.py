@@ -238,3 +238,24 @@ def test_durable_ban_answers_partial_cleanup_to_moderator() -> None:
     alert = body.index("show_alert=not result.success or cleanup_incomplete", answer)
 
     assert detect < answer < alert
+
+
+def test_durable_ban_cancel_is_limited_to_the_command_author() -> None:
+    guard = _source("app/handlers/moderation_durable_guard.py")
+    body = guard.split("async def durable_ban_cancel", 1)[1].split(
+        "async def _durable_ban_execute", 1
+    )[0]
+
+    assert "raw = await redis.get" in body
+    assert 'data.get("moderator_id", 0)' in body
+    assert "Отменить может только автор команды." in body
+    assert body.index("moderator_id") < body.index("await redis.delete")
+
+
+def test_durable_ban_revalidates_reason_action_at_confirmation() -> None:
+    guard = _source("app/handlers/moderation_durable_guard.py")
+    body = guard.split("async def _durable_ban_execute", 1)[1]
+
+    reason_check = body.index("reason = await reason_admin.get_reason")
+    action_check = body.index('"ban" not in normalize_actions(reason.actions)')
+    assert reason_check < action_check

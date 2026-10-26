@@ -21,6 +21,7 @@ from app.services.owner_management import managed_group_for_message
 from app.services.permissions import is_admin
 from app.services.plans import plan_limit
 from app.services.public_identity import public_user_token
+from app.services.rank_departure import deactivate_rank_on_leave, rank_label
 from app.services.required_resources import normalize_public_telegram_resource
 
 log = structlog.get_logger()
@@ -336,6 +337,50 @@ async def direct_required_disconnect(message: Message, bot: Bot, session: AsyncS
         rule.active = False
     await session.commit()
     await message.reply(f"✅ Обязательная подписка на {channel} отключена.")
+
+
+@router.chat_member(
+    F.old_chat_member.status.in_({
+        ChatMemberStatus.MEMBER,
+        ChatMemberStatus.RESTRICTED,
+        ChatMemberStatus.ADMINISTRATOR,
+        ChatMemberStatus.CREATOR,
+    }),
+    F.new_chat_member.status.in_({
+        ChatMemberStatus.LEFT,
+        ChatMemberStatus.KICKED,
+    }),
+)
+async def retire_rank_on_member_leave(
+    event: ChatMemberUpdated, bot: Bot, session: AsyncSession
+) -> None:
+    """Retire Mimoru access before the legacy chat-member catch-all handles joins."""
+    if event.new_chat_member.user.is_bot:
+        return
+    group = await session.scalar(
+        select(Group)
+        .where(
+            Group.telegram_chat_id == event.chat.id,
+            Group.is_active.is_(True),
+        )
+        .with_for_update()
+    )
+    if group is None:
+        return
+    removed_rank = await deactivate_rank_on_leave(
+        session, group, event.new_chat_member.user.id
+    )
+    await session.commit()
+    if removed_rank is not None and group.owner_telegram_id:
+        try:
+            await bot.send_message(
+                group.owner_telegram_id,
+                f"👋 {public_user_token(event.new_chat_member.user.id)} вышел из группы «{group.title}».\n\n"
+                f"Ранг «{rank_label(removed_rank)}» снят, доступ к панели Mimoru больше не действует.\n"
+                "Если человек вернётся, ранг нужно назначить заново.",
+            )
+        except (TelegramBadRequest, TelegramForbiddenError):
+            pass
 
 
 @router.chat_member()

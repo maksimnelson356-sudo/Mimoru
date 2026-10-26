@@ -456,9 +456,9 @@ async def game_cancel(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
             "❌ Отменить игру может создатель или администратор.", show_alert=True
         )
         return
-        game = await manager.cancel_game(
-            session, game_id=game.id, reason="cancelled_by_user"
-        )
+    game = await manager.cancel_game(
+        session, game_id=game.id, reason="cancelled_by_user"
+    )
     # #9a: снимаем активные игровые сообщения, чтобы старые кнопки не работали
     await retire_active_messages(
         bot,

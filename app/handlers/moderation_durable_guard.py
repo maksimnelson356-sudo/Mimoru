@@ -522,7 +522,17 @@ async def durable_ban_clean(
 
 @router.callback_query(F.data.regexp(r"^modreason:cancel:[0-9a-f]{10}:\d+$"))
 async def durable_ban_cancel(callback: CallbackQuery, redis: Redis) -> None:
-    _, token, _ = callback.data.split(":")
+    _, _, token, _ = callback.data.split(":")
+    raw = await redis.get(f"mimoru:modpending:{token}")
+    if not raw:
+        await callback.answer("Действие уже выполнено или устарело.", show_alert=True)
+        return
+    data = json.loads(raw)
+    if int(data.get("moderator_id", 0)) != callback.from_user.id:
+        await callback.answer(
+            "Отменить может только автор команды.", show_alert=True
+        )
+        return
     await redis.delete(f"mimoru:modpending:{token}")
     if callback.message is not None:
         try:
@@ -588,8 +598,15 @@ async def _durable_ban_execute(
         return
 
     reason = await reason_admin.get_reason(session, group.id, int(raw_reason_id))
-    if reason is None or not reason.active:
-        await callback.answer("Причина больше не активна.", show_alert=True)
+    if (
+        reason is None
+        or not reason.active
+        or "ban" not in normalize_actions(reason.actions)
+    ):
+        await callback.answer(
+            "Причина больше не активна или больше не подходит для бана.",
+            show_alert=True,
+        )
         return
 
     # Панельный диалог выбирает очистку этой кнопкой, групповая команда — флагом

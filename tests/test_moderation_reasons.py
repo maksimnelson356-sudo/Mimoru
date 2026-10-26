@@ -6,11 +6,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_default_reasons_cover_expected_actions():
     source = (ROOT / "app/services/moderation_reasons.py").read_text(encoding="utf-8")
-    for text in ["Флуд", "Оскорбление участников", "Спам", "Реклама", "Нарушение правил"]:
+    for text in [
+        "Флуд",
+        "Оскорбление участников",
+        "Спам",
+        "Реклама",
+        "Без пошлостей",
+        "Нарушение правил",
+    ]:
         assert text in source
     for action in ["warn", "mute", "ban"]:
         assert f'"{action}"' in source
     assert '"kick"' not in source
+
+
+def test_new_default_reason_is_backfilled_for_existing_groups():
+    migration = ROOT / "alembic/versions/0053_default_reason_without_obscenity.py"
+    assert migration.exists()
+    source = migration.read_text(encoding="utf-8")
+    assert 'revision = "0053_default_reason_without_obscenity"' in source
+    assert 'down_revision = "0052_warning_expiry_hours"' in source
+    assert "Без пошлостей" in source
+    assert "NOT EXISTS" in source
 
 
 def test_reason_migration_and_model_exist():
