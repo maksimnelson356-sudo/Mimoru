@@ -31,7 +31,6 @@ def apply_setup_profile(settings, profile: str, level: str) -> None:
     settings.antiflood_enabled = True
     settings.repeats_enabled = True
     settings.anti_raid_enabled = True
-    settings.campaign_spam_enabled = True
     settings.mention_filter_enabled = True
     settings.sender_chat_filter_enabled = True
     settings.welcome_enabled = True

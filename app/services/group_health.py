@@ -84,8 +84,6 @@ async def calculate_group_health(bot: Bot, session: AsyncSession, group: Group) 
         recommendations.append("Включите антифлуд для защиты от массовой отправки сообщений.")
     if not settings.anti_raid_enabled:
         recommendations.append("Включите Anti-Raid, если в группу могут массово заходить новые аккаунты.")
-    if not settings.campaign_spam_enabled:
-        recommendations.append("Включите защиту от координированного спама.")
     if not settings.captcha_enabled and not settings.newcomer_quarantine_enabled:
         recommendations.append("Для открытых групп полезно включить капчу или карантин новичков.")
     if reports_available and not settings.reports_enabled:

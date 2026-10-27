@@ -188,7 +188,6 @@ async def setup_reports(callback: CallbackQuery, session: AsyncSession) -> None:
         name for enabled_value, name in [
             (s.antiflood_enabled, "Антифлуд"),
             (s.anti_raid_enabled, "Anti-Raid"),
-            (s.campaign_spam_enabled, "Защита от спам-кампаний"),
             (s.edit_protection_enabled, "Защита редактирования"),
             (s.captcha_enabled, "Капча"),
             (s.newcomer_quarantine_enabled, "Карантин новичков"),

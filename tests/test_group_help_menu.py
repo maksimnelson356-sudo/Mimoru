@@ -58,7 +58,7 @@ def test_help_keeps_core_admin_workflows_visible() -> None:
     content = group_help_full._content_text()
     for phrase in ("пред", "мут 10м", "бан", "инфо", "история"):
         assert phrase in moderation
-    for phrase in ("антифлуд", "антирейд", "карантин", "массовый спам", "упоминания"):
+    for phrase in ("антифлуд", "антирейд", "карантин", "упоминания"):
         assert phrase in protection
     for phrase in ("локдаун", "ночной режим", "запланировать", "журнал", "заметка"):
         assert phrase in management

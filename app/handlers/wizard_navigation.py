@@ -312,7 +312,6 @@ async def choose_reports(callback: CallbackQuery, session: AsyncSession) -> None
         name for enabled_value, name in [
             (group.settings.antiflood_enabled, "Антифлуд"),
             (group.settings.anti_raid_enabled, "Anti-Raid"),
-            (group.settings.campaign_spam_enabled, "Защита от спам-кампаний"),
             (group.settings.edit_protection_enabled, "Защита редактирования"),
             (group.settings.captcha_enabled, "Капча"),
             (group.settings.newcomer_quarantine_enabled, "Карантин новичков"),

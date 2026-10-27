@@ -20,8 +20,6 @@ def make_group():
         newcomer_quarantine_block_forwards=True,
         slow_mode_enabled=False,
         slow_mode_seconds=10,
-        campaign_spam_enabled=True, campaign_spam_limit=3,
-        campaign_spam_window_seconds=120, campaign_spam_mute_seconds=3600,
         edit_protection_enabled=True, edit_protection_window_seconds=172800,
         mention_filter_enabled=True, mention_limit=5, hashtag_limit=10,
         mention_mute_seconds=1800,

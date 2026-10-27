@@ -10,7 +10,6 @@ def settings():
         antiflood_enabled=False,
         repeats_enabled=False,
         anti_raid_enabled=False,
-        campaign_spam_enabled=False,
         mention_filter_enabled=False,
         sender_chat_filter_enabled=False,
         welcome_enabled=False,

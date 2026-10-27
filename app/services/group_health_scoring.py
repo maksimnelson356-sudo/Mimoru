@@ -31,7 +31,6 @@ def protection_points(settings) -> int:
         settings.antiflood_enabled,
         settings.repeats_enabled,
         settings.anti_raid_enabled,
-        settings.campaign_spam_enabled,
         settings.edit_protection_enabled,
         settings.mention_filter_enabled,
         settings.sender_chat_filter_enabled,

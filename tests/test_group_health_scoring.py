@@ -21,7 +21,6 @@ def test_protection_and_newcomer_scores_use_enabled_features():
         antiflood_enabled=True,
         repeats_enabled=True,
         anti_raid_enabled=True,
-        campaign_spam_enabled=True,
         edit_protection_enabled=True,
         mention_filter_enabled=True,
         sender_chat_filter_enabled=True,
@@ -30,5 +29,5 @@ def test_protection_and_newcomer_scores_use_enabled_features():
         welcome_enabled=True,
         join_requests_enabled=True,
     )
-    assert protection_points(s) == 28
+    assert protection_points(s) == 24
     assert newcomer_points(s) == 12

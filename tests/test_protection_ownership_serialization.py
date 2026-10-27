@@ -21,10 +21,6 @@ MODULES = {
         "mutating": ("toggle", "allow_sender", "deny_sender"),
         "read_only": ("status", "list_senders"),
     },
-    "campaign_spam.py": {
-        "mutating": ("campaign_toggle", "campaign_threshold", "campaign_punishment"),
-        "read_only": ("campaign_status",),
-    },
     "edit_protection.py": {
         "mutating": ("edit_toggle", "edit_window"),
         "read_only": ("edit_status",),

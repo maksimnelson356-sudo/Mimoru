@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AllowedLink, AllowedSenderChat, AutoResponse, DailyStat, ForbiddenWord, Group, ModerationLog, NewMemberRecord, Punishment, TrustedUser, Warning
-from app.services.campaign_spam import build_campaign_signature
 from app.services.content import contains_blocked_link
 from app.services.edit_protection import should_recheck_edit
 from app.services.mentions import count_mentions_and_hashtags
@@ -40,90 +39,6 @@ VIOLATION_LABELS = {
     "link": "ссылки в этой группе запрещены",
     "word": "запрещённое слово",
 }
-
-
-def campaign_media_ids(message: Message) -> list[str]:
-    ids: list[str] = []
-    if message.photo:
-        ids.append(message.photo[-1].file_unique_id)
-    for item in (
-        message.video, message.document, message.audio, message.voice,
-        message.video_note, message.sticker, message.animation,
-    ):
-        if item is not None:
-            ids.append(item.file_unique_id)
-    return ids
-
-
-async def apply_campaign_mute(
-    message: Message,
-    bot: Bot,
-    session: AsyncSession,
-    group: Group,
-    signature: str,
-    participants: int,
-    *,
-    edited: bool = False,
-) -> None:
-    if not message.from_user:
-        return
-    seconds = group.settings.campaign_spam_mute_seconds
-    ends_at = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-    try:
-        await message.delete()
-    except (TelegramBadRequest, TelegramForbiddenError) as error:
-        structlog.get_logger().warning(
-            "automatic_violation_delete_failed",
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            user_id=message.from_user.id,
-            error=str(error),
-        )
-    try:
-        await bot.restrict_chat_member(
-            message.chat.id,
-            message.from_user.id,
-            permissions=MUTED,
-            until_date=int(ends_at.timestamp()),
-        )
-    except (TelegramBadRequest, TelegramForbiddenError) as error:
-        structlog.get_logger().warning("campaign_spam_mute_failed", error=str(error))
-        return
-    await mark_message(
-        session, group.id, message.from_user.id, deleted=True, count_message=not edited
-    )
-    session.add(Punishment(
-        group_id=group.id,
-        user_telegram_id=message.from_user.id,
-        moderator_telegram_id=0,
-        kind="mute",
-        reason="Координированный массовый спам",
-        ends_at=ends_at,
-    ))
-    session.add(ModerationLog(
-        group_id=group.id,
-        actor_telegram_id=0,
-        target_telegram_id=message.from_user.id,
-        action="campaign_spam_mute",
-        reason="Одинаковый контент от нескольких пользователей",
-        metadata_json={
-            "duration_seconds": seconds,
-            "message_id": message.message_id,
-            "signature": signature,
-            "participants": participants,
-            "edited": edited,
-        },
-    ))
-    if not edited:
-        await answer_group_notice(
-            message,
-            automatic_action_notice(
-                action="mute",
-                target=message.from_user.full_name,
-                reason="координированный массовый спам",
-                duration_seconds=seconds,
-            )
-        )
 
 
 async def mark_message(
@@ -348,6 +263,68 @@ async def apply_antiflood_mute(
     )
 
 
+async def apply_repeat_mute(
+    message: Message,
+    bot: Bot,
+    session: AsyncSession,
+    group: Group,
+) -> None:
+    if not message.from_user:
+        return
+    seconds = group.settings.antiflood_mute_seconds
+    ends_at = datetime.now(timezone.utc) + timedelta(seconds=seconds)
+    try:
+        await message.delete()
+    except (TelegramBadRequest, TelegramForbiddenError) as error:
+        structlog.get_logger().warning(
+            "automatic_violation_delete_failed",
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            user_id=message.from_user.id,
+            error=str(error),
+        )
+    try:
+        await bot.restrict_chat_member(
+            message.chat.id,
+            message.from_user.id,
+            permissions=MUTED,
+            until_date=int(ends_at.timestamp()),
+        )
+    except (TelegramBadRequest, TelegramForbiddenError) as error:
+        structlog.get_logger().warning("repeat_mute_failed", error=str(error))
+        return
+    await mark_message(session, group.id, message.from_user.id, deleted=True)
+    session.add(
+        Punishment(
+            group_id=group.id,
+            user_telegram_id=message.from_user.id,
+            moderator_telegram_id=0,
+            kind="mute",
+            reason="Повтор одинаковых сообщений",
+            ends_at=ends_at,
+        )
+    )
+    session.add(
+        ModerationLog(
+            group_id=group.id,
+            actor_telegram_id=0,
+            target_telegram_id=message.from_user.id,
+            action="repeat_mute",
+            reason="Повтор одинаковых сообщений",
+            metadata_json={"duration_seconds": seconds, "message_id": message.message_id},
+        )
+    )
+    await answer_group_notice(
+        message,
+        automatic_action_notice(
+            action="mute",
+            target=message.from_user.full_name,
+            reason="повтор одинаковых сообщений",
+            duration_seconds=seconds,
+        )
+    )
+
+
 async def protect_message(
     message: Message,
     bot: Bot,
@@ -413,20 +390,6 @@ async def protect_message(
             await session.commit()
             return
 
-    if settings.campaign_spam_enabled:
-        signature = build_campaign_signature(text, campaign_media_ids(message))
-        if signature:
-            key = f"campaign:{message.chat.id}:{signature}"
-            await redis.sadd(key, str(message.from_user.id))
-            await redis.expire(key, settings.campaign_spam_window_seconds)
-            participants = await redis.scard(key)
-            if participants >= settings.campaign_spam_limit:
-                await apply_campaign_mute(
-                    message, bot, session, group, signature, participants, edited=edited
-                )
-                await session.commit()
-                return
-
     if not edited and settings.slow_mode_enabled:
         key = slow_mode_key(message.chat.id, message.from_user.id)
         accepted = await redis.set(key, "1", ex=settings.slow_mode_seconds, nx=True)
@@ -488,7 +451,7 @@ async def protect_message(
         if repeats == 1:
             await redis.expire(key, 60)
         if repeats > settings.repeats_limit:
-            await delete_violation(message, session, group, "repeat", edited=edited)
+            await apply_repeat_mute(message, bot, session, group)
             await session.commit()
             return
 
