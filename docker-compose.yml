@@ -11,6 +11,8 @@ services:
       redis:
         condition: service_healthy
     command: ["sh", "-c", "python -m scripts.ensure_version_column && alembic upgrade head && python -m app.preflight && python -m app.main"]
+    ports:
+      - "8080:8080"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=3)"]
       interval: 15s
