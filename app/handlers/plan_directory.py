@@ -17,8 +17,8 @@ router = Router(name=__name__)
 def _catalog_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🆓 FREE", callback_data="plans_catalog:free")],
-        [InlineKeyboardButton(text="⭐ STANDARD · 250 Stars / 30 дней", callback_data="plans_catalog:standard")],
-        [InlineKeyboardButton(text="💎 PRO · 500 Stars / 30 дней", callback_data="plans_catalog:pro")],
+        [InlineKeyboardButton(text="⭐ STANDARD · 199 ₽ / 30 дней", callback_data="plans_catalog:standard")],
+        [InlineKeyboardButton(text="💎 PRO · 499 ₽ / 30 дней", callback_data="plans_catalog:pro")],
         [InlineKeyboardButton(text="📊 Сравнить тарифы", callback_data="plans_catalog:compare")],
         [InlineKeyboardButton(text="◀️ Главное меню", callback_data="panel:home")],
     ])
@@ -57,7 +57,7 @@ def _plan_description(plan_code: str) -> str:
         )
     if plan_code == "standard":
         return panel_header(
-            "STANDARD · 250 Stars / 30 дней",
+            "STANDARD · 199 ₽ / 30 дней",
             "Для активно развивающихся групп.\n\n"
             "Всё из FREE, а также:\n"
             "• расширенная защита от спама и флуда\n"
@@ -69,7 +69,7 @@ def _plan_description(plan_code: str) -> str:
             + common,
         )
     return panel_header(
-        "PRO · 500 Stars / 30 дней",
+        "PRO · 499 ₽ / 30 дней",
         "Для крупных групп и активного коммерческого использования.\n\n"
         "Всё из STANDARD, а также:\n"
         "• максимальные лимиты контента и управления\n"
@@ -86,7 +86,7 @@ def _purchase_keyboard(group_id: int, plan_code: str, source: str) -> InlineKeyb
     back = f"plans_catalog:{plan_code}" if source == "catalog" else f"plan:{group_id}"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text=f"⭐ Оформить за {plan['stars']} Stars",
+            text=f"💳 Оплатить картой · {plan['ruble']} ₽",
             callback_data=f"plan_checkout:{group_id}:{plan_code}:{source}",
         )],
         [InlineKeyboardButton(text="◀️ Назад", callback_data=back)],
@@ -121,9 +121,9 @@ async def compare(callback: CallbackQuery) -> None:
         "Сравнение тарифов",
         "FREE\n"
         "Базовая модерация, защита и статистика. 10 запрещённых слов, 5 причин наказаний.\n\n"
-        "STANDARD · 250 Stars / 30 дней\n"
+        "STANDARD · 199 ₽ / 30 дней\n"
         "Расширенная защита и аналитика, ежедневные отчёты, рекламные инструменты. 100 слов, 30 причин.\n\n"
-        "PRO · 500 Stars / 30 дней\n"
+        "PRO · 499 ₽ / 30 дней\n"
         "Всё из STANDARD, максимальные лимиты, приоритетная поддержка и полный коммерческий набор. 1000 слов, 100 причин.\n\n"
         "Во всех тарифах одинаково\n"
         "До 5 обязательных подписок / каналов. Количество администраторов Telegram и ролей Mimoru тарифом не ограничивается.",
@@ -206,8 +206,8 @@ async def group_plan(callback: CallbackQuery, bot: Bot, session: AsyncSession) -
             f"{identity}\n\nТекущий тариф: {effective_plan(group).upper()}\nСтатус: {state_text}{left}\n\nВыберите тариф, чтобы посмотреть подробное описание перед оплатой.",
         ),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⭐ STANDARD · 250 Stars", callback_data=f"plans_apply:standard:{group.id}:group")],
-            [InlineKeyboardButton(text="💎 PRO · 500 Stars", callback_data=f"plans_apply:pro:{group.id}:group")],
+            [InlineKeyboardButton(text="⭐ STANDARD · 199 ₽", callback_data=f"plans_apply:standard:{group.id}:group")],
+            [InlineKeyboardButton(text="💎 PRO · 499 ₽", callback_data=f"plans_apply:pro:{group.id}:group")],
             [InlineKeyboardButton(text="📜 История платежей", callback_data=f"plans_history:{group.id}")],
             [InlineKeyboardButton(text="◀️ Назад к группе", callback_data=f"group:{group.id}")],
         ]),

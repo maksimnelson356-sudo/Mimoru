@@ -39,6 +39,10 @@ def test_completed_payment_handler_keeps_idempotent_charge_claims() -> None:
     billing = (ROOT / "app/handlers/billing.py").read_text(encoding="utf-8")
     assert "@router.message(F.successful_payment)" in billing
     assert "await _locked_payment" in billing
-    assert "await _locked_global_post" in billing
+    assert "await _locked_global_post" not in billing
     assert "await _commit_payment_once" in billing
     assert "successful.telegram_payment_charge_id" in billing
+    # global-post claims now live in the dedicated AAIO card service
+    global_post = (ROOT / "app/services/global_post_payments.py").read_text(encoding="utf-8")
+    assert ".with_for_update()" in global_post
+    assert "item.payment_charge_id = charge_id" in global_post

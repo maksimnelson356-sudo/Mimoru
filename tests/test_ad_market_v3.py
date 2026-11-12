@@ -36,10 +36,11 @@ def test_global_post_requires_service_owner_review_before_payment() -> None:
     assert 'item.status = "pending_review"' in handler
     assert 'callback.from_user.id not in settings.service_owner_ids' in handler
     assert 'item.status = "approved"' in handler
-    assert 'payload=f"globalpost:{item.id}"' in handler
-    assert 'parts[0] == "globalpost"' in billing
-    assert 'item.status != "approved"' in billing
-    assert 'item.status = "paid"' in billing
+    # payment moved to external provider chooser (CrocoPay / XRocket)
+    assert "_offer_global_payment_choice" in handler
+    assert "gpost:pay:{item.id}:" in handler
+    assert 'parts[0] == "globalpost"' not in billing
+    assert 'item.status != "approved"' not in billing
 
 
 def test_global_post_distribution_targets_all_active_groups() -> None:

@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.ad_market_models import GlobalPostRequest
 from app.services.ui import panel_header
 
-
 router = Router(name=__name__)
 
 
@@ -34,7 +33,7 @@ async def global_post_invoice_back(callback: CallbackQuery, session: AsyncSessio
         "rejected": "❌ отклонён",
     }
     text = "\n".join(
-        f"#{item.id} · {labels.get(item.status, item.status)} · {item.price_stars} Stars"
+        f"#{item.id} · {labels.get(item.status, item.status)} · {item.price_stars} ₽"
         for item in rows
     ) if rows else "Заявок пока нет."
     await callback.bot.send_message(

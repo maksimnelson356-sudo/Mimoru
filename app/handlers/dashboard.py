@@ -538,10 +538,18 @@ async def service_sections(callback: CallbackQuery, session: AsyncSession) -> No
             )
             or 0
         )
+        plan_rub = int(
+            await session.scalar(
+                select(func.coalesce(func.sum(Payment.amount), 0)).where(
+                    Payment.status == "paid", Payment.currency == "RUB"
+                )
+            )
+            or 0
+        )
         plan_stars = int(
             await session.scalar(
                 select(func.coalesce(func.sum(Payment.amount), 0)).where(
-                    Payment.status == "paid"
+                    Payment.status == "paid", Payment.currency == "XTR"
                 )
             )
             or 0
@@ -557,7 +565,8 @@ async def service_sections(callback: CallbackQuery, session: AsyncSession) -> No
         text = (
             panel_header("Платежи")
             + f"\n\nУспешных оплат тарифов: {paid_count}\n"
-            f"Stars за тарифы: {plan_stars}\n"
+            f"Выручка за тарифы (₽): {plan_rub}\n"
+            f"Stars за тарифы (legacy): {plan_stars}\n"
             f"Stars за рекламу: {ad_stars}"
         )
     elif section == "ads":
@@ -636,11 +645,11 @@ async def service_subscriptions(callback: CallbackQuery, session: AsyncSession) 
     expiring = int(await session.scalar(select(func.count()).select_from(Group).where(
         Group.is_active.is_(True), Group.plan_expires_at > now, Group.plan_expires_at <= in_7
     )) or 0)
-    revenue = int(await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.status == "paid", Payment.currency == "XTR")) or 0)
+    revenue = int(await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.status == "paid", Payment.currency == "RUB")) or 0)
     rows = (await session.scalars(select(Group).where(Group.is_active.is_(True)).order_by(Group.plan_expires_at.asc().nullslast()).limit(12))).all()
     kb_rows = [[InlineKeyboardButton(text=f"{g.title[:28]} · {effective_plan(g).upper()}", callback_data=f"service_plan:{g.id}")] for g in rows]
     kb_rows.append([InlineKeyboardButton(text="◀️ Панель Mimoru", callback_data="service:home")])
-    text = panel_header("Управление тарифами", "Быстрый контроль подписок клиентов") + f"\n\n✅ Активных подписок: {active}\n⌛ Истекают ≤7 дней: {expiring}\n⭐ Получено за тарифы: {revenue}"
+    text = panel_header("Управление тарифами", "Быстрый контроль подписок клиентов") + f"\n\n✅ Активных подписок: {active}\n⌛ Истекают ≤7 дней: {expiring}\n💳 Получено за тарифы (₽): {revenue}"
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows)); await callback.answer()
 
 

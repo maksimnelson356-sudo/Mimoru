@@ -32,6 +32,22 @@ class Settings(BaseSettings):
     health_host: str = "0.0.0.0"
     health_port: int = 8080
     global_post_price_stars: int = 100
+    # CrocoPay (crocopay.tech) card payments. Keys are secrets and must be
+    # provided in .env, never committed.
+    croco_client_id: str = ""
+    croco_client_secret: str = ""
+    croco_webhook_path: str = "/webhook/crocopay"
+    croco_currency: str = "RUB"
+    croco_payment_option: str = "TO_CARD"
+    # XRocket Pay API (pay.api.xrocket.exchange).
+    xrocket_api_key: str = ""
+    xrocket_webhook_path: str = "/webhook/xrocket"
+    xrocket_currency: str = "RUB"
+    # Fixed price for a global ad post, in rubles.
+    ad_price_rub: int = 490
+    # Public HTTPS origin of this bot (scheme+host+port), used to build the
+    # provider webhook callback URLs, e.g. "https://pay.example.com:8080".
+    public_base_url: str = ""
     devtools_enabled: bool = False
     mimoru_env: str = "development"
 

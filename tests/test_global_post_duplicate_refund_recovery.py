@@ -63,14 +63,11 @@ def test_leader_worker_runs_and_stops_duplicate_refund_recovery() -> None:
 
 def test_duplicate_charge_id_is_unique_and_original_request_charge_is_not_overwritten() -> None:
     model = (ROOT / "app/db/payment_refund_models.py").read_text(encoding="utf-8")
-    billing = (ROOT / "app/handlers/billing.py").read_text(encoding="utf-8")
+    service = (ROOT / "app/services/global_post_payments.py").read_text(encoding="utf-8")
     assert "telegram_payment_charge_id" in model
     assert "unique=True" in model
 
-    handler = billing.split("async def successful_payment", 1)[1]
-    terminal = handler.split('if item.status in {"paid", "completed"}:', 1)[1].split(
-        'if item.status != "approved":', 1
-    )[0]
-    assert "item.payment_charge_id = charge_id" not in terminal
-    assert "item.status =" not in terminal
-    assert "item.completed_at =" not in terminal
+    # duplicate guards short-circuit before any charge overwrite in the card flow
+    assert "if item.payment_charge_id == charge_id and item.status in {\"paid\", \"completed\"}:" in service
+    assert "if item.payment_charge_id is not None and item.payment_charge_id != charge_id:" in service
+    assert "return \"duplicate\"" in service

@@ -28,6 +28,7 @@ PLAN_CATALOG = {
     "standard": {
         "title": "STANDARD",
         "stars": 250,
+        "ruble": 199,
         "days": 30,
         "limits": {"words": 100, "channels": 5, "moderators": 1_000_000, "reasons": 30},
         "features": {
@@ -38,6 +39,7 @@ PLAN_CATALOG = {
     "pro": {
         "title": "PRO",
         "stars": 500,
+        "ruble": 499,
         "days": 30,
         "limits": {"words": 1000, "channels": 5, "moderators": 1_000_000, "reasons": 100},
         "features": {

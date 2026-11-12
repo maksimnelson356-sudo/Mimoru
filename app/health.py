@@ -1,11 +1,15 @@
 import asyncio
+import urllib.parse
 from contextlib import suppress
 
 import structlog
 from redis.asyncio import Redis
 from sqlalchemy import text
 
+from app.core.config import get_settings
 from app.db.session import SessionFactory
+from app.webhooks.crocopay import handle_crocopay_webhook
+from app.webhooks.xrocket import handle_xrocket_webhook
 
 
 class HealthServer:
@@ -48,12 +52,39 @@ class HealthServer:
         body = b"not ready\n"
         try:
             request_line = await asyncio.wait_for(reader.readline(), timeout=2)
-            path = request_line.decode("ascii", errors="ignore").split(" ")[1]
-            if path == "/healthz":
+            parts = request_line.decode("ascii", errors="ignore").split()
+            if len(parts) < 2:
+                raise ValueError("malformed request line")
+            method, path = parts[0], parts[1]
+            content_length = 0
+            while True:
+                header_line = await asyncio.wait_for(reader.readline(), timeout=2)
+                if header_line in (b"\r\n", b"\n", b""):
+                    break
+                if header_line.lower().startswith(b"content-length:"):
+                    try:
+                        content_length = int(header_line.split(b":", 1)[1].strip())
+                    except ValueError:
+                        content_length = 0
+            request_body = b""
+            if content_length > 0:
+                if content_length > 1_000_000:
+                    raise ValueError("request body too large")
+                request_body = await asyncio.wait_for(
+                    reader.readexactly(content_length), timeout=5
+                )
+            route_path, _, query_string = path.partition("?")
+            settings = get_settings()
+            if route_path == settings.croco_webhook_path and method == "POST":
+                query = dict(urllib.parse.parse_qsl(query_string))
+                status, body = await handle_crocopay_webhook(request_body, query)
+            elif route_path == settings.xrocket_webhook_path and method == "POST":
+                status, body = await handle_xrocket_webhook(request_body)
+            elif path == "/healthz":
                 status, body = "200 OK", b"ok\n"
             elif path == "/readyz" and self.ready and await self._dependencies_ok():
                 status, body = "200 OK", b"ready\n"
-            elif path not in {"/healthz", "/readyz"}:
+            else:
                 status, body = "404 Not Found", b"not found\n"
         except Exception as error:
             structlog.get_logger().debug("health_request_invalid", error=str(error))

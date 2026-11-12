@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
+import structlog
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,6 @@ from app.db.ad_market_models import GlobalPostRequest, RequiredAdDealRequest, Re
 from app.db.models import Group
 from app.services.required_resources import normalize_public_telegram_resource, validate_invite_link
 from app.services.ui import clean_ui_text, panel_header
-
 
 router = Router(name=__name__)
 settings = get_settings()
@@ -58,15 +58,19 @@ async def _member_count(bot: Bot, group: Group) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Global advertising post: buyer -> Mimoru owner review -> Stars -> all groups
+# Global advertising post: buyer -> Mimoru owner review -> card -> all groups
 # ---------------------------------------------------------------------------
+
+
+def _ad_price() -> int:
+    return settings.ad_price_rub
 
 
 def _global_editor_text(item: GlobalPostRequest) -> str:
     return panel_header(
         f"Рекламный пост #{item.id}",
         f"Публикация: во всех активных группах Mimoru после одобрения создателем и оплаты.\n"
-        f"Стоимость после одобрения: {item.price_stars} Stars.\n\n"
+        f"Стоимость после одобрения: {_ad_price()} ₽.\n\n"
         f"Текст: {'✅ добавлен' if (item.text or '').strip() else '➖ не добавлен'}\n"
         f"Изображение: {'✅ добавлено' if item.photo_file_id else '➖ не добавлено'}\n"
         f"Кнопка: {'✅ ' + item.button_text if item.button_text and item.button_url else '➖ не добавлена'}\n\n"
@@ -118,7 +122,7 @@ async def global_post_entry(callback: CallbackQuery, session: AsyncSession, stat
     item = GlobalPostRequest(
         buyer_telegram_id=callback.from_user.id,
         status="draft",
-        price_stars=settings.global_post_price_stars,
+        price_stars=_ad_price(),
     )
     session.add(item)
     await session.commit()
@@ -304,7 +308,7 @@ async def _notify_global_review(bot: Bot, item: GlobalPostRequest) -> None:
                 panel_header(
                     "Проверка рекламного поста",
                     f"Заявка #{item.id}\nПокупатель: {item.buyer_telegram_id}\n"
-                    f"После одобрения покупателю будет выставлен счёт: {item.price_stars} Stars.\n"
+                    f"После одобрения покупателю будет выставлен счёт: {_ad_price()} ₽.\n"
                     "После оплаты пост автоматически отправится во все активные группы Mimoru.",
                 ),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -342,20 +346,20 @@ async def global_submit(callback: CallbackQuery, bot: Bot, session: AsyncSession
     await callback.answer("Заявка отправлена")
 
 
-async def _send_global_invoice(bot: Bot, item: GlobalPostRequest) -> None:
-    await bot.send_invoice(
-        chat_id=item.buyer_telegram_id,
-        title=f"Рекламный пост Mimoru #{item.id}",
-        description="Одобренный рекламный пост для публикации во всех активных группах Mimoru.",
-        payload=f"globalpost:{item.id}",
-        currency="XTR",
-        prices=[LabeledPrice(label="Глобальный рекламный пост", amount=item.price_stars)],
-        provider_token="",
+async def _offer_global_payment_choice(bot: Bot, item: GlobalPostRequest) -> bool:
+    """Send the buyer a payment method chooser."""
+    amount = _ad_price()
+    await bot.send_message(
+        item.buyer_telegram_id,
+        f"💳 Счёт за рекламный пост #{item.id}: {amount} ₽.\n"
+        "Выберите способ оплаты:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"⭐ Оплатить {item.price_stars} Stars", pay=True)],
+            [InlineKeyboardButton(text="💳 Оплатить картой (CrocoPay)", callback_data=f"gpost:pay:{item.id}:crocopay")],
+            [InlineKeyboardButton(text="🚀 Оплатить через XRocket", callback_data=f"gpost:pay:{item.id}:xrocket")],
             [InlineKeyboardButton(text="◀️ Мои рекламные посты", callback_data="gpost:mine")],
         ]),
     )
+    return True
 
 
 @router.callback_query(F.data.regexp(r"^gpost:pay:\d+$"))
@@ -364,8 +368,8 @@ async def global_reissue_invoice(callback: CallbackQuery, bot: Bot, session: Asy
     if item is None or item.status != "approved":
         await callback.answer("Счёт для этой заявки недоступен.", show_alert=True)
         return
-    await _send_global_invoice(bot, item)
-    await callback.answer("Счёт отправлен новым сообщением")
+    await _offer_global_payment_choice(bot, item)
+    await callback.answer("Способы оплаты отправлены новым сообщением")
 
 
 @router.callback_query(F.data.regexp(r"^gpost:(approve|reject):\d+$"))
@@ -378,7 +382,7 @@ async def global_review(callback: CallbackQuery, bot: Bot, session: AsyncSession
     if item is None or item.status != "pending_review":
         await callback.answer("Заявка уже обработана или недоступна.", show_alert=True)
         return
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     item.reviewed_by_telegram_id = callback.from_user.id
     item.reviewed_at = now
     if decision == "approve":
@@ -392,7 +396,7 @@ async def global_review(callback: CallbackQuery, bot: Bot, session: AsyncSession
                     [InlineKeyboardButton(text="📢 Мои рекламные посты", callback_data="gpost:mine")]
                 ]),
             )
-            await _send_global_invoice(bot, item)
+            await _offer_global_payment_choice(bot, item)
         except (TelegramBadRequest, TelegramForbiddenError):
             await callback.answer("Заявка одобрена, но покупателю не удалось отправить сообщение. Он сможет получить счёт из «Моих рекламных постов».", show_alert=True)
         status = "✅ Рекламный пост одобрен. Покупателю доступен счёт."
@@ -429,13 +433,13 @@ async def global_mine(callback: CallbackQuery, session: AsyncSession, state: FSM
         "completed": "✅ опубликован",
         "rejected": "❌ отклонён",
     }
-    text = "\n".join(f"#{item.id} · {labels.get(item.status, item.status)} · {item.price_stars} Stars" for item in items) if items else "Заявок пока нет."
+    text = "\n".join(f"#{item.id} · {labels.get(item.status, item.status)} · {item.price_stars} ₽" for item in items) if items else "Заявок пока нет."
     rows: list[list[InlineKeyboardButton]] = []
     for item in items:
         if item.status == "draft":
             rows.append([InlineKeyboardButton(text=f"✏️ Продолжить #{item.id}", callback_data=f"gpost:editor:{item.id}")])
         elif item.status == "approved":
-            rows.append([InlineKeyboardButton(text=f"⭐ Получить счёт #{item.id}", callback_data=f"gpost:pay:{item.id}")])
+            rows.append([InlineKeyboardButton(text=f"💳 Оплатить картой #{item.id}", callback_data=f"gpost:pay:{item.id}")])
     rows.extend([
         [InlineKeyboardButton(text="➕ Новый рекламный пост", callback_data="ads:buy:post")],
         [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
@@ -1018,7 +1022,7 @@ async def required_deal_decision(callback: CallbackQuery, bot: Bot, session: Asy
         else "Группа"
     )
     deal.status = "accepted" if decision == "accept" else "rejected"
-    deal.decided_at = datetime.now(timezone.utc)
+    deal.decided_at = datetime.now(UTC)
     await session.commit()
     accepted = decision == "accept"
     result = "✅ Запрос принят" if accepted else "❌ Запрос отклонён"

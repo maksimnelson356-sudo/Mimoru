@@ -10,7 +10,6 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    LabeledPrice,
     Message,
 )
 from redis.asyncio import Redis
@@ -28,6 +27,18 @@ from app.handlers.ad_market_v3 import RequiredDealForm, RequiredListingForm
 from app.handlers.required_direct import (
     ActivationError,
     activate_deal_subscription,
+)
+from app.services.crocopay import (
+    CrocoPayError,
+    create_invoice as croco_create_invoice,
+    get_invoice as croco_get_invoice,
+)
+from app.services.global_post_payments import activate_global_post_payment
+from app.services.xrocket import (
+    XRocketError,
+    create_invoice as xr_create_invoice,
+    get_invoice as xr_get_invoice,
+    is_paid_status as xr_is_paid_status,
 )
 from app.services.required_resources import (
     normalize_public_telegram_resource,
@@ -55,22 +66,25 @@ async def _member_count(bot: Bot, group: Group) -> int | None:
         return None
 
 
-async def _send_global_invoice(bot: Bot, item: GlobalPostRequest) -> None:
-    await bot.send_invoice(
-        chat_id=item.buyer_telegram_id,
-        title=f"Рекламный пост Mimoru #{item.id}",
-        description="Одобренный рекламный пост для публикации во всех активных группах Mimoru.",
-        payload=f"globalpost:{item.id}",
-        currency="XTR",
-        prices=[
-            LabeledPrice(label="Глобальный рекламный пост", amount=item.price_stars)
-        ],
-        provider_token="",
+async def _offer_global_payment_choice(bot: Bot, item: GlobalPostRequest) -> bool:
+    """Send the buyer a payment method chooser."""
+    amount = settings.ad_price_rub
+    await bot.send_message(
+        item.buyer_telegram_id,
+        f"💳 Счёт за рекламный пост #{item.id}: {amount} ₽.\n"
+        "Выберите способ оплаты:",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text=f"⭐ Оплатить {item.price_stars} Stars", pay=True
+                        text="💳 Оплатить картой (CrocoPay)",
+                        callback_data=f"gpost:pay:{item.id}:crocopay",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🚀 Оплатить через XRocket",
+                        callback_data=f"gpost:pay:{item.id}:xrocket",
                     )
                 ],
                 [
@@ -81,6 +95,7 @@ async def _send_global_invoice(bot: Bot, item: GlobalPostRequest) -> None:
             ]
         ),
     )
+    return True
 
 
 @router.callback_query(F.data.regexp(r"^gpost:(approve|reject):\d+$"))
@@ -124,7 +139,7 @@ async def atomic_global_review(
                     ]
                 ),
             )
-            await _send_global_invoice(bot, item)
+            await _offer_global_payment_choice(bot, item)
         except (TelegramBadRequest, TelegramForbiddenError):
             await callback.answer(
                 "Заявка одобрена, но покупателю не удалось отправить сообщение. Он сможет получить счёт из «Моих рекламных постов».",
@@ -157,6 +172,140 @@ async def atomic_global_review(
 
     await callback.message.edit_text(panel_header("Проверка завершена", status))
     await callback.answer("Решение сохранено")
+
+
+@router.callback_query(F.data.regexp(r"^gpost:pay:\d+:(crocopay|xrocket)$"))
+async def atomic_global_choose_provider(
+    callback: CallbackQuery, bot: Bot, session: AsyncSession
+) -> None:
+    _, _, raw_id, provider = callback.data.split(":")
+    item = await session.get(GlobalPostRequest, int(raw_id))
+    if item is None or item.buyer_telegram_id != callback.from_user.id:
+        await callback.answer("Заявка недоступна.", show_alert=True)
+        return
+    if item.status != "approved":
+        await callback.answer("Счёт для этой заявки недоступен.", show_alert=True)
+        return
+    base = settings.public_base_url.rstrip("/")
+    if not base:
+        await callback.answer("Оплата временно недоступна.", show_alert=True)
+        return
+    amount = settings.ad_price_rub
+    invoice_id = item.payment_charge_id or ""
+    pay_button = None
+    try:
+        if provider == "crocopay":
+            callback_url = f"{base}{settings.croco_webhook_path}?kind=g&id={item.id}"
+            if not invoice_id:
+                invoice = await croco_create_invoice(amount=amount, callback_url=callback_url)
+                invoice_id = str(invoice.get("id") or "")
+                item.payment_charge_id = invoice_id
+                display = str(invoice.get("card") or "")
+            else:
+                info = await croco_get_invoice(invoice_id)
+                display = str(info.get("card") or "")
+            is_link = display.startswith(("http://", "https://"))
+            if is_link:
+                pay_button = InlineKeyboardButton(text=f"💳 Оплатить {amount} ₽", url=display)
+            text = f"💳 Счёт за рекламный пост #{item.id}: {amount} ₽.\n"
+            if display and not is_link:
+                text += f"Переведите на карту: <code>{display}</code>\n"
+            text += "После перевода нажмите «Я оплатил(а)»."
+        else:
+            ref = f"g{item.id}"
+            callback_url = f"{base}{settings.xrocket_webhook_path}"
+            if not invoice_id:
+                invoice = await xr_create_invoice(
+                    amount=amount,
+                    client_invoice_id=ref,
+                    description=f"Рекламный пост Mimoru #{item.id}",
+                    callback_url=callback_url,
+                    callback_payload={"clientInvoiceId": ref},
+                )
+                invoice_id = str(invoice.get("id") or "")
+                item.payment_charge_id = invoice_id
+                pay_link = str((invoice.get("links") or {}).get("telegramBotLink") or "")
+            else:
+                info = await xr_get_invoice(ref)
+                pay_link = str((info.get("links") or {}).get("telegramBotLink") or "")
+            if pay_link:
+                pay_button = InlineKeyboardButton(text="🚀 Оплатить через XRocket", url=pay_link)
+            text = f"🚀 Счёт за рекламный пост #{item.id}: {amount} ₽.\nОткройте счёт в Telegram."
+    except (CrocoPayError, XRocketError) as exc:
+        log.warning("ad_provider_invoice_failed", provider=provider, request_id=item.id, error=str(exc))
+        await callback.answer("Не удалось создать счёт, попробуйте ещё раз.", show_alert=True)
+        return
+    await session.commit()
+    keyboard = []
+    if pay_button is not None:
+        keyboard.append([pay_button])
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text="✅ Я оплатил(а)", callback_data=f"gpost:check:{item.id}:{provider}"
+            )
+        ]
+    )
+    keyboard.append(
+        [InlineKeyboardButton(text="◀️ Мои рекламные посты", callback_data="gpost:mine")]
+    )
+    await callback.message.edit_text(
+        text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.regexp(r"^gpost:check:\d+:(crocopay|xrocket)$"))
+async def atomic_global_check_payment(
+    callback: CallbackQuery, session: AsyncSession
+) -> None:
+    _, _, raw_id, provider = callback.data.split(":")
+    item = await session.get(GlobalPostRequest, int(raw_id))
+    if item is None or item.buyer_telegram_id != callback.from_user.id:
+        await callback.answer("Заявка недоступна.", show_alert=True)
+        return
+    if item.status in {"paid", "completed"}:
+        await callback.answer("Оплата подтверждена, публикация идёт.", show_alert=True)
+        return
+    invoice_id = item.payment_charge_id or ""
+    try:
+        if provider == "crocopay":
+            if not invoice_id:
+                await callback.answer("Счёт не найден.", show_alert=True)
+                return
+            info = await croco_get_invoice(invoice_id)
+            paid = str(info.get("status") or "").lower() == "success"
+        else:
+            info = await xr_get_invoice(f"g{item.id}")
+            paid = xr_is_paid_status(str(info.get("status") or "").lower())
+    except (CrocoPayError, XRocketError):
+        await callback.answer("Не удалось проверить оплату, попробуйте ещё раз.", show_alert=True)
+        return
+    if not paid:
+        await callback.answer("Оплата ещё не завершена.", show_alert=True)
+        return
+    outcome = await activate_global_post_payment(
+        session, request_id=item.id, charge_id=invoice_id
+    )
+    if outcome in {"done", "duplicate"}:
+        await callback.message.edit_text(
+            panel_header(
+                "Оплата получена",
+                f"✅ Рекламный пост #{item.id} оплачен. Публикация во всех активных группах начнётся автоматически.",
+            ),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="📢 Мои рекламные посты", callback_data="gpost:mine"
+                        )
+                    ]
+                ]
+            ),
+        )
+        await callback.answer()
+    else:
+        await callback.answer("Оплата пока не подтверждена.", show_alert=True)
 
 
 @router.message(RequiredListingForm.price, F.chat.type == "private")

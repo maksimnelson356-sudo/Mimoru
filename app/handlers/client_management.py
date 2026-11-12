@@ -200,11 +200,11 @@ async def extended_stats(message: Message, session: AsyncSession) -> None:
     groups = await session.scalar(select(func.count()).select_from(Group)) or 0
     active_groups = await session.scalar(select(func.count()).select_from(Group).where(Group.is_active.is_(True))) or 0
     paid_groups = await session.scalar(select(func.count()).select_from(Group).where(Group.plan_code.in_(["standard", "pro"]), Group.plan_expires_at > now)) or 0
-    revenue_stars = await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.status == "paid", Payment.currency == "XTR")) or 0
+    revenue_rub = await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.status == "paid", Payment.currency == "RUB")) or 0
     open_tickets = await session.scalar(select(func.count()).select_from(SupportTicket).where(SupportTicket.status == "new")) or 0
     await message.answer(
         "Статистика сервиса\n"
         f"Клиентов: {users}\nЗаблокировано: {blocked}\n"
         f"Групп: {groups}\nАктивных: {active_groups}\nПлатных: {paid_groups}\n"
-        f"Получено Stars: {revenue_stars}\nОткрытых обращений: {open_tickets}"
+        f"Получено за тарифы (₽): {revenue_rub}\nОткрытых обращений: {open_tickets}"
     )

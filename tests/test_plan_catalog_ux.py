@@ -23,12 +23,11 @@ def test_catalog_selects_tariff_before_group():
     assert 'callback_data=f"plans_apply:{plan_code}:{group.id}:catalog"' in code
 
 
-def test_invoice_back_deletes_invoice_instead_of_editing_it():
+def test_invoice_back_edits_to_plan_description_instead_of_deleting():
     code = (ROOT / "app/handlers/plan_catalog.py").read_text(encoding="utf-8")
     assert "plan_invoice_back:" in code
     block = code.split("async def invoice_back", 1)[1]
-    assert "await callback.message.delete()" in block
-    assert "edit_text" not in block.split("@router", 1)[0]
+    assert "await callback.message.edit_text(" in block
 
 
 def test_plan_descriptions_show_real_differences_and_equal_op_limit():

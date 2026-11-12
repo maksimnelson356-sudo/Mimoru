@@ -158,11 +158,11 @@ async def _render_client(
     active_groups = sum(1 for group in groups if group.is_active)
     paid_groups = sum(1 for group in groups if subscription_state(group) == "active")
     trial_groups = sum(1 for group in groups if subscription_state(group) == "trial")
-    paid_total = int(await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(
-        Payment.user_telegram_id == telegram_id, Payment.status == "paid", Payment.currency == "XTR",
+    paid_total_rub = int(await session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(
+        Payment.user_telegram_id == telegram_id, Payment.status == "paid", Payment.currency == "RUB",
     )) or 0)
     paid_count = int(await session.scalar(select(func.count()).select_from(Payment).where(
-        Payment.user_telegram_id == telegram_id, Payment.status == "paid", Payment.currency == "XTR",
+        Payment.user_telegram_id == telegram_id, Payment.status == "paid", Payment.currency == "RUB",
     )) or 0)
     last_payment = await session.scalar(select(Payment).where(
         Payment.user_telegram_id == telegram_id, Payment.status == "paid",
@@ -171,7 +171,8 @@ async def _render_client(
     if last_payment is not None:
         when = last_payment.paid_at or last_payment.created_at
         if when:
-            last_payment_text = f"{when:%d.%m.%Y} · {last_payment.amount} Stars · {last_payment.plan_code.upper()}"
+            unit = "Stars" if last_payment.currency == "XTR" else "₽"
+            last_payment_text = f"{when:%d.%m.%Y} · {last_payment.amount} {unit} · {last_payment.plan_code.upper()}"
     rows = [[InlineKeyboardButton(
         text=f"🏠 {group.title[:30]} · {_plan_label(group)}",
         callback_data=f"cg:c{telegram_id}:{group.id}",
@@ -195,7 +196,7 @@ async def _render_client(
         f"\nПлатных групп: {paid_groups}"
         f"\nГрупп на TRIAL: {trial_groups}"
         f"\nУспешных оплат: {paid_count}"
-        f"\nОплачено всего: {paid_total} Stars"
+        f"\nОплачено (₽): {paid_total_rub}"
         f"\nПоследняя оплата: {last_payment_text}"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))

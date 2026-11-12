@@ -173,9 +173,9 @@ def test_plan_flow_has_group_picker_detail_invoice_and_back_paths():
     assert 'F.data == "panel:plans"' in catalog
     assert 'callback_data=f"plans_choose_group:{plan_code}"' in catalog
     assert 'F.data.regexp(r"^plan_checkout:\\d+:(standard|pro):(catalog|group)$")' in catalog
-    assert "answer_invoice(" in catalog
-    assert "pay=True" in catalog
-    assert 'text="◀️ Назад к описанию тарифа"' in catalog
+    assert "plan_choose_provider:" in catalog
+    assert "plan_check_payment:" in catalog
+    assert 'text="◀️ Отменить"' in catalog
     router_block = main.split("dp.include_routers(", 1)[1]
     assert router_block.index("plan_catalog.router") < router_block.index("billing.router")
     assert router_block.index("plan_catalog.router") < router_block.index("dashboard.router")

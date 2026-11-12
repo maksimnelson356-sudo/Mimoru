@@ -194,4 +194,4 @@ def test_money_paths_stay_owner_only() -> None:
     assert "query = query.where(Group.owner_telegram_id == user_id)" in money
 
     plan = _read("app/handlers/plan_catalog.py")
-    assert "from app.services.access import accessible_group, is_service_owner, owned_group" in plan
+    assert "from app.services.access import accessible_group, owned_group" in plan

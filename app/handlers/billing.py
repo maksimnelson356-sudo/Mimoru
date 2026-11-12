@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from aiogram import F, Router
@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.ad_market_models import GlobalPostRequest
 from app.db.models import Group, GroupSubscriptionEvent, Payment
-from app.services.global_post_refunds import record_and_attempt_duplicate_refund
-from app.services.subscription_duplicate_refunds import record_and_attempt_subscription_duplicate_refund
+from app.services.subscription_duplicate_refunds import (
+    record_and_attempt_subscription_duplicate_refund,
+)
 from app.services.ui import clean_ui_text
-
 
 router = Router(name=__name__)
 
@@ -31,28 +31,6 @@ async def _current_owned_group(session: AsyncSession, group_id: int, owner_id: i
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery, session: AsyncSession) -> None:
     parts = query.invoice_payload.split(":")
-
-    if len(parts) == 2 and parts[0] == "globalpost":
-        try:
-            request_id = int(parts[1])
-        except ValueError:
-            await query.answer(ok=False, error_message="Некорректная заявка рекламного поста.")
-            return
-        item = await session.get(GlobalPostRequest, request_id)
-        if (
-            item is None
-            or item.status != "approved"
-            or item.buyer_telegram_id != query.from_user.id
-            or query.currency != "XTR"
-            or query.total_amount != item.price_stars
-        ):
-            await query.answer(
-                ok=False,
-                error_message="Заявка не одобрена, уже оплачена или её параметры изменились.",
-            )
-            return
-        await query.answer(ok=True)
-        return
 
     if len(parts) == 4 and parts[0] == "payment":
         try:
@@ -222,62 +200,6 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
     successful = message.successful_payment
     parts = successful.invoice_payload.split(":")
 
-    if len(parts) == 2 and parts[0] == "globalpost":
-        try:
-            request_id = int(parts[1])
-        except ValueError:
-            return
-        item = await _locked_global_post(session, request_id)
-        if item is None:
-            return
-        charge_id = successful.telegram_payment_charge_id
-        if (
-            item.buyer_telegram_id != message.from_user.id
-            or successful.currency != "XTR"
-            or successful.total_amount != item.price_stars
-        ):
-            return
-        if item.status in {"paid", "completed"}:
-            if item.payment_charge_id == charge_id:
-                return
-            refunded = await record_and_attempt_duplicate_refund(
-                message.bot,
-                session,
-                request_id=item.id,
-                buyer_telegram_id=message.from_user.id,
-                charge_id=charge_id,
-            )
-            if refunded:
-                await message.answer(
-                    f"↩️ Повторная оплата рекламного поста #{item.id} возвращена. "
-                    "Исходная оплата и публикация остаются без изменений."
-                )
-            else:
-                await message.answer(
-                    f"⚠️ Обнаружена повторная оплата рекламного поста #{item.id}. Возврат сохранён и будет повторён автоматически."
-                )
-            return
-        if item.status != "approved":
-            return
-        item.status = "paid"
-        item.payment_charge_id = charge_id
-        item.paid_at = datetime.now(timezone.utc)
-        if not await _commit_payment_once(
-            session,
-            charge_id=charge_id,
-            kind="globalpost",
-            record_id=item.id,
-        ):
-            return
-        await message.answer(
-            f"✅ Рекламный пост #{item.id} оплачен. Mimoru начинает автоматическую публикацию во всех активных группах.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📢 Мои рекламные посты", callback_data="gpost:mine")],
-                [InlineKeyboardButton(text="◀️ Реклама", callback_data="ads:home")],
-            ]),
-        )
-        return
-
     if len(parts) == 4 and parts[0] == "payment":
         try:
             payment_id = int(parts[1])
@@ -328,7 +250,7 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
                     charge_id=charge_id,
                 )
                 if refunded:
-                    await message.answer("↩️ Возврат Stars по этому счёту завершён.")
+                    await message.answer("↩️ Возврат средств по этому счёту завершён.")
                 return
             if (
                 payment.user_telegram_id != message.from_user.id
@@ -364,7 +286,7 @@ async def successful_payment(message: Message, session: AsyncSession) -> None:
         ):
             return
         # Group already locked at the start (lock order: Group -> Payment)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if group.owner_telegram_id != message.from_user.id or not group.is_active:
             await _refund_stale_subscription_payment(
                 message,

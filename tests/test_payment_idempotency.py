@@ -65,7 +65,7 @@ def test_payment_timestamp_is_bound_before_first_use() -> None:
     source = _billing_source()
     handler = source.split("async def successful_payment", 1)[1]
     subscription = handler.split('if len(parts) == 4 and parts[0] == "payment":', 1)[1]
-    binding = "now = datetime.now(timezone.utc)"
+    binding = "now = datetime.now(UTC)"
     assert subscription.count(binding) == 1
     first_use = min(
         subscription.index(needle)
@@ -75,32 +75,18 @@ def test_payment_timestamp_is_bound_before_first_use() -> None:
 
 
 def test_terminal_global_post_distinguishes_same_charge_from_distinct_charge() -> None:
-    source = _billing_source()
-    handler = source.split("async def successful_payment", 1)[1]
-    global_post = handler.split('if len(parts) == 2 and parts[0] == "globalpost":', 1)[1].split(
-        'if len(parts) == 4 and parts[0] == "payment":', 1
-    )[0]
-    terminal = global_post.split('if item.status in {"paid", "completed"}:', 1)[1].split(
-        'if item.status != "approved":', 1
-    )[0]
-    assert "if item.payment_charge_id == charge_id:" in terminal
-    assert "await record_and_attempt_duplicate_refund" in terminal
-    assert "item.payment_charge_id = charge_id" not in terminal
-    assert "item.status =" not in terminal
-    assert "item.completed_at =" not in terminal
+    source = (ROOT / "app/services/global_post_payments.py").read_text(encoding="utf-8")
+    assert "if item.payment_charge_id == charge_id and item.status in {\"paid\", \"completed\"}:" in source
+    assert "if item.payment_charge_id is not None and item.payment_charge_id != charge_id:" in source
+    assert "return \"duplicate\"" in source
 
 
-def test_duplicate_global_post_refund_delegates_to_durable_service() -> None:
-    source = _billing_source()
-    assert "from app.services.global_post_refunds import record_and_attempt_duplicate_refund" in source
-    handler = source.split("async def successful_payment", 1)[1]
-    terminal = handler.split('if item.status in {"paid", "completed"}:', 1)[1].split(
-        'if item.status != "approved":', 1
-    )[0]
-    assert "request_id=item.id" in terminal
-    assert "buyer_telegram_id=message.from_user.id" in terminal
-    assert "charge_id=charge_id" in terminal
-    assert "будет повторён автоматически" in terminal
+def test_duplicate_global_post_charge_returns_without_overwriting_original() -> None:
+    source = (ROOT / "app/services/global_post_payments.py").read_text(encoding="utf-8")
+    assert "return \"duplicate\"" in source
+    # idempotency guards must run before the paid/charge assignment
+    assert source.index("return \"duplicate\"") < source.index('item.status = "paid"')
+    assert "item.payment_charge_id = charge_id" in source
 
 
 def test_terminal_subscription_records_distinguish_replay_from_distinct_charge() -> None:
@@ -117,9 +103,10 @@ def test_terminal_subscription_records_distinguish_replay_from_distinct_charge()
     assert 'payment.status = "refunded"' not in terminal
 
 
-def test_both_payment_kinds_store_telegram_charge_ids() -> None:
+def test_both_payment_kinds_store_charge_ids() -> None:
     source = _billing_source()
-    assert "item.payment_charge_id = charge_id" in source
+    global_post = (ROOT / "app/services/global_post_payments.py").read_text(encoding="utf-8")
+    assert "item.payment_charge_id = charge_id" in global_post
     assert "payment.provider_payment_id = charge_id" in source
 
 
