@@ -4,18 +4,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_deferred_join_enforcement_locks_before_ban_authority_and_telegram() -> None:
+def test_deferred_join_enforcement_commits_db_before_telegram_call() -> None:
     source = (ROOT / "app/handlers/deferred_bans.py").read_text(encoding="utf-8")
     body = source.split("async def enforce_pending_ban_on_join", 1)[1]
 
-    group_lock = body.index("_group(session, message.chat.id, for_update=True)")
-    pending = body.index("await _pending_for", group_lock)
+    claim = body.index("redis.set(claim_key")
+    pending = body.index("await _pending_for", claim)
     active_ban = body.index("select(Punishment)", pending)
-    telegram_ban = body.index("await bot.ban_chat_member", active_ban)
+    db_commit = body.index("await session.commit()", active_ban)
+    telegram_ban = body.index("await bot.ban_chat_member", db_commit)
     ensure = body.index("await _ensure_punishment", telegram_ban)
-    commit = body.index("await session.commit()", ensure)
+    add_banned = body.index("banned_user_ids.add(member.id)", ensure)
+    commit = body.index("await session.commit()", add_banned)
 
-    assert group_lock < pending < active_ban < telegram_ban < ensure < commit
+    # A claim is taken, DB decision is committed, and only then is Telegram called;
+    # the Punishment write is committed before the notification.
+    assert claim < pending < active_ban < db_commit < telegram_ban < ensure < add_banned < commit
+    # The Group row is no longer locked across the pipeline.
+    assert "_group(session, message.chat.id)" in body
+    assert "_group(session, message.chat.id, for_update=True)" not in body
 
 
 def test_explicit_unban_uses_same_group_serialization_boundary() -> None:
@@ -45,4 +52,4 @@ def test_deferred_ban_join_logic_is_helper_of_single_members_winner() -> None:
     assert "async def enforce_pending_ban_on_join" in deferred
     assert "@router.message(F.new_chat_members)" in members
     welcome = members.split("async def welcome", 1)[1].split("async def verification_callback", 1)[0]
-    assert "banned_user_ids = await enforce_pending_ban_on_join(message, bot, session)" in welcome
+    assert "banned_user_ids = await enforce_pending_ban_on_join(message, bot, session, redis)" in welcome

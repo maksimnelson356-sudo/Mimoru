@@ -75,12 +75,12 @@ async def is_subscribed(bot: Bot, user_id: int, channels: list[str]) -> tuple[bo
 
 @router.message(F.new_chat_members)
 async def welcome(message: Message, bot: Bot, session: AsyncSession, redis: Redis) -> None:
-    banned_user_ids = await enforce_pending_ban_on_join(message, bot, session)
+    banned_user_ids = await enforce_pending_ban_on_join(message, bot, session, redis)
     group = await session.scalar(
         select(Group).where(
             Group.telegram_chat_id == message.chat.id,
             Group.is_active.is_(True),
-        ).with_for_update()
+        )
     )
     if not group:
         return
@@ -94,6 +94,12 @@ async def welcome(message: Message, bot: Bot, session: AsyncSession, redis: Redi
         group.settings.anti_raid_limit,
         group.settings.anti_raid_enabled,
     )
+    # Phase 1: all database mutations are accumulated and committed before any
+    # Telegram API call.  Keeping the transaction open across the network I/O
+    # below held a pooled connection (and previously a FOR UPDATE row lock) for
+    # the whole multi-member join, which serialized concurrent joins and starved
+    # the connection pool.
+    decisions: list[tuple[Message, bool]] = []
     for member in message.new_chat_members:
         if member.is_bot or member.id in banned_user_ids:
             continue
@@ -112,6 +118,11 @@ async def welcome(message: Message, bot: Bot, session: AsyncSession, redis: Redi
             TrustedUser.user_telegram_id == member.id,
         ))
         needs_verification = trusted is None and (group.settings.captcha_enabled or bool(channels) or raid_mode)
+        decisions.append((member, needs_verification))
+    await session.commit()
+
+    # Phase 2: network-only side effects, fully outside the database transaction.
+    for member, needs_verification in decisions:
         if needs_verification:
             try:
                 await bot.restrict_chat_member(message.chat.id, member.id, permissions=RESTRICTED)
@@ -136,7 +147,6 @@ async def welcome(message: Message, bot: Bot, session: AsyncSession, redis: Redi
                 .replace("{имя}", public_user_token(member.id))
                 .replace("{группа}", message.chat.title or "группа")
             )
-    await session.commit()
 
 
 @router.callback_query(F.data.startswith("verify:"))

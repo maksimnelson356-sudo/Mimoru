@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import secrets
+
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import Message
+from redis.asyncio import Redis
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +24,33 @@ from app.services.user_refs import resolve_known_user_reference, user_label
 
 router = Router(name=__name__)
 GROUP_TYPES = {"group", "supergroup"}
+
+# TTL for the per-member Redis claim guarding concurrent join enforcement. It
+# covers the whole handling window (DB + Telegram call); the lease is extended
+# before each network call so a slow Telegram request cannot lose ownership.
+_CLAIM_TTL_SECONDS = 60
+
+# Release the claim only if we still own it (value == our token). Never delete
+# unconditionally, otherwise a handler could steal another handler's claim
+# after the original TTL expired.
+_RELEASE_CLAIM_LUA = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+
+# Extend the claim TTL only if we still own it. This lets a handler renew its
+# own lease (e.g. before a slow Telegram call) without being able to extend a
+# claim owned by another handler.
+_EXTEND_CLAIM_LUA = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("expire", KEYS[1], ARGV[2])
+else
+    return 0
+end
+"""
 
 
 async def _group(
@@ -252,39 +282,82 @@ async def enforce_pending_ban_on_join(
     message: Message,
     bot: Bot,
     session: AsyncSession,
+    redis: Redis,
 ) -> set[int]:
     """Apply deferred bans first and return only members successfully banned.
 
     This is intentionally a helper, not a competing ``F.new_chat_members`` handler.
     The single live join pipeline in ``members.welcome`` calls it before CAPTCHA and
     welcome processing, then skips the returned member IDs.
+
+    The ``Group`` row is read without ``FOR UPDATE``: locking it here did not
+    protect the PendingBan/Punishment rows and held the lock across network I/O.
+    Instead each member is guarded by a short-lived Redis claim key so concurrent
+    join events for the same member are applied exactly once. All database work
+    for a member is committed before any Telegram call, so no row lock / open
+    transaction is held across network I/O.
     """
-    group = await _group(session, message.chat.id, for_update=True)
+    group = await _group(session, message.chat.id)
     if group is None:
         return set()
     banned_user_ids: set[int] = set()
     for member in message.new_chat_members or []:
         if member.is_bot:
             continue
-        username = member.username.casefold() if member.username else None
-        pending = await _pending_for(session, group.id, user_id=member.id, username=username)
-        active_ban = await session.scalar(select(Punishment).where(
-            Punishment.group_id == group.id,
-            Punishment.user_telegram_id == member.id,
-            Punishment.kind == "ban",
-            Punishment.active.is_(True),
-        ).order_by(Punishment.created_at.desc()))
-        if pending is None and active_ban is None:
+        claim_key = f"pending_ban_applying:{group.id}:{member.id}"
+        token = secrets.token_hex(16)
+        claimed = await redis.set(claim_key, token, nx=True, ex=_CLAIM_TTL_SECONDS)
+        if not claimed:
             continue
-        moderator_id = pending.moderator_telegram_id if pending is not None else active_ban.moderator_telegram_id
-        if pending is not None and pending.user_telegram_id is None:
-            pending.user_telegram_id = member.id
+        released = False
+
+        async def _release_claim() -> None:
+            nonlocal released
+            if not released:
+                released = True
+                await redis.eval(_RELEASE_CLAIM_LUA, 1, claim_key, token)
+
         try:
-            await bot.ban_chat_member(group.telegram_chat_id, member.id)
-        except (TelegramBadRequest, TelegramForbiddenError):
-            continue
-        await _ensure_punishment(session, group, member.id, moderator_id, "Автоматически применён предварительный бан")
-        banned_user_ids.add(member.id)
-        await message.answer(f"🚫 {member.full_name} автоматически забанен: пользователь находился в списке запретов Mimoru.")
-    await session.commit()
+            username = member.username.casefold() if member.username else None
+            pending = await _pending_for(session, group.id, user_id=member.id, username=username)
+            active_ban = await session.scalar(select(Punishment).where(
+                Punishment.group_id == group.id,
+                Punishment.user_telegram_id == member.id,
+                Punishment.kind == "ban",
+                Punishment.active.is_(True),
+            ).order_by(Punishment.created_at.desc()))
+            if pending is None and active_ban is None:
+                continue
+            moderator_id = (
+                pending.moderator_telegram_id
+                if pending is not None
+                else active_ban.moderator_telegram_id
+            )
+            if pending is not None and pending.user_telegram_id is None:
+                pending.user_telegram_id = member.id
+            # Commit DB-only work before touching Telegram.
+            await session.commit()
+            # Renew our own lease before a potentially slow network call. This
+            # cannot extend another handler's claim because it requires the same
+            # unique token value.
+            await redis.eval(_EXTEND_CLAIM_LUA, 1, claim_key, token, _CLAIM_TTL_SECONDS)
+            try:
+                await bot.ban_chat_member(group.telegram_chat_id, member.id)
+            except (TelegramBadRequest, TelegramForbiddenError):
+                continue
+            await _ensure_punishment(
+                session,
+                group,
+                member.id,
+                moderator_id,
+                "Автоматически применён предварительный бан",
+            )
+            banned_user_ids.add(member.id)
+            await session.commit()
+            await redis.eval(_EXTEND_CLAIM_LUA, 1, claim_key, token, _CLAIM_TTL_SECONDS)
+            await message.answer(
+                f"🚫 {member.full_name} автоматически забанен: пользователь находился в списке запретов Mimoru."
+            )
+        finally:
+            await _release_claim()
     return banned_user_ids

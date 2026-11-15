@@ -10,14 +10,16 @@ def test_members_join_winner_runs_deferred_bans_before_security_pipeline() -> No
 
     deferred = body.index("await enforce_pending_ban_on_join")
     group = body.index("select(Group)", deferred)
-    group_lock = body.index(".with_for_update()", group)
-    channels = body.index("await required_channels", group_lock)
+    channels = body.index("await required_channels", group)
     tracking = body.index("await track_group_member", channels)
-    restrict = body.index("await bot.restrict_chat_member", tracking)
+    commit = body.index("await session.commit()", tracking)
+    restrict = body.index("await bot.restrict_chat_member", commit)
     captcha_state = body.index("await redis.set(", restrict)
-    commit = body.rindex("await session.commit()")
 
-    assert deferred < group < group_lock < channels < tracking < restrict < captcha_state < commit
+    # The DB transaction must be committed before any Telegram network call, so
+    # no connection / row lock is held across the network I/O.
+    assert deferred < group < channels < tracking < commit < restrict < captcha_state
+    assert ".with_for_update()" not in body or body.index(".with_for_update()") > captcha_state
 
 
 def test_banned_members_are_skipped_but_other_members_continue() -> None:

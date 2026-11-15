@@ -61,11 +61,13 @@ def test_manual_unban_locks_group_before_permission_telegram_and_commit() -> Non
     assert lock < permission < telegram < commit
 
 
-def test_automatic_pending_ban_enforcement_uses_group_lock_without_actor_permission_check() -> None:
+def test_automatic_pending_ban_enforcement_uses_redis_claim_without_actor_permission_check() -> None:
     source = _source()
     start = source.index("async def enforce_pending_ban_on_join")
     body = source[start:]
 
-    assert "await _group(session, message.chat.id, for_update=True)" in body
+    assert "await _group(session, message.chat.id)" in body
+    assert "await _group(session, message.chat.id, for_update=True)" not in body
+    assert "redis.set(claim_key" in body
     assert "can_moderate(" not in body
     assert "await bot.ban_chat_member(group.telegram_chat_id, member.id)" in body
